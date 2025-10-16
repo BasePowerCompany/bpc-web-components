@@ -1,0 +1,145 @@
+:host {
+	--grey-20: #d8d7d5;
+	--grey-90: #999;
+	font: inherit;
+}
+
+:host * {
+	box-sizing: border-box;
+}
+
+.autocomplete {
+	position: relative;
+}
+
+.input {
+	position: relative;
+	padding: 20px 8px 20px 44px;
+	font-size: 16px;
+	line-height: 24px;
+	width: 100%;
+	background-color: transparent;
+	border: none;
+	outline: none;
+	font-family: inherit;
+}
+
+.inputContainer:focus-within {
+	border-color: var(--grey-90);
+	outline: 2px solid var(--grey-20);
+	outline-offset: 0;
+}
+
+.inputContainer {
+	position: relative;
+	background-color: white;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+.activated .inputContainer {
+	z-index: 1001;
+}
+
+.mapPin {
+	position: absolute;
+	left: 16px;
+	top: 50%;
+	transform: translateY(-50%);
+}
+
+.activateButton {
+	font-size: inherit;
+	font-family: inherit;
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: #084d41;
+	font-weight: 600;
+	border-radius: 8px;
+	transition: background-color 0.2s ease-in-out;
+	background-color: #d0f585;
+	padding: 8px 20px;
+	box-shadow: inset 0 0 0 1px #0b0e0f0d;
+}
+.activateButton:hover {
+	background-color: #ecfad0;
+}
+
+.inputContainer > .activateButton {
+	position: absolute;
+	right: 8px;
+	top: 8px;
+	bottom: 8px;
+}
+
+.activateButton.mobileBtn {
+	display: none;
+	width: 100%;
+	margin-top: 8px;
+}
+
+.activated .activateButton {
+	display: none;
+}
+
+.activated .overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background-color: rgba(41, 40, 38, 0.8);
+	z-index: 1000;
+}
+
+.results {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	background: white;
+	margin-top: -8px;
+	padding: 16px 8px 8px 8px;
+	border-radius: 0 0 8px 8px;
+	border-color: var(--grey-90);
+	outline: 2px solid var(--grey-20);
+	outline-offset: 0;
+	z-index: 1000;
+}
+
+.result {
+	padding: 12px 8px;
+	font-weight: 600;
+	border-radius: 8px;
+}
+
+.result[aria-selected="true"] {
+	background-color: #d0f58555;
+	cursor: default;
+}
+
+.result span {
+	margin-left: 6px;
+	font-size: 14px;
+	color: var(--grey-90);
+	font-weight: 500;
+}
+
+@media screen and (max-width: 540px) {
+	.input {
+		padding: 12px 8px 12px 40px;
+		line-height: 24px;
+	}
+	.mapPin {
+		left: 12px;
+	}
+	.inputContainer > .activateButton {
+		display: none;
+	}
+	.activateButton.mobileBtn {
+		display: block;
+		padding: 14px 20px;
+	}
+}

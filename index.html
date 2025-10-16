@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Address Router Preview</title>
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <script type="module" src="./src/entry.tsx"></script>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      }
+      .container {
+        padding: 300px 20px 60px 20px;
+      }
+      .dark {
+        background-color: #2b2d42;
+      }
+      .light {
+        background-color: #eee;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container dark">
+      <div style="max-width: 540px;">
+        <bpc-address-search public-key="%VITE_GOOGLE_MAPS_API_KEY%" cta="See if my home qualifies"></bpc-address-search>
+        <script>(() => {
+          const el = document.currentScript.previousElementSibling;
+          el.addEventListener('select', e => console.log(e.detail));
+        })();</script>
+      </div>
+    </div>
+    <div class="container light">
+      <div style="max-width: 540px;">
+        <bpc-address-search public-key="%VITE_GOOGLE_MAPS_API_KEY%"></bpc-address-search>
+        <script>(() => {
+          const el = document.currentScript.previousElementSibling;
+          el.addEventListener('select', e => console.log(e.detail));
+        })();</script>
+      </div>
+    </div>
+  </body>
+</html>
