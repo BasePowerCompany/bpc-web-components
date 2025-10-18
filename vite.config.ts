@@ -3,8 +3,6 @@ import react from "@vitejs/plugin-react";
 import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig } from "vite";
 
-console.log(process.env.NODE_ENV);
-
 export default defineConfig({
 	plugins: [react(), visualizer()],
 	build: {
