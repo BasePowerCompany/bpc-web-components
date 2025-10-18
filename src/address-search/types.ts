@@ -10,5 +10,16 @@ export type AddressResult = {
 		longitude?: number;
 		externalId?: string;
 	};
-	legacy?: Record<string, string>;
 };
+
+export type HydrationResult =
+	| {
+			success: true;
+			data: {
+				redirectUrl: string;
+			};
+	  }
+	| {
+			success: false;
+			error: string;
+	  };

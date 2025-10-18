@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { fetchHydration } from "@/address-search/fetch";
 import type { AddressResult } from "@/address-search/types";
 import { bootstrap } from "@/utils/googleMaps";
 import type { AddressSearchProps } from "./AddressSearch";
@@ -54,8 +55,31 @@ class AddressSearchElement extends HTMLElement {
 
 		bootstrap({ key: props.publicApiKey, v: "weekly", libraries: ["places"] });
 
-		const onSelect = (detail: { result: AddressResult | undefined }) =>
+		const onSelect = async (detail: {
+			selection: AddressResult | undefined;
+		}) => {
+			// Fire the select event to the parent
 			this.dispatchEvent(new CustomEvent("select", { detail }));
+
+			// If no selection, return
+			if (!detail.selection) return;
+
+			// Fetch the hydration data
+			const result = await fetchHydration(detail.selection);
+			if (result.success) {
+				// Fire the result event to the parent
+				this.dispatchEvent(
+					new CustomEvent("result", {
+						detail: { result: result.data, selection: detail.selection },
+					}),
+				);
+			} else {
+				// Fire the error event to the parent
+				this.dispatchEvent(
+					new CustomEvent("error", { detail: { error: result.error } }),
+				);
+			}
+		};
 
 		createRoot(this.container).render(
 			<StrictMode>
