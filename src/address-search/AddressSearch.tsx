@@ -9,7 +9,7 @@ import { Autocomplete, type Result } from "./Autocomplete";
 export type AddressSearchProps = {
 	placeholder?: string;
 	cta?: string;
-	onSelect?: (detail: { result: AddressResult | undefined }) => void;
+	onSelect?: (detail: { selection: AddressResult | undefined }) => void;
 };
 
 export function AddressSearch({
@@ -104,7 +104,7 @@ export function AddressSearch({
 					fields: ["location", "formattedAddress", "addressComponents"],
 				})
 				.then(({ place }) => {
-					onSelect?.({ result: parseAddress(place) });
+					onSelect?.({ selection: parseAddress(place) });
 				});
 
 			// Clear cached values now that our selection is complete -- the token is only valid until the first toPlace() call

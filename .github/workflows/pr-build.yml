@@ -21,6 +21,9 @@ jobs:
       - name: Install node packages
         run: npm install
 
+      - name: Lint
+        run: npm run lint
+
       - uses: nickcharlton/diff-check@main
         with:
           command: npm run build

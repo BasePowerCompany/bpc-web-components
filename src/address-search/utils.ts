@@ -34,7 +34,7 @@ export function parseAddress(
 	const address = {
 		line1,
 		city,
-		state: addr.administrative_area_level_1?.longText || "",
+		state: addr.administrative_area_level_1?.shortText || "",
 		postalCode: addr.postal_code?.longText || "",
 		country: addr.country?.shortText || "",
 		latitude: place.location?.lat(),

@@ -4,7 +4,7 @@ Web components that provide additional functionality for the marketing website.
 
 ### Development
 
-Create a `.env.local` file at the root of this project. Include your Google Maps API key like:
+Create a `.env.development` file at the root of this project. Include your Google Maps API key like:
 ```
 VITE_GOOGLE_MAPS_API_KEY=<apiKey>
 ```

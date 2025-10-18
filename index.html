@@ -28,7 +28,8 @@
         <bpc-address-search public-key="%VITE_GOOGLE_MAPS_API_KEY%" cta="See if my home qualifies"></bpc-address-search>
         <script>(() => {
           const el = document.currentScript.previousElementSibling;
-          el.addEventListener('select', e => console.log(e.detail));
+          el.addEventListener('select', e => console.log('select', e.detail));
+          el.addEventListener('result', e => console.log('result', e.detail));
         })();</script>
       </div>
     </div>
@@ -37,7 +38,8 @@
         <bpc-address-search public-key="%VITE_GOOGLE_MAPS_API_KEY%"></bpc-address-search>
         <script>(() => {
           const el = document.currentScript.previousElementSibling;
-          el.addEventListener('select', e => console.log(e.detail));
+          el.addEventListener('select', e => console.log('select', e.detail));
+          el.addEventListener('result', e => console.log('result', e.detail));
         })();</script>
       </div>
     </div>
