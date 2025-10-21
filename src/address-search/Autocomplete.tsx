@@ -120,7 +120,6 @@ export function Autocomplete({
 				e.preventDefault();
 				setHighlightedIndex(-1);
 				onChange("");
-				console.log("value", value);
 				if (!value) {
 					close();
 				}

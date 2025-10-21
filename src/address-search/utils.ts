@@ -16,7 +16,7 @@ export function parseAddress(
 	);
 
 	const line1 = [
-		addr.street_address?.longText,
+		addr.street_number?.longText,
 		addr.route?.longText,
 		addr.subpremise?.longText,
 	]
