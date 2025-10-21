@@ -23,13 +23,12 @@ export function parseAddress(
 		.filter(Boolean)
 		.join(" ");
 
-	const city = [
-		addr.locality?.longText,
-		addr.sublocality?.longText,
-		addr.administrative_area_level_2?.longText,
-	]
-		.filter(Boolean)
-		.join(" ");
+	const city =
+		[
+			addr.locality?.longText,
+			addr.sublocality?.longText,
+			addr.administrative_area_level_2?.longText,
+		].filter(Boolean)[0] || "";
 
 	const address = {
 		line1,
