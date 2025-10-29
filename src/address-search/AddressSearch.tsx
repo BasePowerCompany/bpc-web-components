@@ -56,7 +56,7 @@ export function AddressSearch({
 					places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
 						input: searchQuery,
 						sessionToken: curToken,
-						region: "US",
+						// region: "US", // Don't restrict to US -- this changes the way the formatted address is returned
 						language: "en",
 						includedPrimaryTypes: ["street_address"],
 					}).then(({ suggestions }) => {
