@@ -10,10 +10,12 @@ export type AddressSearchProps = {
 	placeholder?: string;
 	cta?: string;
 	onSelect?: (detail: { selection: AddressResult | undefined }) => void;
-	portalRoot?: ShadowRoot;
+	portalRoot: ShadowRoot;
+	zIndex: number;
 };
 
 export function AddressSearch({
+	zIndex,
 	onSelect,
 	placeholder,
 	cta,
@@ -130,6 +132,7 @@ export function AddressSearch({
 
 	return (
 		<Autocomplete
+			zIndex={zIndex}
 			value={inputValue}
 			onChange={setInputValue}
 			results={results}

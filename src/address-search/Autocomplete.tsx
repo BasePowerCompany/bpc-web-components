@@ -21,16 +21,19 @@ type OverlayPosition = {
 };
 
 interface AutocompleteProps {
+	zIndex: number;
 	value: string;
 	placeholder?: string;
 	cta?: string;
 	onChange: (value: string) => void;
 	results: Result[];
 	onSelect?: ({ result }: { result: Result }) => void;
-	portalRoot?: ShadowRoot;
+	portalRoot: ShadowRoot;
 }
 
 interface ComboBoxOverlayProps {
+	zIndex: number;
+	ref: React.RefObject<HTMLInputElement | null>;
 	value: string;
 	placeholder?: string;
 	onChange: (value: string) => void;
@@ -38,10 +41,15 @@ interface ComboBoxOverlayProps {
 	onSelect?: ({ result }: { result: Result }) => void;
 	portalRoot: ShadowRoot;
 	close: () => void;
-	overlayPosition: OverlayPosition;
+	open: () => void;
+	overlayPosition: OverlayPosition | null;
+	isActivated: boolean;
+	cta?: string;
 }
 
 export function ComboBoxOverlay({
+	zIndex,
+	ref: inputRef,
 	value,
 	placeholder,
 	onChange,
@@ -49,10 +57,12 @@ export function ComboBoxOverlay({
 	onSelect,
 	portalRoot,
 	close,
+	open,
 	overlayPosition,
+	isActivated,
+	cta,
 }: ComboBoxOverlayProps) {
 	const resultsRef = useRef<HTMLDivElement>(null);
-	const inputRef = useRef<HTMLInputElement>(null);
 	const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
 
 	const listboxId = useId(); // unique id for aria-controls
@@ -61,12 +71,6 @@ export function ComboBoxOverlay({
 	useEffect(() => {
 		setHighlightedIndex(0);
 	}, [results]);
-
-	useEffect(() => {
-		if (inputRef.current) {
-			inputRef.current.focus();
-		}
-	}, []);
 
 	const expanded = results.length > 0;
 	const activeDescendant = useMemo(() => {
@@ -151,8 +155,17 @@ export function ComboBoxOverlay({
 
 	return createPortal(
 		<>
-			<div className={styles.overlay} />
-			<div className={styles.inputPositioner} style={overlayPosition}>
+			<div
+				className={styles.overlay}
+				style={{ display: isActivated ? "block" : "none" }}
+			/>
+			<div
+				className={styles.inputPositioner}
+				style={{
+					...(overlayPosition || {}),
+					zIndex: isActivated ? 1001 : zIndex,
+				}}
+			>
 				{expanded && (
 					<div
 						ref={resultsRef}
@@ -198,6 +211,7 @@ export function ComboBoxOverlay({
 						placeholder={placeholder}
 						autoComplete="home street-address"
 						className={styles.input}
+						onFocus={open}
 						onBlur={close}
 						onKeyDown={onKeyDown}
 						role="combobox"
@@ -207,6 +221,7 @@ export function ComboBoxOverlay({
 						aria-autocomplete="list"
 					/>
 					<MapPin className={styles.mapPin} />
+					{!!cta && !isActivated && <CtaButton title={cta} onClick={open} />}
 				</div>
 			</div>
 		</>,
@@ -215,6 +230,7 @@ export function ComboBoxOverlay({
 }
 
 export function Autocomplete({
+	zIndex,
 	value,
 	placeholder,
 	cta,
@@ -224,12 +240,14 @@ export function Autocomplete({
 	portalRoot,
 }: AutocompleteProps) {
 	const inputContainerRef = useRef<HTMLDivElement>(null);
+	const inputRef = useRef<HTMLInputElement>(null);
 	const [isActivated, setIsActivated] = useState(false);
 	const [overlayPosition, setOverlayPosition] =
 		useState<OverlayPosition | null>(null);
 
 	function open() {
 		setIsActivated(true);
+		inputRef.current?.focus();
 	}
 
 	useEffect(() => {
@@ -263,7 +281,12 @@ export function Autocomplete({
 	return (
 		<>
 			<div className={cx(styles.autocomplete, isActivated && styles.activated)}>
-				<div className={styles.inputContainer} ref={inputContainerRef}>
+				{/* Hidden input container for positioning */}
+				<div
+					className={styles.inputContainer}
+					ref={inputContainerRef}
+					style={{ visibility: "hidden" }}
+				>
 					<button
 						className={cx(styles.input, !value && styles.placeholder)}
 						type="button"
@@ -275,18 +298,21 @@ export function Autocomplete({
 					<MapPin className={styles.mapPin} />
 					{!!cta && <CtaButton title={cta} onClick={open} />}
 				</div>
-				{isActivated && portalRoot && overlayPosition && (
-					<ComboBoxOverlay
-						value={value}
-						placeholder={placeholder}
-						onChange={onChange}
-						results={results}
-						onSelect={onSelect}
-						portalRoot={portalRoot}
-						close={() => setIsActivated(false)}
-						overlayPosition={overlayPosition}
-					/>
-				)}
+				<ComboBoxOverlay
+					zIndex={zIndex}
+					ref={inputRef}
+					value={value}
+					placeholder={placeholder}
+					onChange={onChange}
+					results={results}
+					onSelect={onSelect}
+					portalRoot={portalRoot}
+					close={() => setIsActivated(false)}
+					open={open}
+					overlayPosition={overlayPosition}
+					isActivated={isActivated}
+					cta={cta}
+				/>
 			</div>
 
 			{!!cta && (
