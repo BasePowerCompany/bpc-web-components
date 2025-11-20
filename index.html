@@ -13,6 +13,11 @@
       }
       .container {
         padding: 300px 20px 60px 20px;
+
+        /* Add overflows and z-index because the marketing site does this too for many containers */
+        overflow: hidden;
+        position: relative;
+        z-index: 1;
       }
       .dark {
         background-color: #2b2d42;
@@ -29,7 +34,16 @@
         <script>(() => {
           const el = document.currentScript.previousElementSibling;
           el.addEventListener('select', e => console.log('select', e.detail));
-          el.addEventListener('result', e => console.log('result', e.detail));
+          el.addEventListener('result', e => {
+
+            const url = new URL(e.detail.result.redirectUrl, window.location.origin);
+            url.searchParams.set('utm_source', 'bpc-web-components');
+            url.searchParams.set('utm_medium', 'address-search');
+            url.searchParams.set('utm_campaign', 'bpc-web-components');
+
+            // window.location.href = url.href;
+            console.log('Would redirect to:', url.href);
+          });
         })();</script>
       </div>
     </div>
@@ -42,6 +56,9 @@
           el.addEventListener('result', e => console.log('result', e.detail));
         })();</script>
       </div>
+    </div>
+    <div style="max-width: 540px; background-color: white; padding: 20px; z-index: 5; position: relative;">
+      This is a z-index test
     </div>
   </body>
 </html>

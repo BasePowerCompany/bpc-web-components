@@ -7,18 +7,38 @@ import type { AddressSearchProps } from "./AddressSearch";
 import { AddressSearch } from "./AddressSearch";
 import styleSheet from "./styles.module.css?inline";
 
-function parseProps(
-	el: HTMLElement,
-): AddressSearchProps & { publicApiKey: string } {
+function parseProps(el: HTMLElement): Omit<
+	AddressSearchProps,
+	"zIndex" | "portalRoot"
+> & {
+	publicApiKey: string;
+} {
 	const publicApiKey = el.getAttribute("public-key") || "";
 	const placeholder = el.getAttribute("placeholder") || undefined;
 	const cta = el.getAttribute("cta") || undefined;
 	return { publicApiKey, placeholder, cta };
 }
 
+function getZIndex(el: HTMLElement) {
+	const style = window.getComputedStyle(el);
+
+	if (style.getPropertyValue("z-index") === "auto" && el.parentElement) {
+		return getZIndex(el.parentElement);
+	}
+
+	const zIndex = Number(style.getPropertyValue("z-index"));
+	if (!Number.isNaN(zIndex)) {
+		return zIndex;
+	}
+
+	return 0;
+}
+
 class AddressSearchElement extends HTMLElement {
 	private root?: ShadowRoot;
 	private container?: HTMLElement;
+	private overlayRoot?: ShadowRoot;
+	private overlayWrapper?: HTMLElement;
 
 	static get observedAttributes() {
 		return ["public-key", "placeholder", "cta"];
@@ -34,6 +54,15 @@ class AddressSearchElement extends HTMLElement {
 			this.container = document.createElement("div");
 			this.root.appendChild(this.container);
 		}
+		if (!this.overlayRoot) {
+			this.overlayWrapper = document.createElement("div");
+			this.overlayRoot = this.overlayWrapper.attachShadow({ mode: "open" });
+			const styles = document.createElement("style");
+			styles.textContent = styleSheet;
+			this.overlayRoot.appendChild(styles);
+
+			document.body.appendChild(this.overlayWrapper);
+		}
 		this.render();
 	}
 
@@ -46,7 +75,7 @@ class AddressSearchElement extends HTMLElement {
 	}
 
 	private render() {
-		if (!this.container) return;
+		if (!this.container || !this.overlayRoot) return;
 		const props = parseProps(this);
 
 		if (!props.publicApiKey) {
@@ -81,9 +110,16 @@ class AddressSearchElement extends HTMLElement {
 			}
 		};
 
+		const zIndex = getZIndex(this.root?.host as HTMLElement);
+
 		createRoot(this.container).render(
 			<StrictMode>
-				<AddressSearch {...props} onSelect={onSelect} />
+				<AddressSearch
+					{...props}
+					zIndex={zIndex}
+					onSelect={onSelect}
+					portalRoot={this.overlayRoot}
+				/>
 			</StrictMode>,
 		);
 	}

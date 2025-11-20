@@ -1,4 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { CtaButton } from "@/address-search/CtaButton";
 import { cx } from "@/utils/cx";
 import MapPin from "./MapPin";
 import styles from "./styles.module.css";
@@ -9,27 +11,58 @@ export interface Result {
 	id: string;
 }
 
+type OverlayPosition = {
+	top: number;
+	left: number;
+	right: number;
+	bottom: number;
+	width: number;
+	height: number;
+};
+
 interface AutocompleteProps {
+	zIndex: number;
 	value: string;
 	placeholder?: string;
 	cta?: string;
 	onChange: (value: string) => void;
 	results: Result[];
 	onSelect?: ({ result }: { result: Result }) => void;
+	portalRoot: ShadowRoot;
 }
 
-export function Autocomplete({
+interface ComboBoxOverlayProps {
+	zIndex: number;
+	ref: React.RefObject<HTMLInputElement | null>;
+	value: string;
+	placeholder?: string;
+	onChange: (value: string) => void;
+	results: Result[];
+	onSelect?: ({ result }: { result: Result }) => void;
+	portalRoot: ShadowRoot;
+	close: () => void;
+	open: () => void;
+	overlayPosition: OverlayPosition | null;
+	isActivated: boolean;
+	cta?: string;
+}
+
+export function ComboBoxOverlay({
+	zIndex,
+	ref: inputRef,
 	value,
 	placeholder,
-	cta,
 	onChange,
 	results,
 	onSelect,
-}: AutocompleteProps) {
+	portalRoot,
+	close,
+	open,
+	overlayPosition,
+	isActivated,
+	cta,
+}: ComboBoxOverlayProps) {
 	const resultsRef = useRef<HTMLDivElement>(null);
-	const inputRef = useRef<HTMLInputElement>(null);
-
-	const [isActivated, setIsActivated] = useState(false);
 	const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
 
 	const listboxId = useId(); // unique id for aria-controls
@@ -40,20 +73,10 @@ export function Autocomplete({
 	}, [results]);
 
 	const expanded = isActivated && results.length > 0;
-
 	const activeDescendant = useMemo(() => {
 		if (!expanded || highlightedIndex < 0) return undefined;
 		return `${listboxId}-option-${results[highlightedIndex]?.id}`;
 	}, [expanded, highlightedIndex, listboxId, results]);
-
-	function open() {
-		setIsActivated(true);
-	}
-
-	function close() {
-		setIsActivated(false);
-		setHighlightedIndex(-1);
-	}
 
 	function commitSelection(index: number) {
 		const item = results[index];
@@ -130,43 +153,19 @@ export function Autocomplete({
 		}
 	}
 
-	return (
+	return createPortal(
 		<>
-			<div className={cx(styles.autocomplete, isActivated && styles.activated)}>
-				{isActivated && <div className={styles.overlay} />}
-				<div className={styles.inputContainer}>
-					<input
-						ref={inputRef}
-						value={value}
-						onChange={(e) => {
-							onChange(e.target.value);
-							if (!isActivated) open();
-						}}
-						placeholder={placeholder}
-						autoComplete="home street-address"
-						className={styles.input}
-						onFocus={open}
-						onBlur={close}
-						onKeyDown={onKeyDown}
-						role="combobox"
-						aria-expanded={expanded}
-						aria-controls={expanded ? listboxId : undefined}
-						aria-activedescendant={activeDescendant}
-						aria-autocomplete="list"
-					/>
-					<MapPin className={styles.mapPin} />
-					{!!cta && (
-						<button
-							type="button"
-							className={styles.activateButton}
-							onClick={() => inputRef.current?.focus()}
-							tabIndex={-1}
-						>
-							{cta}
-						</button>
-					)}
-				</div>
-
+			<div
+				className={styles.overlay}
+				style={{ display: isActivated ? "block" : "none" }}
+			/>
+			<div
+				className={styles.inputPositioner}
+				style={{
+					...(overlayPosition || {}),
+					zIndex: isActivated ? 1001 : zIndex,
+				}}
+			>
 				{expanded && (
 					<div
 						ref={resultsRef}
@@ -201,17 +200,123 @@ export function Autocomplete({
 						})}
 					</div>
 				)}
+				<div className={styles.inputContainer}>
+					<input
+						name="address-search"
+						ref={inputRef}
+						value={value}
+						onChange={(e) => {
+							onChange(e.target.value);
+						}}
+						placeholder={placeholder}
+						autoComplete="home street-address"
+						className={styles.input}
+						onFocus={open}
+						onBlur={close}
+						onKeyDown={onKeyDown}
+						role="combobox"
+						aria-expanded={expanded}
+						aria-controls={expanded ? listboxId : undefined}
+						aria-activedescendant={activeDescendant}
+						aria-autocomplete="list"
+					/>
+					<MapPin className={styles.mapPin} />
+					{!!cta && !isActivated && <CtaButton title={cta} onClick={open} />}
+				</div>
+			</div>
+		</>,
+		portalRoot,
+	);
+}
+
+export function Autocomplete({
+	zIndex,
+	value,
+	placeholder,
+	cta,
+	onChange,
+	results,
+	onSelect,
+	portalRoot,
+}: AutocompleteProps) {
+	const inputContainerRef = useRef<HTMLDivElement>(null);
+	const inputRef = useRef<HTMLInputElement>(null);
+	const [isActivated, setIsActivated] = useState(false);
+	const [overlayPosition, setOverlayPosition] =
+		useState<OverlayPosition | null>(null);
+
+	function open() {
+		setIsActivated(true);
+		inputRef.current?.focus();
+	}
+
+	useEffect(() => {
+		const element = inputContainerRef.current;
+		if (!element) return;
+
+		const updatePosition = () => {
+			const rect = element.getBoundingClientRect();
+			setOverlayPosition({
+				top: rect.top + window.scrollY,
+				left: rect.left + window.scrollX,
+				right: rect.right + window.scrollX,
+				bottom: rect.bottom + window.scrollY,
+				width: rect.width,
+				height: rect.height,
+			});
+		};
+
+		// Initial position
+		updatePosition();
+
+		// Watch for resize
+		const resizeObserver = new ResizeObserver(updatePosition);
+		resizeObserver.observe(element);
+
+		return () => {
+			resizeObserver.disconnect();
+		};
+	}, []);
+
+	return (
+		<>
+			<div className={cx(styles.autocomplete, isActivated && styles.activated)}>
+				{/* Hidden input container for positioning */}
+				<div
+					className={styles.inputContainer}
+					ref={inputContainerRef}
+					style={{ visibility: "hidden" }}
+				>
+					<button
+						className={cx(styles.input, !value && styles.placeholder)}
+						type="button"
+						onClick={open}
+						onFocus={open}
+					>
+						{!value ? placeholder : value}
+					</button>
+					<MapPin className={styles.mapPin} />
+					{!!cta && <CtaButton title={cta} onClick={open} />}
+				</div>
+				<ComboBoxOverlay
+					zIndex={zIndex}
+					ref={inputRef}
+					value={value}
+					placeholder={placeholder}
+					onChange={onChange}
+					results={results}
+					onSelect={onSelect}
+					portalRoot={portalRoot}
+					close={() => setIsActivated(false)}
+					open={open}
+					overlayPosition={overlayPosition}
+					isActivated={isActivated}
+					cta={cta}
+				/>
 			</div>
 
 			{!!cta && (
-				<button
-					type="button"
-					className={cx(styles.activateButton, styles.mobileBtn)}
-					onClick={() => inputRef.current?.focus()}
-					tabIndex={-1}
-				>
-					{cta}
-				</button>
+				<CtaButton title={cta} onClick={open} className={styles.mobileBtn} />
 			)}
 		</>
 	);
