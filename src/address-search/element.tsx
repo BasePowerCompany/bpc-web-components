@@ -19,6 +19,8 @@ function parseProps(
 class AddressSearchElement extends HTMLElement {
 	private root?: ShadowRoot;
 	private container?: HTMLElement;
+	private overlayRoot?: ShadowRoot;
+	private overlayWrapper?: HTMLElement;
 
 	static get observedAttributes() {
 		return ["public-key", "placeholder", "cta"];
@@ -33,6 +35,15 @@ class AddressSearchElement extends HTMLElement {
 
 			this.container = document.createElement("div");
 			this.root.appendChild(this.container);
+		}
+		if (!this.overlayRoot) {
+			this.overlayWrapper = document.createElement("div");
+			this.overlayRoot = this.overlayWrapper.attachShadow({ mode: "open" });
+			const styles = document.createElement("style");
+			styles.textContent = styleSheet;
+			this.overlayRoot.appendChild(styles);
+
+			document.body.appendChild(this.overlayWrapper);
 		}
 		this.render();
 	}
@@ -83,7 +94,11 @@ class AddressSearchElement extends HTMLElement {
 
 		createRoot(this.container).render(
 			<StrictMode>
-				<AddressSearch {...props} onSelect={onSelect} />
+				<AddressSearch
+					{...props}
+					onSelect={onSelect}
+					portalRoot={this.overlayRoot}
+				/>
 			</StrictMode>,
 		);
 	}

@@ -22,6 +22,16 @@
 	border: none;
 	outline: none;
 	font-family: inherit;
+	text-align: left;
+}
+
+.input.placeholder,
+.input::placeholder {
+	color: var(--grey-90);
+}
+
+button.input {
+	cursor: text;
 }
 
 .inputContainer:focus-within {
@@ -42,8 +52,17 @@
 	z-index: 1001;
 }
 
+.inputPositioner {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	z-index: 1001;
+}
+
 .mapPin {
 	position: absolute;
+	pointer-events: none;
 	left: 16px;
 	top: 50%;
 	transform: translateY(-50%);
@@ -84,7 +103,7 @@
 	display: none;
 }
 
-.activated .overlay {
+.overlay {
 	position: fixed;
 	top: 0;
 	left: 0;
@@ -106,7 +125,6 @@
 	border-color: var(--grey-90);
 	outline: 2px solid var(--grey-20);
 	outline-offset: 0;
-	z-index: 1000;
 }
 
 .result {

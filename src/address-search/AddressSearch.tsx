@@ -10,12 +10,14 @@ export type AddressSearchProps = {
 	placeholder?: string;
 	cta?: string;
 	onSelect?: (detail: { selection: AddressResult | undefined }) => void;
+	portalRoot?: ShadowRoot;
 };
 
 export function AddressSearch({
 	onSelect,
 	placeholder,
 	cta,
+	portalRoot,
 }: AddressSearchProps) {
 	const places = useMapsLibrary("places");
 	const token = useRef<google.maps.places.AutocompleteSessionToken | null>(
@@ -86,7 +88,7 @@ export function AddressSearch({
 	}, [cache, searchQuery]);
 
 	const handleSelect = useCallback(
-		({ result }: { result: Result }) => {
+		async ({ result }: { result: Result }) => {
 			const place = placesRef.current[result.id];
 			if (!place) return;
 
@@ -98,13 +100,13 @@ export function AddressSearch({
 					.filter(Boolean)
 					.join(", "),
 			);
-			place.placePrediction
+			await place.placePrediction
 				?.toPlace()
 				.fetchFields({
 					fields: ["location", "formattedAddress", "addressComponents"],
 				})
 				.then(({ place }) => {
-					onSelect?.({ selection: parseAddress(place) });
+					return onSelect?.({ selection: parseAddress(place) });
 				});
 
 			// Clear cached values now that our selection is complete -- the token is only valid until the first toPlace() call
@@ -134,6 +136,7 @@ export function AddressSearch({
 			onSelect={handleSelect}
 			placeholder={placeholder || "Enter your home address"}
 			cta={cta}
+			portalRoot={portalRoot}
 		/>
 	);
 }
