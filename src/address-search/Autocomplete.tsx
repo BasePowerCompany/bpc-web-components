@@ -72,7 +72,7 @@ export function ComboBoxOverlay({
 		setHighlightedIndex(0);
 	}, [results]);
 
-	const expanded = results.length > 0;
+	const expanded = isActivated && results.length > 0;
 	const activeDescendant = useMemo(() => {
 		if (!expanded || highlightedIndex < 0) return undefined;
 		return `${listboxId}-option-${results[highlightedIndex]?.id}`;
