@@ -273,8 +273,12 @@ export function Autocomplete({
 		const resizeObserver = new ResizeObserver(updatePosition);
 		resizeObserver.observe(element);
 
+		// Watch for window resize
+		window.addEventListener("resize", updatePosition);
+
 		return () => {
 			resizeObserver.disconnect();
+			window.removeEventListener("resize", updatePosition);
 		};
 	}, []);
 
