@@ -5,124 +5,147 @@ import type { AddressResult } from "@/address-search/types";
 import { bootstrap } from "@/utils/googleMaps";
 import type { AddressSearchProps } from "./AddressSearch";
 import { AddressSearch } from "./AddressSearch";
+import { ModalOverlay } from "./ModalOverlay";
 import styleSheet from "./styles.module.css?inline";
 
 function parseProps(el: HTMLElement): Omit<
-	AddressSearchProps,
-	"zIndex" | "portalRoot"
+  AddressSearchProps,
+  "zIndex" | "portalRoot"
 > & {
-	publicApiKey: string;
+  publicApiKey: string;
 } {
-	const publicApiKey = el.getAttribute("public-key") || "";
-	const placeholder = el.getAttribute("placeholder") || undefined;
-	const cta = el.getAttribute("cta") || undefined;
-	return { publicApiKey, placeholder, cta };
+  const publicApiKey = el.getAttribute("public-key") || "";
+  const placeholder = el.getAttribute("placeholder") || undefined;
+  const cta = el.getAttribute("cta") || undefined;
+  return { publicApiKey, placeholder, cta };
 }
 
 function getZIndex(el: HTMLElement) {
-	const style = window.getComputedStyle(el);
+  const style = window.getComputedStyle(el);
 
-	if (style.getPropertyValue("z-index") === "auto" && el.parentElement) {
-		return getZIndex(el.parentElement);
-	}
+  if (style.getPropertyValue("z-index") === "auto" && el.parentElement) {
+    return getZIndex(el.parentElement);
+  }
 
-	const zIndex = Number(style.getPropertyValue("z-index"));
-	if (!Number.isNaN(zIndex)) {
-		return zIndex;
-	}
+  const zIndex = Number(style.getPropertyValue("z-index"));
+  if (!Number.isNaN(zIndex)) {
+    return zIndex;
+  }
 
-	return 0;
+  return 0;
 }
 
 class AddressSearchElement extends HTMLElement {
-	private root?: ShadowRoot;
-	private container?: HTMLElement;
-	private overlayRoot?: ShadowRoot;
-	private overlayWrapper?: HTMLElement;
+  private root?: ShadowRoot;
+  private container?: HTMLElement;
+  private overlayRoot?: ShadowRoot;
+  private overlayWrapper?: HTMLElement;
+  private showModal = false;
 
-	static get observedAttributes() {
-		return ["public-key", "placeholder", "cta"];
-	}
+  static get observedAttributes() {
+    return ["public-key", "placeholder", "cta"];
+  }
 
-	connectedCallback() {
-		if (!this.root) {
-			this.root = this.attachShadow({ mode: "open" });
-			const styles = document.createElement("style");
-			styles.textContent = styleSheet;
-			this.root.appendChild(styles);
+  connectedCallback() {
+    if (!this.root) {
+      this.root = this.attachShadow({ mode: "open" });
+      const styles = document.createElement("style");
+      styles.textContent = styleSheet;
+      this.root.appendChild(styles);
 
-			this.container = document.createElement("div");
-			this.root.appendChild(this.container);
-		}
-		if (!this.overlayRoot) {
-			this.overlayWrapper = document.createElement("div");
-			this.overlayRoot = this.overlayWrapper.attachShadow({ mode: "open" });
-			const styles = document.createElement("style");
-			styles.textContent = styleSheet;
-			this.overlayRoot.appendChild(styles);
+      this.container = document.createElement("div");
+      this.root.appendChild(this.container);
+    }
+    if (!this.overlayRoot) {
+      this.overlayWrapper = document.createElement("div");
+      this.overlayRoot = this.overlayWrapper.attachShadow({ mode: "open" });
+      const styles = document.createElement("style");
+      styles.textContent = styleSheet;
+      this.overlayRoot.appendChild(styles);
 
-			document.body.appendChild(this.overlayWrapper);
-		}
-		this.render();
-	}
+      document.body.appendChild(this.overlayWrapper);
+    }
+    this.render();
+  }
 
-	attributeChangedCallback() {
-		this.render();
-	}
+  attributeChangedCallback() {
+    this.render();
+  }
 
-	disconnectedCallback() {
-		if (this.container) createRoot(this.container).unmount();
-	}
+  disconnectedCallback() {
+    if (this.container) createRoot(this.container).unmount();
+  }
 
-	private render() {
-		if (!this.container || !this.overlayRoot) return;
-		const props = parseProps(this);
+  private render() {
+    if (!this.container || !this.overlayRoot) return;
+    const props = parseProps(this);
 
-		if (!props.publicApiKey) {
-			throw new Error("bpc-address-search: public-key is required");
-		}
+    if (!props.publicApiKey) {
+      throw new Error("bpc-address-search: public-key is required");
+    }
 
-		bootstrap({ key: props.publicApiKey, v: "weekly", libraries: ["places"] });
+    bootstrap({ key: props.publicApiKey, v: "weekly", libraries: ["places"] });
 
-		const onSelect = async (detail: {
-			selection: AddressResult | undefined;
-		}) => {
-			// Fire the select event to the parent
-			this.dispatchEvent(new CustomEvent("select", { detail }));
+    const onSelect = async (detail: {
+      selection: AddressResult | undefined;
+    }) => {
+      // Fire the select event to the parent
+      this.dispatchEvent(new CustomEvent("select", { detail }));
 
-			// If no selection, return
-			if (!detail.selection) return;
+      // If no selection, return
+      if (!detail.selection) return;
 
-			// Fetch the hydration data
-			const result = await fetchHydration(detail.selection);
-			if (result.success) {
-				// Fire the result event to the parent
-				this.dispatchEvent(
-					new CustomEvent("result", {
-						detail: { result: result.data, selection: detail.selection },
-					}),
-				);
-			} else {
-				// Fire the error event to the parent
-				this.dispatchEvent(
-					new CustomEvent("error", { detail: { error: result.error } }),
-				);
-			}
-		};
+      // Fetch the hydration data
+      const result = await fetchHydration(detail.selection);
+      console.log(result);
+      if (result.success && result.data.redirectStrategy.isModal) {
+        this.showModal = true;
+        this.render();
+      }
+      // TODO: Add modal check here based off of the result of selection.
+      // TODO: Make a new result where the redirectUrl is the url is the user's selection.
+      // TODO: Based off of modal selection, send user-defined utility, validate that there's no service location, and redirect tro the url.
+      if (result.success) {
+        // Fire the result event to the parent
+        this.dispatchEvent(
+          new CustomEvent("result", {
+            detail: { result: result.data, selection: detail.selection },
+          })
+        );
+      } else {
+        // Fire the error event to the parent
+        this.dispatchEvent(
+          new CustomEvent("error", { detail: { error: result.error } })
+        );
+      }
+    };
 
-		const zIndex = getZIndex(this.root?.host as HTMLElement);
+    const zIndex = getZIndex(this.root?.host as HTMLElement);
+    console.log(this.showModal);
 
-		createRoot(this.container).render(
-			<StrictMode>
-				<AddressSearch
-					{...props}
-					zIndex={zIndex}
-					onSelect={onSelect}
-					portalRoot={this.overlayRoot}
-				/>
-			</StrictMode>,
-		);
-	}
+    createRoot(this.container).render(
+      <StrictMode>
+        <AddressSearch
+          {...props}
+          zIndex={zIndex}
+          onSelect={onSelect}
+          portalRoot={this.overlayRoot}
+        />
+        <ModalOverlay
+          portalRoot={this.overlayRoot}
+          isOpen={this.showModal}
+          onClose={() => {
+            this.showModal = false;
+            this.render();
+          }}
+          zIndex={zIndex + 1}
+        >
+          <div>Test</div>
+          {/* Modal content goes here */}
+        </ModalOverlay>
+      </StrictMode>
+    );
+  }
 }
 
 customElements.define("bpc-address-search", AddressSearchElement);

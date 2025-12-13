@@ -144,6 +144,36 @@ button.input {
 	font-weight: 500;
 }
 
+.modal {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	background: white;
+	border-radius: 8px;
+	padding: 24px;
+	max-width: 90vw;
+	max-height: 90vh;
+	overflow: auto;
+	z-index: 1001;
+}
+
+.modalClose {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	background: none;
+	border: none;
+	font-size: 24px;
+	cursor: pointer;
+	padding: 4px 8px;
+	line-height: 1;
+}
+
+.modalContent {
+	margin-top: 16px;
+}
+
 @media screen and (max-width: 540px) {
 	.input {
 		padding: 12px 8px 12px 40px;
