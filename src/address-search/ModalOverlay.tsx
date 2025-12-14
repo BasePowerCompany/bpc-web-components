@@ -20,12 +20,14 @@ export function ModalOverlay({
 
   return createPortal(
     <>
-      <div className={styles.overlay} onClick={onClose} />
+      <div className={styles.overlay} />
       <div className={styles.modal} style={{ zIndex }}>
         <button type="button" className={styles.modalClose} onClick={onClose}>
           ×
         </button>
-        <div className={styles.modalContent}>{children}</div>
+        <div className={styles.modalContent} style={{ zIndex: zIndex + 1 }}>
+          {children}
+        </div>
       </div>
     </>,
     portalRoot

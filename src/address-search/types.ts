@@ -12,7 +12,7 @@ export type AddressResult = {
   };
 };
 
-type RedirectModal = {
+export type RedirectModal = {
   options: { name: string; redirectUrl: string }[];
 };
 

@@ -1,12 +1,13 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { fetchHydration } from "@/address-search/fetch";
-import type { AddressResult } from "@/address-search/types";
+import type { AddressResult, RedirectModal } from "@/address-search/types";
 import { bootstrap } from "@/utils/googleMaps";
 import type { AddressSearchProps } from "./AddressSearch";
 import { AddressSearch } from "./AddressSearch";
 import { ModalOverlay } from "./ModalOverlay";
 import styleSheet from "./styles.module.css?inline";
+import styles from "./styles.module.css";
 
 function parseProps(el: HTMLElement): Omit<
   AddressSearchProps,
@@ -40,7 +41,7 @@ class AddressSearchElement extends HTMLElement {
   private container?: HTMLElement;
   private overlayRoot?: ShadowRoot;
   private overlayWrapper?: HTMLElement;
-  private showModal = false;
+  private redirectModal?: RedirectModal;
 
   static get observedAttributes() {
     return ["public-key", "placeholder", "cta"];
@@ -99,7 +100,7 @@ class AddressSearchElement extends HTMLElement {
       const result = await fetchHydration(detail.selection);
       console.log(result);
       if (result.success && result.data.redirectStrategy.isModal) {
-        this.showModal = true;
+        this.redirectModal = result.data.redirectStrategy.modal;
         this.render();
       }
       // TODO: Add modal check here based off of the result of selection.
@@ -121,7 +122,7 @@ class AddressSearchElement extends HTMLElement {
     };
 
     const zIndex = getZIndex(this.root?.host as HTMLElement);
-    console.log(this.showModal);
+    console.log(this.redirectModal);
 
     createRoot(this.container).render(
       <StrictMode>
@@ -133,15 +134,42 @@ class AddressSearchElement extends HTMLElement {
         />
         <ModalOverlay
           portalRoot={this.overlayRoot}
-          isOpen={this.showModal}
+          isOpen={!!this.redirectModal}
           onClose={() => {
-            this.showModal = false;
+            this.redirectModal = undefined;
             this.render();
           }}
-          zIndex={zIndex + 1}
+          zIndex={1000}
         >
-          <div>Test</div>
-          {/* Modal content goes here */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "start",
+              height: "100%",
+            }}
+          >
+            <h2>Who is your utility?</h2>
+            <div>
+              <p
+                style={{
+                  marginBottom: 30,
+                  textAlign: "center",
+                  fontStyle: "italic",
+                  color: "#9e9e9e",
+                }}
+              >
+                This helps us determine where to send you next.
+              </p>
+              <div className={styles.modalButtonGroup}>
+                {this.redirectModal?.options.map((option) => (
+                  <button className={styles.modalButton} key={option.name}>
+                    {option.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </ModalOverlay>
       </StrictMode>
     );
