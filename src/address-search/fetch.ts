@@ -18,3 +18,16 @@ export function fetchHydration(
       };
     });
 }
+
+export function setUtilityUserConfirmed(
+  selection: AddressResult,
+  utility: string
+) {
+  return fetch(import.meta.env.VITE_BPC_ADDRESS_REDIRECT_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ selection, utility }),
+  });
+}
