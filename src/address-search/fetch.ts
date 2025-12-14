@@ -1,6 +1,5 @@
 import type { AddressResult, HydrationResult } from "@/address-search/types";
 
-// TODO: Extend result to include data about potential matches.
 export function fetchHydration(
   selection: AddressResult
 ): Promise<HydrationResult> {
