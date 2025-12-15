@@ -23,11 +23,14 @@ export function setUtilityUserConfirmed(
   selection: AddressResult,
   utility: string
 ) {
-  return fetch(import.meta.env.VITE_BPC_ADDRESS_REDIRECT_URL, {
+  return fetch(import.meta.env.VITE_BPC_UTILITY_SELECT_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ selection, utility }),
+    body: JSON.stringify({
+      addressString: selection.formattedAddress,
+      utilityName: utility,
+    }),
   });
 }

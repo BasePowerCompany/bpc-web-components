@@ -1,6 +1,9 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { fetchHydration } from "@/address-search/fetch";
+import {
+  fetchHydration,
+  setUtilityUserConfirmed,
+} from "@/address-search/fetch";
 import type { AddressResult, RedirectModal } from "@/address-search/types";
 import { bootstrap } from "@/utils/googleMaps";
 import type { AddressSearchProps } from "./AddressSearch";
@@ -42,6 +45,7 @@ class AddressSearchElement extends HTMLElement {
   private overlayRoot?: ShadowRoot;
   private overlayWrapper?: HTMLElement;
   private redirectModal?: RedirectModal;
+  private selection?: AddressResult;
 
   static get observedAttributes() {
     return ["public-key", "placeholder", "cta"];
@@ -93,6 +97,8 @@ class AddressSearchElement extends HTMLElement {
       // Fire the select event to the parent
       this.dispatchEvent(new CustomEvent("select", { detail }));
 
+      this.selection = detail.selection;
+
       // If no selection, return
       if (!detail.selection) return;
 
@@ -123,6 +129,13 @@ class AddressSearchElement extends HTMLElement {
 
     const zIndex = getZIndex(this.root?.host as HTMLElement);
     console.log(this.redirectModal);
+
+    const onSelectUtilityFromModal = async (option: string) => {
+      this.redirectModal = undefined;
+      if (!this.selection) return;
+      await setUtilityUserConfirmed(this.selection, option);
+      this.render();
+    };
 
     createRoot(this.container).render(
       <StrictMode>
@@ -163,7 +176,11 @@ class AddressSearchElement extends HTMLElement {
               </p>
               <div className={styles.modalButtonGroup}>
                 {this.redirectModal?.options.map((option) => (
-                  <button className={styles.modalButton} key={option.name}>
+                  <button
+                    className={styles.modalButton}
+                    key={option.value}
+                    onClick={() => onSelectUtilityFromModal(option.value)}
+                  >
                     {option.name}
                   </button>
                 ))}
