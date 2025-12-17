@@ -5,11 +5,13 @@
     <meta content="width=device-width, initial-scale=1" name="viewport" />
     <script type="module" src="./src/entry.tsx"></script>
     <style>
-      html, body {
+      html,
+      body {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
       }
       .container {
         padding: 30vh 5vw 6vh 5vw;
@@ -29,35 +31,62 @@
   </head>
   <body>
     <div class="container dark">
-      <div style="max-width: 540px;">
-        <bpc-address-search public-key="%VITE_GOOGLE_MAPS_API_KEY%" cta="See if my home qualifies"></bpc-address-search>
-        <script>(() => {
-          const el = document.currentScript.previousElementSibling;
-          el.addEventListener('select', e => console.log('select', e.detail));
-          el.addEventListener('result', e => {
+      <div style="max-width: 540px">
+        <bpc-address-search
+          public-key="%VITE_GOOGLE_MAPS_API_KEY%"
+          cta="See if my home qualifies"
+        ></bpc-address-search>
+        <script>
+          (() => {
+            const el = document.currentScript.previousElementSibling;
+            el.addEventListener("select", (e) =>
+              console.log("select", e.detail)
+            );
+            el.addEventListener("result", (e) => {
+              console.log("GOT DISPATCH", e.detail);
 
-            const url = new URL(e.detail.result.redirectUrl, window.location.origin);
-            url.searchParams.set('utm_source', 'bpc-web-components');
-            url.searchParams.set('utm_medium', 'address-search');
-            url.searchParams.set('utm_campaign', 'bpc-web-components');
+              const url = new URL(
+                e.detail.result.redirectUrl,
+                window.location.origin
+              );
+              url.searchParams.set("utm_source", "bpc-web-components");
+              url.searchParams.set("utm_medium", "address-search");
+              url.searchParams.set("utm_campaign", "bpc-web-components");
 
-            // window.location.href = url.href;
-            console.log('Would redirect to:', url.href);
-          });
-        })();</script>
+              // window.location.href = url.href;
+              console.log("Would redirect to:", url.href);
+            });
+          })();
+        </script>
       </div>
     </div>
     <div class="container light">
-      <div style="max-width: 540px;">
-        <bpc-address-search public-key="%VITE_GOOGLE_MAPS_API_KEY%"></bpc-address-search>
-        <script>(() => {
-          const el = document.currentScript.previousElementSibling;
-          el.addEventListener('select', e => console.log('select', e.detail));
-          el.addEventListener('result', e => console.log('result', e.detail));
-        })();</script>
+      <div style="max-width: 540px">
+        <bpc-address-search
+          public-key="%VITE_GOOGLE_MAPS_API_KEY%"
+        ></bpc-address-search>
+        <script>
+          (() => {
+            const el = document.currentScript.previousElementSibling;
+            el.addEventListener("select", (e) =>
+              console.log("select", e.detail)
+            );
+            el.addEventListener("result", (e) =>
+              console.log("result", e.detail)
+            );
+          })();
+        </script>
       </div>
     </div>
-    <div style="max-width: 540px; background-color: white; padding: 20px; z-index: 5; position: relative;">
+    <div
+      style="
+        max-width: 540px;
+        background-color: white;
+        padding: 20px;
+        z-index: 5;
+        position: relative;
+      "
+    >
       This is a z-index test
     </div>
   </body>

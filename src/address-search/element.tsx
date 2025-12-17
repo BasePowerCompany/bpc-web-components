@@ -4,7 +4,11 @@ import {
   fetchHydration,
   setUtilityUserConfirmed,
 } from "@/address-search/fetch";
-import type { AddressResult, RedirectModal } from "@/address-search/types";
+import type {
+  AddressResult,
+  RedirectStrategy,
+  RedirectStrategyMultiple,
+} from "@/address-search/types";
 import { bootstrap } from "@/utils/googleMaps";
 import type { AddressSearchProps } from "./AddressSearch";
 import { AddressSearch } from "./AddressSearch";
@@ -44,7 +48,11 @@ class AddressSearchElement extends HTMLElement {
   private container?: HTMLElement;
   private overlayRoot?: ShadowRoot;
   private overlayWrapper?: HTMLElement;
-  private redirectModal?: RedirectModal;
+  private multipleResult?: {
+    redirectUrl: string;
+    redirectStrategy: RedirectStrategyMultiple;
+    externalAddressId: string;
+  };
   private selection?: AddressResult;
 
   static get observedAttributes() {
@@ -95,9 +103,10 @@ class AddressSearchElement extends HTMLElement {
       selection: AddressResult | undefined;
     }) => {
       // Fire the select event to the parent
-      this.dispatchEvent(new CustomEvent("select", { detail }));
 
       this.selection = detail.selection;
+
+      this.dispatchEvent(new CustomEvent("select", { detail }));
 
       // If no selection, return
       if (!detail.selection) return;
@@ -105,13 +114,16 @@ class AddressSearchElement extends HTMLElement {
       // Fetch the hydration data
       const result = await fetchHydration(detail.selection);
       console.log(result);
-      if (result.success && result.data.redirectStrategy.isModal) {
-        this.redirectModal = result.data.redirectStrategy.modal;
+      if (result.success && result.data.redirectStrategy.isMultiple) {
+        this.multipleResult = {
+          redirectUrl: result.data.redirectUrl,
+          redirectStrategy: result.data.redirectStrategy,
+          externalAddressId: result.data.externalAddressId,
+        };
         this.render();
+        return;
       }
-      // TODO: Add modal check here based off of the result of selection.
-      // TODO: Make a new result where the redirectUrl is the url is the user's selection.
-      // TODO: Based off of modal selection, send user-defined utility, validate that there's no service location, and redirect tro the url.
+
       if (result.success) {
         // Fire the result event to the parent
         this.dispatchEvent(
@@ -128,12 +140,51 @@ class AddressSearchElement extends HTMLElement {
     };
 
     const zIndex = getZIndex(this.root?.host as HTMLElement);
-    console.log(this.redirectModal);
 
-    const onSelectUtilityFromModal = async (option: string) => {
-      this.redirectModal = undefined;
-      if (!this.selection) return;
-      await setUtilityUserConfirmed(this.selection, option);
+    const onSelectUtilityFromModal = async (utility: string) => {
+      // Try to find the utility selection for the multiple result.
+      const found = this.multipleResult?.redirectStrategy.multiple.options.find(
+        (opt) => opt.value === utility
+      );
+      console.log("FOUND", found);
+      if (!found) {
+        return;
+      }
+      // If utility is "OTHER", Don't set utility user confirmed, just dispatch event.
+      if (utility === "OTHER") {
+        this.dispatchEvent(
+          new CustomEvent("result", {
+            detail: { result: this.multipleResult, selection: this.selection },
+          })
+        );
+        this.multipleResult = undefined;
+        this.selection = undefined;
+        this.render();
+        return;
+      }
+      // If we can't find an external address id, return (shouldn't ever get here).
+      if (!this.multipleResult?.externalAddressId) return;
+      // Set the user-confirmed utility.
+      try {
+        await setUtilityUserConfirmed(
+          utility,
+          this.multipleResult.externalAddressId
+        );
+      } catch (err) {
+        console.error("Error setting utility user confirmed", err);
+      }
+      // Dispatch a the event to route the user based on their option.
+      this.dispatchEvent(
+        new CustomEvent("result", {
+          detail: {
+            result: { redirectUrl: found.redirectUrl },
+            selection: this.selection,
+          },
+        })
+      );
+      // Reset state.
+      this.multipleResult = undefined;
+      this.selection = undefined;
       this.render();
     };
 
@@ -147,9 +198,9 @@ class AddressSearchElement extends HTMLElement {
         />
         <ModalOverlay
           portalRoot={this.overlayRoot}
-          isOpen={!!this.redirectModal}
+          isOpen={!!this.multipleResult}
           onClose={() => {
-            this.redirectModal = undefined;
+            this.multipleResult = undefined;
             this.render();
           }}
           zIndex={1000}
@@ -175,15 +226,17 @@ class AddressSearchElement extends HTMLElement {
                 This helps us determine where to send you next.
               </p>
               <div className={styles.modalButtonGroup}>
-                {this.redirectModal?.options.map((option) => (
-                  <button
-                    className={styles.modalButton}
-                    key={option.value}
-                    onClick={() => onSelectUtilityFromModal(option.value)}
-                  >
-                    {option.name}
-                  </button>
-                ))}
+                {this.multipleResult?.redirectStrategy.multiple.options.map(
+                  (option) => (
+                    <button
+                      className={styles.modalButton}
+                      key={option.value}
+                      onClick={() => onSelectUtilityFromModal(option.value)}
+                    >
+                      {option.name}
+                    </button>
+                  )
+                )}
               </div>
             </div>
           </div>

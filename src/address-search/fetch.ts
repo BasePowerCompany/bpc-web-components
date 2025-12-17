@@ -19,18 +19,15 @@ export function fetchHydration(
     });
 }
 
-export function setUtilityUserConfirmed(
-  selection: AddressResult,
-  utility: string
-) {
+export function setUtilityUserConfirmed(utility: string, externalId: string) {
   return fetch(import.meta.env.VITE_BPC_UTILITY_SELECT_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      addressString: selection.formattedAddress,
       utilityName: utility,
+      externalId: externalId,
     }),
   });
 }

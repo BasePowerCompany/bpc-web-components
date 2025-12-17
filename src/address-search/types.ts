@@ -12,20 +12,24 @@ export type AddressResult = {
   };
 };
 
-export type RedirectModal = {
+export type RedirectMultiple = {
   options: { name: string; redirectUrl: string; value: string }[];
 };
 
-type RedirectStrategy =
-  | {
-      redirectUrl: string;
-      isModal: false;
-    }
-  | {
-      redirectUrl: string;
-      modal: RedirectModal;
-      isModal: true;
-    };
+export type RedirectStrategySingle = {
+  redirectUrl: string;
+  isMultiple: false;
+};
+
+export type RedirectStrategyMultiple = {
+  redirectUrl: string;
+  multiple: RedirectMultiple;
+  isMultiple: true;
+};
+
+export type RedirectStrategy =
+  | RedirectStrategySingle
+  | RedirectStrategyMultiple;
 
 export type HydrationResult =
   | {
@@ -33,6 +37,7 @@ export type HydrationResult =
       data: {
         redirectUrl: string;
         redirectStrategy: RedirectStrategy;
+        externalAddressId: string;
       };
     }
   | {
