@@ -1,0 +1,29 @@
+name: PR Build, Test, and Lint
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write # This is required for actions/checkout
+  pull-requests: read
+
+jobs:
+  # We check that the build is current - if this fails, you need to commit the output of `npm run build`.
+  check-build-is-up-to-date:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13
+
+      - name: Install node packages
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - uses: nickcharlton/diff-check@main
+        with:
+          command: npm run build
