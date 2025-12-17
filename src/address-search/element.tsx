@@ -6,15 +6,15 @@ import {
 } from "@/address-search/fetch";
 import type {
   AddressResult,
-  RedirectStrategy,
+  RedirectMultipleOption,
   RedirectStrategyMultiple,
 } from "@/address-search/types";
 import { bootstrap } from "@/utils/googleMaps";
 import type { AddressSearchProps } from "./AddressSearch";
 import { AddressSearch } from "./AddressSearch";
-import { ModalOverlay } from "./ModalOverlay";
 import styleSheet from "./styles.module.css?inline";
-import styles from "./styles.module.css";
+import { UtilityModal } from "@/address-search/UtilityModal";
+import { createPortal } from "react-dom";
 
 function parseProps(el: HTMLElement): Omit<
   AddressSearchProps,
@@ -52,8 +52,42 @@ class AddressSearchElement extends HTMLElement {
     redirectUrl: string;
     redirectStrategy: RedirectStrategyMultiple;
     externalAddressId: string;
+  } = {
+    redirectUrl: "",
+    externalAddressId: "",
+    redirectStrategy: {
+      redirectUrl: "",
+      isMultiple: true,
+      multiple: {
+        options: [
+          {
+            name: "Farmers",
+            value: "FARMERS",
+            redirectUrl:
+              "/farmers/join?formatted_address=4229+Southern+Oaks+Dr%2C+Royse+City%2C+TX+75189%2C+USA&street_address=4229+Southern+Oaks+Drive&city=Royse+City&state_short=TX&postal_code=75189&country_code=US?formatted_address=4229+Southern+Oaks+Dr%2C+Royse+City%2C+TX+75189%2C+USA&street_address=4229+Southern+Oaks+Drive&city=Royse+City&state_short=TX&postal_code=75189&country_code=US?formatted_address=4229+Southern+Oaks+Dr%2C+Royse+City%2C+TX+75189%2C+USA&street_address=4229+Southern+Oaks+Drive&city=Royse+City&state_short=TX&postal_code=75189&country_code=US?formatted_address=4312+Co+Rd+4509%2C+Commerce%2C+TX+75428%2C+USA&street_address=4312+County+Road+4509&city=Commerce&state_short=TX&postal_code=75428&country_code=US?formatted_address=4312+Co+Rd+4509%2C+Commerce%2C+TX+75428%2C+USA&street_address=4312+County+Road+4509&city=Commerce&state_short=TX&postal_code=75428&country_code=US?formatted_address=4312+Co+Rd+4509%2C+Commerce%2C+TX+75428%2C+USA&street_address=4312+County+Road+4509&city=Commerce&state_short=TX&postal_code=75428&country_code=US?formatted_address=4312+Co+Rd+4509%2C+Commerce%2C+TX+75428%2C+USA&street_address=4312+County+Road+4509&city=Commerce&state_short=TX&postal_code=75428&country_code=US?formatted_address=4312+Co+Rd+4509%2C+Commerce%2C+TX+75428%2C+USA&street_address=4312+County+Road+4509&city=Commerce&state_short=TX&postal_code=75428&country_code=US?formatted_address=4312+Co+Rd+4509%2C+Commerce%2C+TX+75428%2C+USA&street_address=4312+County+Road+4509&city=Commerce&state_short=TX&postal_code=75428&country_code=US?formatted_address=4312+Co+Rd+4509%2C+Commerce%2C+TX+75428%2C+USA&street_address=4312+County+Road+4509&city=Commerce&state_short=TX&postal_code=75428&country_code=US?formatted_address=4312+Co+Rd+4509%2C+Commerce%2C+TX+75428%2C+USA&street_address=4312+County+Road+4509&city=Commerce&state_short=TX&postal_code=75428&country_code=US",
+          },
+          {
+            name: "Other",
+            value: "OTHER",
+            redirectUrl:
+              "/join-now?formatted_address=4229+Southern+Oaks+Dr%2C+Royse+City%2C+TX+75189%2C+USA&street_address=4229+Southern+Oaks+Drive&city=Royse+City&state_short=TX&postal_code=75189&country_code=US?formatted_address=4229+Southern+Oaks+Dr%2C+Royse+City%2C+TX+75189%2C+USA&street_address=4229+Southern+Oaks+Drive&city=Royse+City&state_short=TX&postal_code=75189&country_code=US?formatted_address=4229+Southern+Oaks+Dr%2C+Royse+City%2C+TX+75189%2C+USA&street_address=4229+Southern+Oaks+Drive&city=Royse+City&state_short=TX&postal_code=75189&country_code=US?formatted_address=4312+Co+Rd+4509%2C+Commerce%2C+TX+75428%2C+USA&street_address=4312+County+Road+4509&city=Commerce&state_short=TX&postal_code=75428&country_code=US?formatted_address=4312+Co+Rd+4509%2C+Commerce%2C+TX+75428%2C+USA&street_address=4312+County+Road+4509&city=Commerce&state_short=TX&postal_code=75428&country_code=US?formatted_address=4312+Co+Rd+4509%2C+Commerce%2C+TX+75428%2C+USA&street_address=4312+County+Road+4509&city=Commerce&state_short=TX&postal_code=75428&country_code=US?formatted_address=4312+Co+Rd+4509%2C+Commerce%2C+TX+75428%2C+USA&street_address=4312+County+Road+4509&city=Commerce&state_short=TX&postal_code=75428&country_code=US?formatted_address=4312+Co+Rd+4509%2C+Commerce%2C+TX+75428%2C+USA&street_address=4312+County+Road+4509&city=Commerce&state_short=TX&postal_code=75428&country_code=US?formatted_address=4312+Co+Rd+4509%2C+Commerce%2C+TX+75428%2C+USA&street_address=4312+County+Road+4509&city=Commerce&state_short=TX&postal_code=75428&country_code=US?formatted_address=4312+Co+Rd+4509%2C+Commerce%2C+TX+75428%2C+USA&street_address=4312+County+Road+4509&city=Commerce&state_short=TX&postal_code=75428&country_code=US?formatted_address=4312+Co+Rd+4509%2C+Commerce%2C+TX+75428%2C+USA&street_address=4312+County+Road+4509&city=Commerce&state_short=TX&postal_code=75428&country_code=US",
+          },
+        ],
+      },
+    },
   };
-  private selection?: AddressResult;
+  private selection?: AddressResult = {
+    formattedAddress: "4312 Co Rd 4509, Commerce, TX 75428, USA",
+    address: {
+      line1: "4312 County Road 4509",
+      city: "Commerce",
+      state: "TX",
+      postalCode: "75428",
+      country: "US",
+      latitude: 33.2580463,
+      longitude: -95.948916,
+    },
+  };
 
   static get observedAttributes() {
     return ["public-key", "placeholder", "cta"];
@@ -141,12 +175,12 @@ class AddressSearchElement extends HTMLElement {
 
     const zIndex = getZIndex(this.root?.host as HTMLElement);
 
-    const onSelectUtilityFromModal = async (utility: string) => {
+    const onSelectUtilityFromModal = async (option: RedirectMultipleOption) => {
+      const utility = option.value;
       // Try to find the utility selection for the multiple result.
       const found = this.multipleResult?.redirectStrategy.multiple.options.find(
         (opt) => opt.value === utility
       );
-      console.log("FOUND", found);
       if (!found) {
         return;
       }
@@ -196,51 +230,24 @@ class AddressSearchElement extends HTMLElement {
           onSelect={onSelect}
           portalRoot={this.overlayRoot}
         />
-        <ModalOverlay
-          portalRoot={this.overlayRoot}
-          isOpen={!!this.multipleResult}
-          onClose={() => {
-            this.multipleResult = undefined;
-            this.render();
-          }}
-          zIndex={1000}
-        >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "start",
-              height: "100%",
-            }}
-          >
-            <h2>Who is your utility?</h2>
-            <div>
-              <p
-                style={{
-                  marginBottom: 30,
-                  textAlign: "center",
-                  fontStyle: "italic",
-                  color: "#9e9e9e",
-                }}
-              >
-                This helps us determine where to send you next.
-              </p>
-              <div className={styles.modalButtonGroup}>
-                {this.multipleResult?.redirectStrategy.multiple.options.map(
-                  (option) => (
-                    <button
-                      className={styles.modalButton}
-                      key={option.value}
-                      onClick={() => onSelectUtilityFromModal(option.value)}
-                    >
-                      {option.name}
-                    </button>
-                  )
-                )}
-              </div>
-            </div>
-          </div>
-        </ModalOverlay>
+        {this.multipleResult &&
+          this.selection &&
+          createPortal(
+            <UtilityModal
+              {...props}
+              onSelect={onSelectUtilityFromModal}
+              address={this.selection?.formattedAddress ?? ""}
+              options={
+                this.multipleResult?.redirectStrategy.multiple.options ?? []
+              }
+              onBack={() => {
+                this.multipleResult = undefined;
+                this.selection = undefined;
+                this.render();
+              }}
+            />,
+            this.overlayRoot
+          )}
       </StrictMode>
     );
   }

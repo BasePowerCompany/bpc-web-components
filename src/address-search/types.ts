@@ -12,8 +12,14 @@ export type AddressResult = {
   };
 };
 
+export type RedirectMultipleOption = {
+  name: string;
+  redirectUrl: string;
+  value: string;
+};
+
 export type RedirectMultiple = {
-  options: { name: string; redirectUrl: string; value: string }[];
+  options: RedirectMultipleOption[];
 };
 
 export type RedirectStrategySingle = {

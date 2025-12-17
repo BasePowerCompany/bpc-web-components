@@ -43,8 +43,6 @@
               console.log("select", e.detail)
             );
             el.addEventListener("result", (e) => {
-              console.log("GOT DISPATCH", e.detail);
-
               const url = new URL(
                 e.detail.result.redirectUrl,
                 window.location.origin
