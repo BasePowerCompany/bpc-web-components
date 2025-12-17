@@ -95,7 +95,7 @@ export function UtilityModal({
                 </p>
                 <p className={styles.helpContact}>
                   Still can't find it? Email us:{" "}
-                  <a href="mailto:support@basepowercompany.com">
+                  <a href="mailto:team@basepowercompany.com">
                     support@basepowercompany.com
                   </a>
                 </p>

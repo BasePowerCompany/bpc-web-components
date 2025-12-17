@@ -182,9 +182,12 @@ class AddressSearchElement extends HTMLElement {
         })
       );
       // Reset state.
-      this.multipleResult = undefined;
-      this.selection = undefined;
-      this.render();
+      setTimeout(() => {
+        // Wait a reasonable amount of time, if we haven't redirected, close the modal.
+        this.multipleResult = undefined;
+        this.selection = undefined;
+        this.render();
+      }, 1000);
     };
 
     createRoot(this.container).render(
