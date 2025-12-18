@@ -156,9 +156,6 @@ class AddressSearchElement extends HTMLElement {
             detail: { result: this.multipleResult, selection: this.selection },
           })
         );
-        this.multipleResult = undefined;
-        this.selection = undefined;
-        this.render();
         return;
       }
       // If we can't find an external address id, return (shouldn't ever get here).
@@ -181,13 +178,6 @@ class AddressSearchElement extends HTMLElement {
           },
         })
       );
-      // Reset state.
-      setTimeout(() => {
-        // Wait a reasonable amount of time, if we haven't redirected, close the modal.
-        this.multipleResult = undefined;
-        this.selection = undefined;
-        this.render();
-      }, 1000);
     };
 
     createRoot(this.container).render(
