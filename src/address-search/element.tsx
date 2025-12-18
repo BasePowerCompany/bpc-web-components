@@ -1,7 +1,16 @@
 import { StrictMode } from "react";
+import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { fetchHydration } from "@/address-search/fetch";
-import type { AddressResult } from "@/address-search/types";
+import {
+	fetchHydration,
+	setUtilityUserConfirmed,
+} from "@/address-search/fetch";
+import type {
+	AddressResult,
+	RedirectMultipleOption,
+	RedirectStrategyMultiple,
+} from "@/address-search/types";
+import { UtilityModal } from "@/address-search/UtilityModal";
 import { bootstrap } from "@/utils/googleMaps";
 import type { AddressSearchProps } from "./AddressSearch";
 import { AddressSearch } from "./AddressSearch";
@@ -39,7 +48,12 @@ class AddressSearchElement extends HTMLElement {
 	private container?: HTMLElement;
 	private overlayRoot?: ShadowRoot;
 	private overlayWrapper?: HTMLElement;
-
+	private multipleResult?: {
+		redirectUrl: string;
+		redirectStrategy: RedirectStrategyMultiple;
+		externalAddressId: string;
+	};
+	private selection?: AddressResult;
 	static get observedAttributes() {
 		return ["public-key", "placeholder", "cta"];
 	}
@@ -88,6 +102,9 @@ class AddressSearchElement extends HTMLElement {
 			selection: AddressResult | undefined;
 		}) => {
 			// Fire the select event to the parent
+
+			this.selection = detail.selection;
+
 			this.dispatchEvent(new CustomEvent("select", { detail }));
 
 			// If no selection, return
@@ -95,6 +112,17 @@ class AddressSearchElement extends HTMLElement {
 
 			// Fetch the hydration data
 			const result = await fetchHydration(detail.selection);
+			console.log(result);
+			if (result.success && result.data.redirectStrategy.isMultiple) {
+				this.multipleResult = {
+					redirectUrl: result.data.redirectUrl,
+					redirectStrategy: result.data.redirectStrategy,
+					externalAddressId: result.data.externalAddressId,
+				};
+				this.render();
+				return;
+			}
+
 			if (result.success) {
 				// Fire the result event to the parent
 				this.dispatchEvent(
@@ -112,6 +140,46 @@ class AddressSearchElement extends HTMLElement {
 
 		const zIndex = getZIndex(this.root?.host as HTMLElement);
 
+		const onSelectUtilityFromModal = async (option: RedirectMultipleOption) => {
+			const utility = option.value;
+			// Try to find the utility selection for the multiple result.
+			const found = this.multipleResult?.redirectStrategy.multiple.options.find(
+				(opt) => opt.value === utility,
+			);
+			if (!found) {
+				return;
+			}
+			// If utility is "OTHER", Don't set utility user confirmed, just dispatch event.
+			if (utility === "OTHER") {
+				this.dispatchEvent(
+					new CustomEvent("result", {
+						detail: { result: this.multipleResult, selection: this.selection },
+					}),
+				);
+				return;
+			}
+			// If we can't find an external address id, return (shouldn't ever get here).
+			if (!this.multipleResult?.externalAddressId) return;
+			// Set the user-confirmed utility.
+			try {
+				await setUtilityUserConfirmed(
+					utility,
+					this.multipleResult.externalAddressId,
+				);
+			} catch (err) {
+				console.error("Error setting utility user confirmed", err);
+			}
+			// Dispatch a the event to route the user based on their option.
+			this.dispatchEvent(
+				new CustomEvent("result", {
+					detail: {
+						result: { redirectUrl: found.redirectUrl },
+						selection: this.selection,
+					},
+				}),
+			);
+		};
+
 		createRoot(this.container).render(
 			<StrictMode>
 				<AddressSearch
@@ -120,6 +188,24 @@ class AddressSearchElement extends HTMLElement {
 					onSelect={onSelect}
 					portalRoot={this.overlayRoot}
 				/>
+				{this.multipleResult &&
+					this.selection &&
+					createPortal(
+						<UtilityModal
+							{...props}
+							onSelect={onSelectUtilityFromModal}
+							address={this.selection?.formattedAddress ?? ""}
+							options={
+								this.multipleResult?.redirectStrategy.multiple.options ?? []
+							}
+							onBack={() => {
+								this.multipleResult = undefined;
+								this.selection = undefined;
+								this.render();
+							}}
+						/>,
+						this.overlayRoot,
+					)}
 			</StrictMode>,
 		);
 	}
