@@ -114,15 +114,15 @@ class AddressSearchElement extends HTMLElement {
 			// Fetch the hydration data
 			const result = await fetchHydration(detail.selection);
 			if (result.success && result.data.redirectStrategy.isMultiple) {
-				posthogCapture("address_search_multiple_result", {
-					selection: detail.selection,
-					multipleResult: this.multipleResult,
-				});
 				this.multipleResult = {
 					redirectUrl: result.data.redirectUrl,
 					redirectStrategy: result.data.redirectStrategy,
 					externalAddressId: result.data.externalAddressId,
 				};
+				posthogCapture("address_search_multiple_result", {
+					selection: detail.selection,
+					multipleResult: this.multipleResult,
+				});
 				this.render();
 				return;
 			}

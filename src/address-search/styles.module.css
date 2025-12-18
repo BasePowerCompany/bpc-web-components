@@ -401,17 +401,14 @@ button.input {
 		width: 100%;
 		min-width: 0;
 		max-width: none;
-		padding: 48px 24px 32px;
+		padding: 128px 24px 32px;
 		order: 2;
 	}
 
 	.utilityModalImage {
 		width: 100%;
 		flex: none;
-		background-image: url("https://bpc-web-static-files.s3.us-east-2.amazonaws.com/Utility-Confirm-Hero-Mobile.jpg");
-		background-size: cover;
-		background-position: center 70%;
-		height: 200px;
+		display: none;
 		order: 1;
 	}
 
