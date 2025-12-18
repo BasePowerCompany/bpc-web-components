@@ -45,3 +45,19 @@ export function parseAddress(
 		address,
 	};
 }
+
+export const posthogCapture = (
+	eventName: string,
+	// biome-ignore lint/suspicious/noExplicitAny: Posthog args are any
+	properties: Record<string, any>,
+) => {
+	if (
+		typeof window !== "undefined" &&
+		// biome-ignore lint/suspicious/noExplicitAny: Posthog is any
+		(window as unknown as { posthog?: any }).posthog
+	) {
+		// biome-ignore lint/suspicious/noExplicitAny: Posthog is any
+		const posthog = (window as unknown as { posthog?: any }).posthog;
+		posthog.capture(eventName, properties);
+	}
+};

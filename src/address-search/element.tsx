@@ -11,6 +11,7 @@ import type {
 	RedirectStrategyMultiple,
 } from "@/address-search/types";
 import { UtilityModal } from "@/address-search/UtilityModal";
+import { posthogCapture } from "@/address-search/utils";
 import { bootstrap } from "@/utils/googleMaps";
 import type { AddressSearchProps } from "./AddressSearch";
 import { AddressSearch } from "./AddressSearch";
@@ -112,8 +113,11 @@ class AddressSearchElement extends HTMLElement {
 
 			// Fetch the hydration data
 			const result = await fetchHydration(detail.selection);
-			console.log(result);
 			if (result.success && result.data.redirectStrategy.isMultiple) {
+				posthogCapture("address_search_multiple_result", {
+					selection: detail.selection,
+					multipleResult: this.multipleResult,
+				});
 				this.multipleResult = {
 					redirectUrl: result.data.redirectUrl,
 					redirectStrategy: result.data.redirectStrategy,
@@ -124,6 +128,9 @@ class AddressSearchElement extends HTMLElement {
 			}
 
 			if (result.success) {
+				posthogCapture("address_search_single_result", {
+					selection: detail.selection,
+				});
 				// Fire the result event to the parent
 				this.dispatchEvent(
 					new CustomEvent("result", {
@@ -131,6 +138,9 @@ class AddressSearchElement extends HTMLElement {
 					}),
 				);
 			} else {
+				posthogCapture("address_search_no_result", {
+					selection: detail.selection,
+				});
 				// Fire the error event to the parent
 				this.dispatchEvent(
 					new CustomEvent("error", { detail: { error: result.error } }),
@@ -147,10 +157,20 @@ class AddressSearchElement extends HTMLElement {
 				(opt) => opt.value === utility,
 			);
 			if (!found) {
+				posthogCapture("address_search_modal_selection_not_found", {
+					selection: this.selection,
+					utility: utility,
+					multipleResult: this.multipleResult,
+				});
 				return;
 			}
 			// If utility is "OTHER", Don't set utility user confirmed, just dispatch event.
 			if (utility === "OTHER") {
+				posthogCapture("address_search_modal_selection_utility_other", {
+					selection: this.selection,
+					utility: utility,
+					multipleResult: this.multipleResult,
+				});
 				this.dispatchEvent(
 					new CustomEvent("result", {
 						detail: { result: this.multipleResult, selection: this.selection },
@@ -159,14 +179,34 @@ class AddressSearchElement extends HTMLElement {
 				return;
 			}
 			// If we can't find an external address id, return (shouldn't ever get here).
-			if (!this.multipleResult?.externalAddressId) return;
+			if (!this.multipleResult?.externalAddressId) {
+				posthogCapture(
+					"address_search_multiple_result_unreachable_external_address_id_not_found",
+					{
+						selection: this.selection,
+						utility: utility,
+						multipleResult: this.multipleResult,
+					},
+				);
+				return;
+			}
 			// Set the user-confirmed utility.
 			try {
 				await setUtilityUserConfirmed(
 					utility,
 					this.multipleResult.externalAddressId,
 				);
+				posthogCapture("address_search_set_utility_confirmed_success", {
+					selection: this.selection,
+					utility: utility,
+					multipleResult: this.multipleResult,
+				});
 			} catch (err) {
+				posthogCapture("address_search_set_utility_confirmed_error", {
+					selection: this.selection,
+					utility: utility,
+					multipleResult: this.multipleResult,
+				});
 				console.error("Error setting utility user confirmed", err);
 			}
 			// Dispatch a the event to route the user based on their option.
