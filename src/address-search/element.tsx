@@ -171,9 +171,10 @@ class AddressSearchElement extends HTMLElement {
 					utility: utility,
 					multipleResult: this.multipleResult,
 				});
+
 				this.dispatchEvent(
 					new CustomEvent("result", {
-						detail: { result: this.multipleResult, selection: this.selection },
+						detail: { result: found, selection: this.selection },
 					}),
 				);
 				return;
