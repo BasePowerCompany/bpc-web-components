@@ -169,11 +169,12 @@ class AddressSearchElement extends HTMLElement {
 				posthogCapture("address_search_modal_selection_utility_other", {
 					selection: this.selection,
 					utility: utility,
-					multipleResult: this.multipleResult,
+					multipleResult: found,
 				});
+
 				this.dispatchEvent(
 					new CustomEvent("result", {
-						detail: { result: this.multipleResult, selection: this.selection },
+						detail: { result: found, selection: this.selection },
 					}),
 				);
 				return;
