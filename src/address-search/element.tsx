@@ -8,7 +8,7 @@ import {
 import type {
 	AddressResult,
 	RedirectMultipleOption,
-	RedirectStrategyMultiple,
+	RedirectStrategyMultipleUtility,
 } from "@/address-search/types";
 import { UtilityModal } from "@/address-search/UtilityModal";
 import { posthogCapture } from "@/address-search/utils";
@@ -49,9 +49,9 @@ class AddressSearchElement extends HTMLElement {
 	private container?: HTMLElement;
 	private overlayRoot?: ShadowRoot;
 	private overlayWrapper?: HTMLElement;
-	private multipleResult?: {
+	private multipleUtilityResult?: {
 		redirectUrl: string;
-		redirectStrategy: RedirectStrategyMultiple;
+		redirectStrategy: RedirectStrategyMultipleUtility;
 		externalAddressId: string;
 	};
 	private selection?: AddressResult;
@@ -114,14 +114,14 @@ class AddressSearchElement extends HTMLElement {
 			// Fetch the hydration data
 			const result = await fetchHydration(detail.selection);
 			if (result.success && result.data.redirectStrategy.isMultiple) {
-				this.multipleResult = {
+				this.multipleUtilityResult = {
 					redirectUrl: result.data.redirectUrl,
 					redirectStrategy: result.data.redirectStrategy,
 					externalAddressId: result.data.externalAddressId,
 				};
 				posthogCapture("address_search_multiple_result", {
 					selection: detail.selection,
-					multipleResult: this.multipleResult,
+					multipleResult: this.multipleUtilityResult,
 				});
 				this.render();
 				return;
@@ -153,14 +153,15 @@ class AddressSearchElement extends HTMLElement {
 		const onSelectUtilityFromModal = async (option: RedirectMultipleOption) => {
 			const utility = option.value;
 			// Try to find the utility selection for the multiple result.
-			const found = this.multipleResult?.redirectStrategy.multiple.options.find(
-				(opt) => opt.value === utility,
-			);
+			const found =
+				this.multipleUtilityResult?.redirectStrategy.multiple.options.find(
+					(opt) => opt.value === utility,
+				);
 			if (!found) {
 				posthogCapture("address_search_modal_selection_not_found", {
 					selection: this.selection,
 					utility: utility,
-					multipleResult: this.multipleResult,
+					multipleResult: this.multipleUtilityResult,
 				});
 				return;
 			}
@@ -180,13 +181,13 @@ class AddressSearchElement extends HTMLElement {
 				return;
 			}
 			// If we can't find an external address id, return (shouldn't ever get here).
-			if (!this.multipleResult?.externalAddressId) {
+			if (!this.multipleUtilityResult?.externalAddressId) {
 				posthogCapture(
 					"address_search_multiple_result_unreachable_external_address_id_not_found",
 					{
 						selection: this.selection,
 						utility: utility,
-						multipleResult: this.multipleResult,
+						multipleResult: this.multipleUtilityResult,
 					},
 				);
 				return;
@@ -195,18 +196,18 @@ class AddressSearchElement extends HTMLElement {
 			try {
 				await setUtilityUserConfirmed(
 					utility,
-					this.multipleResult.externalAddressId,
+					this.multipleUtilityResult.externalAddressId,
 				);
 				posthogCapture("address_search_set_utility_confirmed_success", {
 					selection: this.selection,
 					utility: utility,
-					multipleResult: this.multipleResult,
+					multipleResult: this.multipleUtilityResult,
 				});
 			} catch (err) {
 				posthogCapture("address_search_set_utility_confirmed_error", {
 					selection: this.selection,
 					utility: utility,
-					multipleResult: this.multipleResult,
+					multipleResult: this.multipleUtilityResult,
 				});
 				console.error("Error setting utility user confirmed", err);
 			}
@@ -229,18 +230,20 @@ class AddressSearchElement extends HTMLElement {
 					onSelect={onSelect}
 					portalRoot={this.overlayRoot}
 				/>
-				{this.multipleResult &&
+				{this.multipleUtilityResult &&
 					this.selection &&
 					createPortal(
 						<UtilityModal
 							{...props}
-							onSelect={onSelectUtilityFromModal}
+							showMultipleUtilityOptions={true}
+							onSelectUtility={onSelectUtilityFromModal}
 							address={this.selection?.formattedAddress ?? ""}
-							options={
-								this.multipleResult?.redirectStrategy.multiple.options ?? []
+							utilityOptions={
+								this.multipleUtilityResult?.redirectStrategy.multiple.options ??
+								[]
 							}
 							onBack={() => {
-								this.multipleResult = undefined;
+								this.multipleUtilityResult = undefined;
 								this.selection = undefined;
 								this.render();
 							}}
