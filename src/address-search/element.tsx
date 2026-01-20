@@ -113,7 +113,6 @@ class AddressSearchElement extends HTMLElement {
 
 			// Fetch the hydration data
 			const result = await fetchHydration(detail.selection);
-			console.log(" hydration result", result);
 			if (result.success && result.data.redirectStrategy.isMultiple) {
 				this.multipleUtilityResult = {
 					redirectUrl: result.data.redirectUrl,
