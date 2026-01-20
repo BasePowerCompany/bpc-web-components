@@ -22,20 +22,33 @@ export type RedirectMultiple = {
 	options: RedirectMultipleOption[];
 };
 
-export type RedirectStrategySingle = {
+export type RedirectMultipleAddress = {
+	original_address_string: string;
+	existing_address_string: string;
+};
+
+export type RedirectStrategySingleUtility = {
 	redirectUrl: string;
 	isMultiple: false;
 };
 
-export type RedirectStrategyMultiple = {
+export type RedirectStrategyMultipleUtility = {
 	redirectUrl: string;
 	multiple: RedirectMultiple;
 	isMultiple: true;
 };
 
+export type RedirectStrategyMultipleAddress = {
+	redirectUrl: string;
+	isMultiple: false;
+	isMultipleAddress: true;
+	multipleAddress: RedirectMultipleAddress;
+};
+
 export type RedirectStrategy =
-	| RedirectStrategySingle
-	| RedirectStrategyMultiple;
+	| RedirectStrategySingleUtility
+	| RedirectStrategyMultipleUtility
+	| RedirectStrategyMultipleAddress;
 
 export type HydrationResult =
 	| {

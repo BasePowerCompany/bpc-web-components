@@ -3,8 +3,9 @@ import type { RedirectMultipleOption } from "./types";
 
 export type UtilityModalProps = {
 	address: string;
-	options: RedirectMultipleOption[];
-	onSelect: (option: RedirectMultipleOption) => void;
+	utilityOptions: RedirectMultipleOption[];
+	onSelectUtility: (option: RedirectMultipleOption) => void;
+	showMultipleUtilityOptions: boolean;
 	onBack: () => void;
 };
 
@@ -15,10 +16,14 @@ const UtilityValueToLogoMap: Record<string, string> = {
 
 export function UtilityModal({
 	address,
-	options,
-	onSelect,
+	utilityOptions,
+	onSelectUtility,
 	onBack,
+	showMultipleUtilityOptions,
 }: UtilityModalProps) {
+	if (!showMultipleUtilityOptions) {
+		return null;
+	}
 	return (
 		<div className={styles.utilityModal}>
 			<div className={styles.utilityModalContent}>
@@ -60,14 +65,14 @@ export function UtilityModal({
 
 						<div className={styles.utilitySelectContent}>
 							<div className={styles.utilityOptions}>
-								{options.map((option) => {
+								{utilityOptions.map((option) => {
 									const logoUrl = UtilityValueToLogoMap[option.value];
 									return (
 										<button
 											key={option.name}
 											type="button"
 											className={styles.utilityOption}
-											onClick={() => onSelect(option)}
+											onClick={() => onSelectUtility(option)}
 										>
 											<div className={styles.utilityOptionInner}>
 												<p className={styles.utilityName}>{option.name}</p>
