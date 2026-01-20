@@ -23,19 +23,21 @@ export type RedirectMultiple = {
 };
 
 export type RedirectMultipleAddress = {
-	original_address_string: string;
-	existing_address_string: string;
+	original_address: AddressResult;
+	existing_address: AddressResult;
 };
 
 export type RedirectStrategySingleUtility = {
 	redirectUrl: string;
 	isMultiple: false;
+	isMultipleAddress: false;
 };
 
 export type RedirectStrategyMultipleUtility = {
 	redirectUrl: string;
 	multiple: RedirectMultiple;
 	isMultiple: true;
+	isMultipleAddress: false;
 };
 
 export type RedirectStrategyMultipleAddress = {

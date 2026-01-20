@@ -7,6 +7,7 @@ import {
 } from "@/address-search/fetch";
 import type {
 	AddressResult,
+	RedirectMultipleAddress,
 	RedirectMultipleOption,
 	RedirectStrategyMultipleUtility,
 } from "@/address-search/types";
@@ -54,6 +55,7 @@ class AddressSearchElement extends HTMLElement {
 		redirectStrategy: RedirectStrategyMultipleUtility;
 		externalAddressId: string;
 	};
+	private multipleAddressResult?: RedirectMultipleAddress;
 	private selection?: AddressResult;
 	static get observedAttributes() {
 		return ["public-key", "placeholder", "cta"];
@@ -101,6 +103,7 @@ class AddressSearchElement extends HTMLElement {
 
 		const onSelect = async (detail: {
 			selection: AddressResult | undefined;
+			confirmAddress: boolean;
 		}) => {
 			// Fire the select event to the parent
 
@@ -112,8 +115,15 @@ class AddressSearchElement extends HTMLElement {
 			if (!detail.selection) return;
 
 			// Fetch the hydration data
-			const result = await fetchHydration(detail.selection);
+			const result = await fetchHydration(
+				detail.selection,
+				detail.confirmAddress,
+			);
+			console.log(" hydration result", result);
 			if (result.success && result.data.redirectStrategy.isMultiple) {
+				console.log("multiple utility result", result.data);
+				// Clear address result when showing utility options
+				this.multipleAddressResult = undefined;
 				this.multipleUtilityResult = {
 					redirectUrl: result.data.redirectUrl,
 					redirectStrategy: result.data.redirectStrategy,
@@ -122,6 +132,20 @@ class AddressSearchElement extends HTMLElement {
 				posthogCapture("address_search_multiple_result", {
 					selection: detail.selection,
 					multipleResult: this.multipleUtilityResult,
+				});
+				console.log("retrigger render", this.multipleUtilityResult);
+				this.render();
+				return;
+			}
+			// If the result is a multiple address result, set the multiple address result.
+			if (result.success && result.data.redirectStrategy.isMultipleAddress) {
+				// Clear utility result when showing address options
+				this.multipleUtilityResult = undefined;
+				this.multipleAddressResult =
+					result.data.redirectStrategy.multipleAddress;
+				posthogCapture("address_search_multiple_address_result", {
+					selection: detail.selection,
+					multipleAddressResult: this.multipleAddressResult,
 				});
 				this.render();
 				return;
@@ -221,29 +245,45 @@ class AddressSearchElement extends HTMLElement {
 				}),
 			);
 		};
+		// User select the address from the Address Selection modal
+		// it will retrigger the onSelect handler with the new selection
+		const onSelectAddressFromModal = async (
+			address_selected: AddressResult,
+		) => {
+			console.log("onSelectAddressFromModal", address_selected);
+			// call onselect with the selected address
+			onSelect({ selection: address_selected, confirmAddress: false });
+		};
+
+		const shouldShowUtilityModal =
+			(this.multipleAddressResult && this.selection) ||
+			(this.multipleUtilityResult && this.selection);
 
 		createRoot(this.container).render(
 			<StrictMode>
 				<AddressSearch
 					{...props}
 					zIndex={zIndex}
-					onSelect={onSelect}
+					// first time user enters the address, we need to confirm the address
+					onSelect={(detail) => onSelect({ ...detail, confirmAddress: true })}
 					portalRoot={this.overlayRoot}
 				/>
-				{this.multipleUtilityResult &&
-					this.selection &&
+				{shouldShowUtilityModal &&
 					createPortal(
 						<UtilityModal
-							{...props}
-							showMultipleUtilityOptions={true}
+							showMultipleUtilityOptions={!!this.multipleUtilityResult}
+							showMultipleAddressOptions={!!this.multipleAddressResult}
 							onSelectUtility={onSelectUtilityFromModal}
+							onSelectAddress={onSelectAddressFromModal}
 							address={this.selection?.formattedAddress ?? ""}
 							utilityOptions={
 								this.multipleUtilityResult?.redirectStrategy.multiple.options ??
 								[]
 							}
+							addressOptions={this.multipleAddressResult}
 							onBack={() => {
 								this.multipleUtilityResult = undefined;
+								this.multipleAddressResult = undefined;
 								this.selection = undefined;
 								this.render();
 							}}
