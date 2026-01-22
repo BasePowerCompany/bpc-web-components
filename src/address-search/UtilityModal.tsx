@@ -1,19 +1,12 @@
 import { useState } from "react";
 import styles from "./styles.module.css";
-import type {
-	AddressResult,
-	RedirectMultipleAddress,
-	RedirectMultipleOption,
-} from "./types";
+import type { RedirectMultipleOption } from "./types";
 
 export type UtilityModalProps = {
 	address: string;
 	utilityOptions: RedirectMultipleOption[];
-	addressOptions: RedirectMultipleAddress | undefined;
 	onSelectUtility: (option: RedirectMultipleOption) => void;
-	onSelectAddress: (address_selected: AddressResult) => void;
 	showMultipleUtilityOptions: boolean;
-	showMultipleAddressOptions: boolean;
 	onBack: () => void;
 };
 
@@ -92,108 +85,6 @@ function ModalLayout({
 	);
 }
 
-function RadioButton({ selected }: { selected: boolean }) {
-	return (
-		<div className={styles.addressRadio}>
-			<div
-				className={`${styles.radioCircle} ${selected ? styles.radioCircleSelected : ""}`}
-			>
-				{selected && <div className={styles.radioCircleInner} />}
-			</div>
-		</div>
-	);
-}
-
-// Address Selection View
-function AddressSelectionContent({
-	address,
-	addressOptions,
-	onSelectAddress,
-}: {
-	address: string;
-	addressOptions: RedirectMultipleAddress;
-	onSelectAddress: (address_selected: AddressResult) => void;
-}) {
-	const [selectedAddress, setSelectedAddress] = useState<
-		"existing" | "original"
-	>("existing");
-
-	const existingAddress = addressOptions.existingAddress;
-	const originalAddress = addressOptions.originalAddress;
-
-	const handleContinue = () => {
-		const selected =
-			selectedAddress === "existing" ? existingAddress : originalAddress;
-		onSelectAddress(selected);
-	};
-
-	const formatAddressLine1 = (addr: AddressResult) => addr.address.line1;
-	const formatAddressLine2 = (addr: AddressResult) =>
-		`${addr.address.city}, ${addr.address.state} ${addr.address.postalCode}`;
-
-	return (
-		<>
-			<div>
-				<p className={styles.addressLabelSmall}>YOU ENTERED:</p>
-				<p className={styles.addressLabelBold}>{address}</p>
-			</div>
-
-			<div className={styles.addressSelectContent}>
-				<h1 className={styles.utilityModalTitle}>
-					We found 2 possible addresses:
-				</h1>
-				<p className={styles.utilityModalSubtitle}>
-					Help us find the right serviceable address for your home.
-				</p>
-
-				<div className={styles.addressOptions}>
-					<button
-						type="button"
-						className={`${styles.addressOption} ${selectedAddress === "existing" ? styles.addressOptionSelected : ""}`}
-						onClick={() => setSelectedAddress("existing")}
-					>
-						<RadioButton selected={selectedAddress === "existing"} />
-						<div className={styles.addressText}>
-							<p className={styles.addressLine1}>
-								{formatAddressLine1(existingAddress)}
-							</p>
-							<p className={styles.addressLine2}>
-								{formatAddressLine2(existingAddress)}
-							</p>
-						</div>
-						<span className={styles.recommendedBadge}>RECOMMENDED</span>
-					</button>
-
-					<button
-						type="button"
-						className={`${styles.addressOption} ${selectedAddress === "original" ? styles.addressOptionSelected : ""}`}
-						onClick={() => setSelectedAddress("original")}
-					>
-						<RadioButton selected={selectedAddress === "original"} />
-						<div className={styles.addressText}>
-							<p className={styles.addressLine1}>
-								{formatAddressLine1(originalAddress)}
-							</p>
-							<p className={styles.addressLine2}>
-								{formatAddressLine2(originalAddress)}
-							</p>
-						</div>
-					</button>
-				</div>
-
-				<button
-					type="button"
-					className={styles.continueButton}
-					onClick={handleContinue}
-				>
-					Continue
-					<ArrowIcon />
-				</button>
-			</div>
-		</>
-	);
-}
-
 // Utility Selection View
 function UtilitySelectionContent({
 	address,
@@ -268,22 +159,7 @@ export function UtilityModal({
 	onSelectUtility,
 	onBack,
 	showMultipleUtilityOptions,
-	addressOptions,
-	onSelectAddress,
-	showMultipleAddressOptions,
 }: UtilityModalProps) {
-	if (showMultipleAddressOptions && addressOptions) {
-		return (
-			<ModalLayout onBack={onBack}>
-				<AddressSelectionContent
-					address={address}
-					addressOptions={addressOptions}
-					onSelectAddress={onSelectAddress}
-				/>
-			</ModalLayout>
-		);
-	}
-
 	if (showMultipleUtilityOptions) {
 		return (
 			<ModalLayout onBack={onBack}>
@@ -295,6 +171,5 @@ export function UtilityModal({
 			</ModalLayout>
 		);
 	}
-
 	return null;
 }

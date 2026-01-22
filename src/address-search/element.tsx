@@ -245,15 +245,6 @@ class AddressSearchElement extends HTMLElement {
 				}),
 			);
 		};
-		// User select the address from the Address Selection modal
-		// it will retrigger the onSelect handler with the new selection
-		const onSelectAddressFromModal = async (
-			address_selected: AddressResult,
-		) => {
-			console.log("onSelectAddressFromModal", address_selected);
-			// call onselect with the selected address
-			onSelect({ selection: address_selected, confirmAddress: false });
-		};
 
 		const shouldShowUtilityModal =
 			(this.multipleAddressResult && this.selection) ||
@@ -261,29 +252,26 @@ class AddressSearchElement extends HTMLElement {
 
 		createRoot(this.container).render(
 			<StrictMode>
+				<UtilitySearch />
 				<AddressSearch
 					{...props}
 					zIndex={zIndex}
-					// first time user enters the address, we need to confirm the address
+					// @TODO(dzhang) turn on confirm address by default
 					onSelect={(detail) => onSelect({ ...detail, confirmAddress: true })}
 					portalRoot={this.overlayRoot}
 				/>
 				{shouldShowUtilityModal &&
 					createPortal(
 						<UtilityModal
-							showMultipleUtilityOptions={!!this.multipleUtilityResult}
-							showMultipleAddressOptions={!!this.multipleAddressResult}
+							showMultipleUtilityOptions={true}
 							onSelectUtility={onSelectUtilityFromModal}
-							onSelectAddress={onSelectAddressFromModal}
 							address={this.selection?.formattedAddress ?? ""}
 							utilityOptions={
 								this.multipleUtilityResult?.redirectStrategy.multiple.options ??
 								[]
 							}
-							addressOptions={this.multipleAddressResult}
 							onBack={() => {
 								this.multipleUtilityResult = undefined;
-								this.multipleAddressResult = undefined;
 								this.selection = undefined;
 								this.render();
 							}}
