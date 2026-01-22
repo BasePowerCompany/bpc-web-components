@@ -139,14 +139,12 @@ function UtilitySelectionContent({
 							>
 								<div className={styles.utilityOptionInner}>
 									<p className={styles.utilityName}>{option.name}</p>
-									{logoUrl ? (
+									{logoUrl && (
 										<img
 											src={logoUrl}
 											alt={`${option.name} logo`}
 											className={styles.utilityLogo}
 										/>
-									) : (
-										<div />
 									)}
 								</div>
 							</button>
