@@ -1,10 +1,17 @@
+import { setUtilityUserConfirmed } from "@/address-search/fetch";
+import type {
+	AddressResult,
+	RedirectMultipleOption,
+} from "@/address-search/types";
+import { posthogCapture } from "@/address-search/utils";
 import styles from "./styles.module.css";
-import type { RedirectMultipleOption } from "./types";
 
 export type UtilityModalProps = {
 	address: string;
+	addressSelected: AddressResult;
+	externalAddressId: string;
 	utilityOptions: RedirectMultipleOption[];
-	onSelectUtility: (option: RedirectMultipleOption) => void;
+	onComplete: (redirectUrl: string) => void;
 	showMultipleUtilityOptions: boolean;
 	onBack: () => void;
 };
@@ -16,14 +23,76 @@ const UtilityValueToLogoMap: Record<string, string> = {
 
 export function UtilityModal({
 	address,
+	addressSelected,
+	externalAddressId,
 	utilityOptions,
-	onSelectUtility,
+	onComplete,
 	onBack,
 	showMultipleUtilityOptions,
 }: UtilityModalProps) {
 	if (!showMultipleUtilityOptions) {
 		return null;
 	}
+
+	const handleSelectUtility = async (option: RedirectMultipleOption) => {
+		const utility = option.value;
+
+		// Try to find the utility selection for the multiple result.
+		const found = utilityOptions.find((opt) => opt.value === utility);
+		if (!found) {
+			posthogCapture("address_search_modal_selection_not_found", {
+				selection: addressSelected,
+				utility: utility,
+				utilityOptions,
+			});
+			return;
+		}
+
+		// If utility is "OTHER", Don't set utility user confirmed, just complete.
+		if (utility === "OTHER") {
+			posthogCapture("address_search_modal_selection_utility_other", {
+				selection: addressSelected,
+				utility: utility,
+				multipleResult: found,
+			});
+			onComplete(found.redirectUrl);
+			return;
+		}
+
+		// If we can't find an external address id, return (shouldn't ever get here).
+		if (!externalAddressId) {
+			posthogCapture(
+				"address_search_multiple_result_unreachable_external_address_id_not_found",
+				{
+					selection: addressSelected,
+					utility: utility,
+					externalAddressId,
+				},
+			);
+			return;
+		}
+
+		// Set the user-confirmed utility.
+		try {
+			await setUtilityUserConfirmed(utility, externalAddressId);
+			posthogCapture("address_search_set_utility_confirmed_success", {
+				selection: addressSelected,
+				utility: utility,
+				externalAddressId,
+			});
+		} catch (err) {
+			posthogCapture("address_search_set_utility_confirmed_error", {
+				selection: addressSelected,
+				utility: utility,
+				externalAddressId,
+			});
+			console.error("Error setting utility user confirmed", err);
+		}
+
+		// Complete with the redirect URL
+		onComplete(found.redirectUrl);
+	};
+
 	return (
 		<div className={styles.utilityModal}>
 			<div className={styles.utilityModalContent}>
@@ -72,7 +141,7 @@ export function UtilityModal({
 											key={option.name}
 											type="button"
 											className={styles.utilityOption}
-											onClick={() => onSelectUtility(option)}
+											onClick={() => handleSelectUtility(option)}
 										>
 											<div className={styles.utilityOptionInner}>
 												<p className={styles.utilityName}>{option.name}</p>
@@ -110,7 +179,7 @@ export function UtilityModal({
 					</div>
 				</div>
 			</div>
-			<div className={styles.utilityModalImage}></div>
+			<div className={styles.utilityModalImage} />
 		</div>
 	);
 }

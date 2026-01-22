@@ -1,13 +1,9 @@
 import { StrictMode } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
-import {
-	fetchHydration,
-	setUtilityUserConfirmed,
-} from "@/address-search/fetch";
+import { fetchHydration } from "@/address-search/fetch";
 import type {
 	AddressResult,
-	RedirectMultipleOption,
 	RedirectStrategyMultipleUtility,
 } from "@/address-search/types";
 import { UtilityModal } from "@/address-search/UtilityModal";
@@ -150,72 +146,12 @@ class AddressSearchElement extends HTMLElement {
 
 		const zIndex = getZIndex(this.root?.host as HTMLElement);
 
-		const onSelectUtilityFromModal = async (option: RedirectMultipleOption) => {
-			const utility = option.value;
-			// Try to find the utility selection for the multiple result.
-			const found =
-				this.multipleUtilityResult?.redirectStrategy.multiple.options.find(
-					(opt) => opt.value === utility,
-				);
-			if (!found) {
-				posthogCapture("address_search_modal_selection_not_found", {
-					selection: this.selection,
-					utility: utility,
-					multipleResult: this.multipleUtilityResult,
-				});
-				return;
-			}
-			// If utility is "OTHER", Don't set utility user confirmed, just dispatch event.
-			if (utility === "OTHER") {
-				posthogCapture("address_search_modal_selection_utility_other", {
-					selection: this.selection,
-					utility: utility,
-					multipleResult: found,
-				});
-
-				this.dispatchEvent(
-					new CustomEvent("result", {
-						detail: { result: found, selection: this.selection },
-					}),
-				);
-				return;
-			}
-			// If we can't find an external address id, return (shouldn't ever get here).
-			if (!this.multipleUtilityResult?.externalAddressId) {
-				posthogCapture(
-					"address_search_multiple_result_unreachable_external_address_id_not_found",
-					{
-						selection: this.selection,
-						utility: utility,
-						multipleResult: this.multipleUtilityResult,
-					},
-				);
-				return;
-			}
-			// Set the user-confirmed utility.
-			try {
-				await setUtilityUserConfirmed(
-					utility,
-					this.multipleUtilityResult.externalAddressId,
-				);
-				posthogCapture("address_search_set_utility_confirmed_success", {
-					selection: this.selection,
-					utility: utility,
-					multipleResult: this.multipleUtilityResult,
-				});
-			} catch (err) {
-				posthogCapture("address_search_set_utility_confirmed_error", {
-					selection: this.selection,
-					utility: utility,
-					multipleResult: this.multipleUtilityResult,
-				});
-				console.error("Error setting utility user confirmed", err);
-			}
-			// Dispatch a the event to route the user based on their option.
+		const onUtilityComplete = (redirectUrl: string) => {
+			// Dispatch the result event to route the user
 			this.dispatchEvent(
 				new CustomEvent("result", {
 					detail: {
-						result: { redirectUrl: found.redirectUrl },
+						result: { redirectUrl },
 						selection: this.selection,
 					},
 				}),
@@ -234,14 +170,14 @@ class AddressSearchElement extends HTMLElement {
 					this.selection &&
 					createPortal(
 						<UtilityModal
-							{...props}
 							showMultipleUtilityOptions={true}
-							onSelectUtility={onSelectUtilityFromModal}
-							address={this.selection?.formattedAddress ?? ""}
+							address={this.selection.formattedAddress}
+							addressSelected={this.selection}
+							externalAddressId={this.multipleUtilityResult.externalAddressId}
 							utilityOptions={
-								this.multipleUtilityResult?.redirectStrategy.multiple.options ??
-								[]
+								this.multipleUtilityResult.redirectStrategy.multiple.options
 							}
+							onComplete={onUtilityComplete}
 							onBack={() => {
 								this.multipleUtilityResult = undefined;
 								this.selection = undefined;
