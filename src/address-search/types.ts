@@ -23,28 +23,28 @@ export type RedirectMultiple = {
 };
 
 export type RedirectMultipleAddress = {
-	original_address: AddressResult;
-	existing_address: AddressResult;
+	originalAddress: AddressResult;
+	existingAddress: AddressResult;
 };
 
 export type RedirectStrategySingleUtility = {
 	redirectUrl: string;
 	isMultiple: false;
-	isMultipleAddress: false;
+	isMultipleAddresses: false;
 };
 
 export type RedirectStrategyMultipleUtility = {
 	redirectUrl: string;
 	multiple: RedirectMultiple;
 	isMultiple: true;
-	isMultipleAddress: false;
+	isMultipleAddresses: false;
 };
 
 export type RedirectStrategyMultipleAddress = {
 	redirectUrl: string;
 	isMultiple: false;
-	isMultipleAddress: true;
-	multipleAddress: RedirectMultipleAddress;
+	isMultipleAddresses: true;
+	multipleAddresses: RedirectMultipleAddress;
 };
 
 export type RedirectStrategy =

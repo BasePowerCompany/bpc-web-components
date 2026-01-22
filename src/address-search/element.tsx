@@ -138,11 +138,11 @@ class AddressSearchElement extends HTMLElement {
 				return;
 			}
 			// If the result is a multiple address result, set the multiple address result.
-			if (result.success && result.data.redirectStrategy.isMultipleAddress) {
+			if (result.success && result.data.redirectStrategy.isMultipleAddresses) {
 				// Clear utility result when showing address options
 				this.multipleUtilityResult = undefined;
 				this.multipleAddressResult =
-					result.data.redirectStrategy.multipleAddress;
+					result.data.redirectStrategy.multipleAddresses;
 				posthogCapture("address_search_multiple_address_result", {
 					selection: detail.selection,
 					multipleAddressResult: this.multipleAddressResult,

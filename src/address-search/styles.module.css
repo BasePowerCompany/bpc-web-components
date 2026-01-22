@@ -497,15 +497,9 @@ button.input {
 	border-radius: 12px;
 	background: white;
 	cursor: pointer;
-	transition:
-		border-color 0.2s,
-		box-shadow 0.2s;
 	text-align: left;
 }
 
-.addressOption:hover {
-	border-color: #ccc;
-}
 
 .addressOptionSelected {
 	border-color: #084d41;
@@ -551,16 +545,16 @@ button.input {
 .addressLine2 {
 	font-size: 16px;
 	font-weight: 500;
-	color: #0b0e0f;
+	color: #666;
 	margin: 0;
 }
 
 .recommendedBadge {
-	font-size: 11px;
-	font-weight: 600;
+	font-size: 12px;
+	font-weight: 400;
 	letter-spacing: 0.05em;
-	color: #666;
-	background-color: #f0f0f0;
+	color: #084d41;
+	background-color: #b2dd79;
 	padding: 6px 12px;
 	border-radius: 4px;
 	text-transform: uppercase;
