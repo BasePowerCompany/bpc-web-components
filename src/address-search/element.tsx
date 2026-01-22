@@ -146,8 +146,8 @@ class AddressSearchElement extends HTMLElement {
 
 		const zIndex = getZIndex(this.root?.host as HTMLElement);
 
-		const onUtilityComplete = (redirectUrl: string) => {
-			// Dispatch the result event to route the user
+		const onRedirect = (redirectUrl: string) => {
+			// Dispatch the result event to route the user to redirectUrl
 			this.dispatchEvent(
 				new CustomEvent("result", {
 					detail: {
@@ -172,12 +172,11 @@ class AddressSearchElement extends HTMLElement {
 						<UtilityModal
 							showMultipleUtilityOptions={true}
 							address={this.selection.formattedAddress}
-							addressSelected={this.selection}
 							externalAddressId={this.multipleUtilityResult.externalAddressId}
 							utilityOptions={
 								this.multipleUtilityResult.redirectStrategy.multiple.options
 							}
-							onComplete={onUtilityComplete}
+							onTriggerRedirect={onRedirect}
 							onBack={() => {
 								this.multipleUtilityResult = undefined;
 								this.selection = undefined;
