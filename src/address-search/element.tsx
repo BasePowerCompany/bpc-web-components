@@ -182,6 +182,8 @@ class AddressSearchElement extends HTMLElement {
 		};
 
 		const onUserSelectAddress = (address: AddressResult) => {
+			// when user selects an address from the AddressSelectionContent
+			// we don't want to confirm the address, user will be redirected
 			onSelect({ selection: address, confirmAddress: false });
 		};
 
