@@ -199,7 +199,7 @@ function UtilitySelectionContent({
 	);
 }
 
-function RadioButton({ selected }: { selected: boolean }) {
+function AddressSelectionRadioButton({ selected }: { selected: boolean }) {
 	return (
 		<div className={styles.addressRadio}>
 			<div
@@ -259,7 +259,9 @@ function AddressSelectionContent({
 						className={`${styles.addressOption} ${selectedAddress === "existing" ? styles.addressOptionSelected : ""}`}
 						onClick={() => setSelectedAddress("existing")}
 					>
-						<RadioButton selected={selectedAddress === "existing"} />
+						<AddressSelectionRadioButton
+							selected={selectedAddress === "existing"}
+						/>
 						<div className={styles.addressText}>
 							<p className={styles.addressLine1Existing}>
 								{formatAddressLine1(existingAddress)}
@@ -276,7 +278,9 @@ function AddressSelectionContent({
 						className={`${styles.addressOption} ${selectedAddress === "original" ? styles.addressOptionSelected : ""}`}
 						onClick={() => setSelectedAddress("original")}
 					>
-						<RadioButton selected={selectedAddress === "original"} />
+						<AddressSelectionRadioButton
+							selected={selectedAddress === "original"}
+						/>
 						<div className={styles.addressText}>
 							<p className={styles.addressLine1Original}>
 								{formatAddressLine1(originalAddress)}
@@ -330,9 +334,7 @@ export function UtilityModal({
 	onSelectAddress,
 	onBack,
 }: UtilityModalProps) {
-	console.log("addressOptions", addressOptions);
 	if (addressOptions) {
-		console.log("rendering address selection content");
 		return (
 			<ModalLayout onBack={onBack}>
 				<AddressSelectionContent
@@ -343,9 +345,7 @@ export function UtilityModal({
 			</ModalLayout>
 		);
 	}
-	console.log("rendering utility selection content");
 	if (utilityOptions) {
-		console.log("rendering utility selection content");
 		return (
 			<ModalLayout onBack={onBack}>
 				<UtilitySelectionContent

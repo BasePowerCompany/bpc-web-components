@@ -116,7 +116,6 @@ class AddressSearchElement extends HTMLElement {
 				detail.selection,
 				detail.confirmAddress,
 			);
-			console.log("result", result);
 			if (result.success) {
 				this.externalAddressId = result.data.externalAddressId;
 				if (result.data.redirectStrategy.isMultiple) {
@@ -136,10 +135,6 @@ class AddressSearchElement extends HTMLElement {
 					return;
 				} else if (result.data.redirectStrategy.isMultipleAddresses) {
 					// multiple address result
-					console.log(
-						"multiple address results",
-						result.data.redirectStrategy.multipleAddresses,
-					);
 					this.multipleAddressResults =
 						result.data.redirectStrategy.multipleAddresses;
 					// clear multiple utility results
@@ -201,6 +196,8 @@ class AddressSearchElement extends HTMLElement {
 					{...props}
 					zIndex={zIndex}
 					onSelect={(detail) => {
+						// the first time user selects address from AddresSearch
+						// we always want to confirm the address
 						onSelect({ ...detail, confirmAddress: true });
 					}}
 					portalRoot={this.overlayRoot}
