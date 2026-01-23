@@ -25,8 +25,6 @@ export function SelectionModal({
 	onTriggerRedirect,
 	onBack,
 }: SelectionModalProps) {
-	console.log("multipleAddressOptions", multipleAddressOptions);
-	console.log("multipleUtilityOptions", multipleUtilityOptions);
 	// Address selection takes priority over utility selection
 	if (multipleAddressOptions) {
 		return (

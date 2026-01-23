@@ -68,7 +68,7 @@ export function AddressSelectionModal({
 	const formatAddressLine1 = (addr: AddressResult) => addr.address.line1;
 	const formatAddressLine2 = (addr: AddressResult) =>
 		`${addr.address.city}, ${addr.address.state} ${addr.address.postalCode}`;
-	console.log("rendering address selection modal");
+
 	return (
 		<ModalLayout onBack={onBack}>
 			<div>
