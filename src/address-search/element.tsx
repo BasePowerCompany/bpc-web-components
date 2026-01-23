@@ -2,16 +2,17 @@ import { StrictMode } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { fetchHydration } from "@/address-search/fetch";
+import { SelectionModal } from "@/address-search/modal/SelectionModal";
 import type {
 	AddressResult,
 	RedirectMultipleAddress,
 	RedirectStrategyMultipleUtility,
 } from "@/address-search/types";
-import { UtilityModal } from "@/address-search/UtilityModal";
 import { posthogCapture } from "@/address-search/utils";
 import { bootstrap } from "@/utils/googleMaps";
 import type { AddressSearchProps } from "./AddressSearch";
 import { AddressSearch } from "./AddressSearch";
+import modalStyleSheet from "./modal/styles.module.css?inline";
 import styleSheet from "./styles.module.css?inline";
 
 function parseProps(el: HTMLElement): Omit<
@@ -74,6 +75,10 @@ class AddressSearchElement extends HTMLElement {
 			const styles = document.createElement("style");
 			styles.textContent = styleSheet;
 			this.overlayRoot.appendChild(styles);
+
+			const modalStyles = document.createElement("style");
+			modalStyles.textContent = modalStyleSheet;
+			this.overlayRoot.appendChild(modalStyles);
 
 			document.body.appendChild(this.overlayWrapper);
 		}
@@ -187,7 +192,15 @@ class AddressSearchElement extends HTMLElement {
 			onSelect({ selection: address, confirmAddress: false });
 		};
 
-		const shouldShowUtilityModal =
+		const onBack = () => {
+			this.multipleUtilityResult = undefined;
+			this.multipleAddressResults = undefined;
+			this.selection = undefined;
+			this.externalAddressId = undefined;
+			this.render();
+		};
+
+		const shouldShowModal =
 			this.selection &&
 			(this.multipleAddressResults != null ||
 				this.multipleUtilityResult != null);
@@ -204,25 +217,18 @@ class AddressSearchElement extends HTMLElement {
 					}}
 					portalRoot={this.overlayRoot}
 				/>
-				{shouldShowUtilityModal &&
+				{shouldShowModal &&
 					createPortal(
-						<UtilityModal
+						<SelectionModal
 							address={this.selection?.formattedAddress ?? ""}
 							externalAddressId={this.externalAddressId ?? ""}
-							utilityOptions={
-								this.multipleUtilityResult?.redirectStrategy.multiple.options ??
-								null
+							multipleAddressOptions={this.multipleAddressResults}
+							multipleUtilityOptions={
+								this.multipleUtilityResult?.redirectStrategy.multiple.options
 							}
-							addressOptions={this.multipleAddressResults ?? null}
-							onTriggerRedirect={onRedirect}
 							onSelectAddress={onUserSelectAddress}
-							onBack={() => {
-								this.multipleUtilityResult = undefined;
-								this.multipleAddressResults = undefined;
-								this.selection = undefined;
-								this.externalAddressId = undefined;
-								this.render();
-							}}
+							onTriggerRedirect={onRedirect}
+							onBack={onBack}
 						/>,
 						this.overlayRoot,
 					)}
