@@ -1,4 +1,11 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { CtaButton } from "@/address-search/CtaButton";
 import { cx } from "@/utils/cx";
@@ -30,7 +37,6 @@ interface AutocompleteProps {
 
 interface ActivatedOverlayProps {
 	zIndex: number;
-	inputRef: React.RefObject<HTMLInputElement | null>;
 	value: string;
 	placeholder?: string;
 	onChange: (value: string) => void;
@@ -42,7 +48,6 @@ interface ActivatedOverlayProps {
 }
 
 function ActivatedOverlay({
-	inputRef,
 	value,
 	placeholder,
 	onChange,
@@ -52,10 +57,20 @@ function ActivatedOverlay({
 	close,
 	overlayPosition,
 }: ActivatedOverlayProps) {
+	const inputRef = useRef<HTMLInputElement | null>(null);
 	const resultsRef = useRef<HTMLDivElement>(null);
 	const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
 
 	const listboxId = useId();
+
+	// Callback ref: focuses input immediately when DOM element is attached
+	// This is more reliable than useEffect for mobile Safari
+	const setInputRef = useCallback((el: HTMLInputElement | null) => {
+		inputRef.current = el;
+		if (el) {
+			el.focus();
+		}
+	}, []);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: Reset highlighted index when results change
 	useEffect(() => {
@@ -137,11 +152,6 @@ function ActivatedOverlay({
 		}
 	}
 
-	// Focus input when overlay mounts
-	useEffect(() => {
-		inputRef.current?.focus();
-	}, [inputRef]);
-
 	return createPortal(
 		<>
 			<div className={styles.overlay} />
@@ -189,7 +199,7 @@ function ActivatedOverlay({
 				<div className={styles.inputContainer}>
 					<input
 						name="address-search"
-						ref={inputRef}
+						ref={setInputRef}
 						value={value}
 						onChange={(e) => onChange(e.target.value)}
 						placeholder={placeholder}
@@ -222,7 +232,6 @@ export function Autocomplete({
 	portalRoot,
 }: AutocompleteProps) {
 	const inputContainerRef = useRef<HTMLDivElement>(null);
-	const inputRef = useRef<HTMLInputElement>(null);
 	const [isActivated, setIsActivated] = useState(false);
 	const [overlayPosition, setOverlayPosition] =
 		useState<OverlayPosition | null>(null);
@@ -271,7 +280,6 @@ export function Autocomplete({
 				{isActivated && overlayPosition && (
 					<ActivatedOverlay
 						zIndex={zIndex}
-						inputRef={inputRef}
 						value={value}
 						placeholder={placeholder}
 						onChange={onChange}
