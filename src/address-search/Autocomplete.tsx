@@ -14,10 +14,7 @@ export interface Result {
 type OverlayPosition = {
 	top: number;
 	left: number;
-	right: number;
-	bottom: number;
 	width: number;
-	height: number;
 };
 
 interface AutocompleteProps {
@@ -31,9 +28,9 @@ interface AutocompleteProps {
 	portalRoot: ShadowRoot;
 }
 
-interface ComboBoxOverlayProps {
+interface ActivatedOverlayProps {
 	zIndex: number;
-	ref: React.RefObject<HTMLInputElement | null>;
+	inputRef: React.RefObject<HTMLInputElement | null>;
 	value: string;
 	placeholder?: string;
 	onChange: (value: string) => void;
@@ -41,15 +38,11 @@ interface ComboBoxOverlayProps {
 	onSelect?: ({ result }: { result: Result }) => void;
 	portalRoot: ShadowRoot;
 	close: () => void;
-	open: () => void;
-	overlayPosition: OverlayPosition | null;
-	isActivated: boolean;
-	cta?: string;
+	overlayPosition: OverlayPosition;
 }
 
-export function ComboBoxOverlay({
-	zIndex,
-	ref: inputRef,
+function ActivatedOverlay({
+	inputRef,
 	value,
 	placeholder,
 	onChange,
@@ -57,22 +50,19 @@ export function ComboBoxOverlay({
 	onSelect,
 	portalRoot,
 	close,
-	open,
 	overlayPosition,
-	isActivated,
-	cta,
-}: ComboBoxOverlayProps) {
+}: ActivatedOverlayProps) {
 	const resultsRef = useRef<HTMLDivElement>(null);
 	const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
 
-	const listboxId = useId(); // unique id for aria-controls
+	const listboxId = useId();
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: We want to reset the highlighted index when the results change or the menu closes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Reset highlighted index when results change
 	useEffect(() => {
 		setHighlightedIndex(0);
 	}, [results]);
 
-	const expanded = isActivated && results.length > 0;
+	const expanded = results.length > 0;
 	const activeDescendant = useMemo(() => {
 		if (!expanded || highlightedIndex < 0) return undefined;
 		return `${listboxId}-option-${results[highlightedIndex]?.id}`;
@@ -81,7 +71,6 @@ export function ComboBoxOverlay({
 	function commitSelection(index: number) {
 		const item = results[index];
 		if (!item) return;
-		// Update the text field and notify host
 		onChange(item.mainText);
 		onSelect?.({ result: item });
 		inputRef.current?.blur();
@@ -90,11 +79,6 @@ export function ComboBoxOverlay({
 
 	function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
 		if (!expanded) {
-			if (e.key === "ArrowDown" && results.length > 0) {
-				e.preventDefault();
-				open();
-				setHighlightedIndex(0);
-			}
 			if (e.key === "Escape") {
 				e.preventDefault();
 				inputRef.current?.blur();
@@ -153,17 +137,21 @@ export function ComboBoxOverlay({
 		}
 	}
 
+	// Focus input when overlay mounts
+	useEffect(() => {
+		inputRef.current?.focus();
+	}, [inputRef]);
+
 	return createPortal(
 		<>
-			<div
-				className={styles.overlay}
-				style={{ display: isActivated ? "block" : "none" }}
-			/>
+			<div className={styles.overlay} />
 			<div
 				className={styles.inputPositioner}
 				style={{
-					...(overlayPosition || {}),
-					zIndex: isActivated ? 1001 : zIndex,
+					top: overlayPosition.top,
+					left: overlayPosition.left,
+					width: overlayPosition.width,
+					zIndex: 1001,
 				}}
 			>
 				{expanded && (
@@ -173,21 +161,19 @@ export function ComboBoxOverlay({
 						className={styles.results}
 						role="listbox"
 						aria-label="Suggestions"
-						// Prevent input blur before click handler runs
 						onMouseDown={(e) => e.preventDefault()}
 					>
 						{results.map((result, idx) => {
 							const isActive = idx === highlightedIndex;
 							const optionId = `${listboxId}-option-${result.id}`;
 							return (
-								// biome-ignore lint/a11y/useKeyWithClickEvents: We want to prevent the input blur before the click handler runs
+								// biome-ignore lint/a11y/useKeyWithClickEvents: Prevent input blur before click
 								<div
 									key={result.id}
 									id={optionId}
 									role="option"
 									aria-selected={isActive}
 									className={cx(styles.result, isActive && styles.resultActive)}
-									// Prevent input blur before click handler runs
 									onMouseDown={(e) => e.preventDefault()}
 									onClick={() => commitSelection(idx)}
 									onMouseEnter={() => setHighlightedIndex(idx)}
@@ -205,13 +191,10 @@ export function ComboBoxOverlay({
 						name="address-search"
 						ref={inputRef}
 						value={value}
-						onChange={(e) => {
-							onChange(e.target.value);
-						}}
+						onChange={(e) => onChange(e.target.value)}
 						placeholder={placeholder}
 						autoComplete="home street-address"
 						className={styles.input}
-						onFocus={open}
 						onBlur={close}
 						onKeyDown={onKeyDown}
 						role="combobox"
@@ -221,7 +204,6 @@ export function ComboBoxOverlay({
 						aria-autocomplete="list"
 					/>
 					<MapPin className={styles.mapPin} />
-					{!!cta && !isActivated && <CtaButton title={cta} onClick={open} />}
 				</div>
 			</div>
 		</>,
@@ -245,85 +227,69 @@ export function Autocomplete({
 	const [overlayPosition, setOverlayPosition] =
 		useState<OverlayPosition | null>(null);
 
-	function open() {
-		setIsActivated(true);
-		inputRef.current?.focus();
-	}
-
-	useEffect(() => {
+	function activate() {
 		const element = inputContainerRef.current;
 		if (!element) return;
 
-		const updatePosition = () => {
-			const rect = element.getBoundingClientRect();
-			// Use viewport-relative coordinates for fixed positioning
-			setOverlayPosition({
-				top: rect.top,
-				left: rect.left,
-				right: rect.right,
-				bottom: rect.bottom,
-				width: rect.width,
-				height: rect.height,
-			});
-		};
+		// Calculate position at moment of activation
+		const rect = element.getBoundingClientRect();
+		setOverlayPosition({
+			top: rect.top + window.scrollY,
+			left: rect.left + window.scrollX,
+			width: rect.width,
+		});
+		setIsActivated(true);
+	}
 
-		// Initial position
-		updatePosition();
-
-		// Watch for resize
-		const resizeObserver = new ResizeObserver(updatePosition);
-		resizeObserver.observe(element);
-
-		// Watch for window resize and scroll
-		window.addEventListener("resize", updatePosition);
-		window.addEventListener("scroll", updatePosition, true);
-
-		return () => {
-			resizeObserver.disconnect();
-			window.removeEventListener("resize", updatePosition);
-			window.removeEventListener("scroll", updatePosition, true);
-		};
-	}, []);
+	function close() {
+		setIsActivated(false);
+		setOverlayPosition(null);
+	}
 
 	return (
 		<>
 			<div className={cx(styles.autocomplete, isActivated && styles.activated)}>
-				{/* Hidden input container for positioning */}
+				{/* Real input container - visible when not activated */}
 				<div
 					className={styles.inputContainer}
 					ref={inputContainerRef}
-					style={{ visibility: "hidden" }}
+					style={{ visibility: isActivated ? "hidden" : "visible" }}
 				>
 					<button
 						className={cx(styles.input, !value && styles.placeholder)}
 						type="button"
-						onClick={open}
-						onFocus={open}
+						onClick={activate}
+						onFocus={activate}
 					>
-						{!value ? placeholder : value}
+						{value || placeholder || "Enter your home address"}
 					</button>
 					<MapPin className={styles.mapPin} />
-					{!!cta && <CtaButton title={cta} onClick={open} />}
+					{!!cta && <CtaButton title={cta} onClick={activate} />}
 				</div>
-				<ComboBoxOverlay
-					zIndex={zIndex}
-					ref={inputRef}
-					value={value}
-					placeholder={placeholder}
-					onChange={onChange}
-					results={results}
-					onSelect={onSelect}
-					portalRoot={portalRoot}
-					close={() => setIsActivated(false)}
-					open={open}
-					overlayPosition={overlayPosition}
-					isActivated={isActivated}
-					cta={cta}
-				/>
+
+				{/* Portal overlay - only rendered when activated */}
+				{isActivated && overlayPosition && (
+					<ActivatedOverlay
+						zIndex={zIndex}
+						inputRef={inputRef}
+						value={value}
+						placeholder={placeholder}
+						onChange={onChange}
+						results={results}
+						onSelect={onSelect}
+						portalRoot={portalRoot}
+						close={close}
+						overlayPosition={overlayPosition}
+					/>
+				)}
 			</div>
 
 			{!!cta && (
-				<CtaButton title={cta} onClick={open} className={styles.mobileBtn} />
+				<CtaButton
+					title={cta}
+					onClick={activate}
+					className={styles.mobileBtn}
+				/>
 			)}
 		</>
 	);
