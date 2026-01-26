@@ -55,11 +55,8 @@
 .utilityModalBodyContent {
 	display: flex;
 	flex-direction: column;
-	gap: 16px;
-	justify-content: space-between;
+	gap: 64px;
 	max-width: 450px;
-	max-height: 700px;
-	flex: 1;
 }
 
 .utilitySelectContent {
@@ -83,11 +80,11 @@
 	color: #0b0e0f;
 	margin: 0 0 12px 0;
 	line-height: 1.2;
+	text-wrap: balance;
 }
 
 .utilityModalSubtitle {
 	font-size: 16px;
-	color: #666;
 	margin: 0;
 	line-height: 1.5;
 }
@@ -175,6 +172,10 @@
 }
 
 /* Address Selection Styles */
+.enteredAddressSection {
+	text-align: left;
+}
+
 .addressLabelSmall {
 	font-size: 12px;
 	font-weight: 500;
@@ -195,7 +196,7 @@
 .addressSelectContent {
 	display: flex;
 	flex-direction: column;
-	margin-top: 32px;
+	margin-top: 16px;
 }
 
 .addressOptions {
@@ -219,7 +220,7 @@
 }
 
 .addressOptionSelected {
-	border-color: #084d41;
+	border-color: #77a45a;
 	border-width: 2px;
 }
 
@@ -363,19 +364,17 @@
 	}
 
 	.utilityModalSubtitle {
+		font-weight: 400;
 		text-align: center;
+		text-wrap: balance;
 	}
 
 	.helpSection {
 		text-align: center;
 	}
 
-	.addressLabelSmall {
-		text-align: left;
-	}
-
-	.addressLabelBold {
-		text-align: left;
+	.enteredAddressSection {
+		text-align: center;
 	}
 
 	.addressOption {
