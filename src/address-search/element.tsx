@@ -2,15 +2,17 @@ import { StrictMode } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { fetchHydration } from "@/address-search/fetch";
+import { SelectionModal } from "@/address-search/modal/SelectionModal";
 import type {
 	AddressResult,
+	RedirectMultipleAddress,
 	RedirectStrategyMultipleUtility,
 } from "@/address-search/types";
-import { UtilityModal } from "@/address-search/UtilityModal";
 import { posthogCapture } from "@/address-search/utils";
 import { bootstrap } from "@/utils/googleMaps";
 import type { AddressSearchProps } from "./AddressSearch";
 import { AddressSearch } from "./AddressSearch";
+import modalStyleSheet from "./modal/styles.module.css?inline";
 import styleSheet from "./styles.module.css?inline";
 
 function parseProps(el: HTMLElement): Omit<
@@ -50,6 +52,8 @@ class AddressSearchElement extends HTMLElement {
 		redirectStrategy: RedirectStrategyMultipleUtility;
 		externalAddressId: string;
 	};
+	private externalAddressId?: string;
+	private multipleAddressResults?: RedirectMultipleAddress;
 	private selection?: AddressResult;
 	static get observedAttributes() {
 		return ["public-key", "placeholder", "cta"];
@@ -71,6 +75,10 @@ class AddressSearchElement extends HTMLElement {
 			const styles = document.createElement("style");
 			styles.textContent = styleSheet;
 			this.overlayRoot.appendChild(styles);
+
+			const modalStyles = document.createElement("style");
+			modalStyles.textContent = modalStyleSheet;
+			this.overlayRoot.appendChild(modalStyles);
 
 			document.body.appendChild(this.overlayWrapper);
 		}
@@ -97,6 +105,7 @@ class AddressSearchElement extends HTMLElement {
 
 		const onSelect = async (detail: {
 			selection: AddressResult | undefined;
+			confirmAddress: boolean;
 		}) => {
 			// Fire the select event to the parent
 
@@ -108,36 +117,55 @@ class AddressSearchElement extends HTMLElement {
 			if (!detail.selection) return;
 
 			// Fetch the hydration data
-			const result = await fetchHydration(detail.selection);
-			if (result.success && result.data.redirectStrategy.isMultiple) {
-				this.multipleUtilityResult = {
-					redirectUrl: result.data.redirectUrl,
-					redirectStrategy: result.data.redirectStrategy,
-					externalAddressId: result.data.externalAddressId,
-				};
-				posthogCapture("address_search_multiple_result", {
-					selection: detail.selection,
-					multipleResult: this.multipleUtilityResult,
-				});
-				this.render();
-				return;
-			}
-
+			const result = await fetchHydration(
+				detail.selection,
+				detail.confirmAddress,
+			);
 			if (result.success) {
-				posthogCapture("address_search_single_result", {
-					selection: detail.selection,
-				});
-				// Fire the result event to the parent
-				this.dispatchEvent(
-					new CustomEvent("result", {
-						detail: { result: result.data, selection: detail.selection },
-					}),
-				);
+				this.externalAddressId = result.data.externalAddressId;
+				if (result.data.redirectStrategy.isMultiple) {
+					// multiple utility result
+					this.multipleUtilityResult = {
+						redirectUrl: result.data.redirectUrl,
+						redirectStrategy: result.data.redirectStrategy,
+						externalAddressId: result.data.externalAddressId,
+					};
+					// clear multiple address results
+					this.multipleAddressResults = undefined;
+					posthogCapture("address_search_multiple_utility_result", {
+						selection: detail.selection,
+						multipleResult: this.multipleUtilityResult,
+					});
+					this.render();
+					return;
+				} else if (result.data.redirectStrategy.isMultipleAddresses) {
+					// multiple address result
+					this.multipleAddressResults =
+						result.data.redirectStrategy.multipleAddresses;
+					// clear multiple utility results
+					this.multipleUtilityResult = undefined;
+					posthogCapture("address_search_multiple_address_result", {
+						selection: detail.selection,
+						multipleResult: this.multipleAddressResults,
+					});
+					this.render();
+					return;
+				} else {
+					// fetchHydration returns single result success, dispatch to parent
+					posthogCapture("address_search_single_result", {
+						selection: detail.selection,
+					});
+					this.dispatchEvent(
+						new CustomEvent("result", {
+							detail: { result: result.data, selection: detail.selection },
+						}),
+					);
+				}
 			} else {
+				// fetchHydration failed, dispatch error to parent
 				posthogCapture("address_search_no_result", {
 					selection: detail.selection,
 				});
-				// Fire the error event to the parent
 				this.dispatchEvent(
 					new CustomEvent("error", { detail: { error: result.error } }),
 				);
@@ -158,30 +186,49 @@ class AddressSearchElement extends HTMLElement {
 			);
 		};
 
+		const onUserSelectAddress = (address: AddressResult) => {
+			// when user selects an address from the AddressSelectionContent
+			// we don't want to confirm the address, user will be redirected
+			onSelect({ selection: address, confirmAddress: false });
+		};
+
+		const onBack = () => {
+			this.multipleUtilityResult = undefined;
+			this.multipleAddressResults = undefined;
+			this.selection = undefined;
+			this.externalAddressId = undefined;
+			this.render();
+		};
+
+		const shouldShowModal =
+			this.selection &&
+			(this.multipleAddressResults != null ||
+				this.multipleUtilityResult != null);
+
 		createRoot(this.container).render(
 			<StrictMode>
 				<AddressSearch
 					{...props}
 					zIndex={zIndex}
-					onSelect={onSelect}
+					onSelect={(detail) => {
+						// the first time user selects address from AddresSearch
+						// we always want to confirm the address
+						onSelect({ ...detail, confirmAddress: true });
+					}}
 					portalRoot={this.overlayRoot}
 				/>
-				{this.multipleUtilityResult &&
-					this.selection &&
+				{shouldShowModal &&
 					createPortal(
-						<UtilityModal
-							showMultipleUtilityOptions={true}
-							address={this.selection.formattedAddress}
-							externalAddressId={this.multipleUtilityResult.externalAddressId}
-							utilityOptions={
-								this.multipleUtilityResult.redirectStrategy.multiple.options
+						<SelectionModal
+							address={this.selection?.formattedAddress ?? ""}
+							externalAddressId={this.externalAddressId ?? ""}
+							multipleAddressOptions={this.multipleAddressResults}
+							multipleUtilityOptions={
+								this.multipleUtilityResult?.redirectStrategy.multiple.options
 							}
+							onSelectAddress={onUserSelectAddress}
 							onTriggerRedirect={onRedirect}
-							onBack={() => {
-								this.multipleUtilityResult = undefined;
-								this.selection = undefined;
-								this.render();
-							}}
+							onBack={onBack}
 						/>,
 						this.overlayRoot,
 					)}

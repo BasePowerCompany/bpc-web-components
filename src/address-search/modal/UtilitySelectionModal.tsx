@@ -1,66 +1,32 @@
 import { setUtilityUserConfirmed } from "@/address-search/fetch";
 import type { RedirectMultipleOption } from "@/address-search/types";
 import { posthogCapture } from "@/address-search/utils";
+import { ModalLayout } from "./ModalLayout";
 import styles from "./styles.module.css";
-
-export type UtilityModalProps = {
-	address: string;
-	externalAddressId: string;
-	utilityOptions: RedirectMultipleOption[];
-	onTriggerRedirect: (redirectUrl: string) => void;
-	showMultipleUtilityOptions: boolean;
-	onBack: () => void;
-};
 
 const UtilityValueToLogoMap: Record<string, string> = {
 	FARMERS:
 		"https://bpc-web-static-files.s3.us-east-2.amazonaws.com/Farmers-Logo.png",
 };
 
-function BackButton({ onClick }: { onClick: () => void }) {
-	return (
-		<button
-			type="button"
-			className={styles.backButton}
-			onClick={onClick}
-			aria-label="Go back"
-		>
-			<svg
-				width="24"
-				height="24"
-				viewBox="0 0 24 24"
-				fill="none"
-				xmlns="http://www.w3.org/2000/svg"
-				aria-hidden="true"
-			>
-				<path
-					d="M19 12H5M5 12L12 19M5 12L12 5"
-					stroke="currentColor"
-					strokeWidth="2"
-					strokeLinecap="round"
-					strokeLinejoin="round"
-				/>
-			</svg>
-		</button>
-	);
-}
-
-// Utility Selection View
-function UtilitySelectionContent({
-	address,
-	externalAddressId,
-	utilityOptions,
-	onTriggerRedirect,
-}: {
+export type UtilitySelectionModalProps = {
 	address: string;
 	externalAddressId: string;
 	utilityOptions: RedirectMultipleOption[];
 	onTriggerRedirect: (redirectUrl: string) => void;
-}) {
+	onBack: () => void;
+};
+
+export function UtilitySelectionModal({
+	address,
+	externalAddressId,
+	utilityOptions,
+	onTriggerRedirect,
+	onBack,
+}: UtilitySelectionModalProps) {
 	const onSelectUtility = async (option: RedirectMultipleOption) => {
 		const utility = option.value;
 
-		// Try to find the utility selection for the multiple result.
 		const found = utilityOptions.find((opt) => opt.value === utility);
 		if (!found) {
 			posthogCapture("address_search_modal_selection_not_found", {
@@ -71,7 +37,6 @@ function UtilitySelectionContent({
 			return;
 		}
 
-		// If utility is "OTHER", Don't set utility user confirmed, just complete.
 		if (utility === "OTHER") {
 			posthogCapture("address_search_modal_selection_utility_other", {
 				addressSelected: address,
@@ -82,7 +47,6 @@ function UtilitySelectionContent({
 			return;
 		}
 
-		// If we can't find an external address id, return (shouldn't ever get here).
 		if (!externalAddressId) {
 			posthogCapture(
 				"address_search_multiple_result_unreachable_external_address_id_not_found",
@@ -95,7 +59,6 @@ function UtilitySelectionContent({
 			return;
 		}
 
-		// Set the user-confirmed utility.
 		try {
 			await setUtilityUserConfirmed(utility, externalAddressId);
 			posthogCapture("address_search_set_utility_confirmed_success", {
@@ -112,12 +75,11 @@ function UtilitySelectionContent({
 			console.error("Error setting utility user confirmed", err);
 		}
 
-		// Complete with the redirect URL
 		onTriggerRedirect(found.redirectUrl);
 	};
 
 	return (
-		<>
+		<ModalLayout onBack={onBack}>
 			<div>
 				<p className={styles.addressLabel}>{address}</p>
 				<h1 className={styles.utilityModalTitle}>Who's your local utility?</h1>
@@ -168,49 +130,6 @@ function UtilitySelectionContent({
 					</p>
 				</div>
 			</div>
-		</>
+		</ModalLayout>
 	);
-}
-
-function ModalLayout({
-	onBack,
-	children,
-}: {
-	onBack: () => void;
-	children: React.ReactNode;
-}) {
-	return (
-		<div className={styles.utilityModal}>
-			<div className={styles.utilityModalContent}>
-				<BackButton onClick={onBack} />
-				<div className={styles.utilityModalBody}>
-					<div className={styles.utilityModalBodyContent}>{children}</div>
-				</div>
-			</div>
-			<div className={styles.utilityModalImage} />
-		</div>
-	);
-}
-
-export function UtilityModal({
-	address,
-	externalAddressId,
-	utilityOptions,
-	onTriggerRedirect,
-	onBack,
-	showMultipleUtilityOptions,
-}: UtilityModalProps) {
-	if (showMultipleUtilityOptions) {
-		return (
-			<ModalLayout onBack={onBack}>
-				<UtilitySelectionContent
-					address={address}
-					externalAddressId={externalAddressId}
-					utilityOptions={utilityOptions}
-					onTriggerRedirect={onTriggerRedirect}
-				/>
-			</ModalLayout>
-		);
-	}
-	return null;
 }

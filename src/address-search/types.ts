@@ -30,12 +30,14 @@ export type RedirectMultipleAddress = {
 export type RedirectStrategySingleUtility = {
 	redirectUrl: string;
 	isMultiple: false;
+	isMultipleAddresses: false;
 };
 
 export type RedirectStrategyMultipleUtility = {
 	redirectUrl: string;
 	multiple: RedirectMultiple;
 	isMultiple: true;
+	isMultipleAddresses: false;
 };
 
 export type RedirectStrategyMultipleAddress = {
