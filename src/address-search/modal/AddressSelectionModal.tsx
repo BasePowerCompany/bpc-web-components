@@ -71,7 +71,7 @@ export function AddressSelectionModal({
 
 	return (
 		<ModalLayout onBack={onBack}>
-			<div>
+			<div className={styles.enteredAddressSection}>
 				<p className={styles.addressLabelSmall}>YOU ENTERED:</p>
 				<p className={styles.addressLabelBold}>{address}</p>
 			</div>
