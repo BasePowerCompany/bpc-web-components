@@ -256,11 +256,12 @@ export function Autocomplete({
 
 		const updatePosition = () => {
 			const rect = element.getBoundingClientRect();
+			// Use viewport-relative coordinates for fixed positioning
 			setOverlayPosition({
-				top: rect.top + window.scrollY,
-				left: rect.left + window.scrollX,
-				right: rect.right + window.scrollX,
-				bottom: rect.bottom + window.scrollY,
+				top: rect.top,
+				left: rect.left,
+				right: rect.right,
+				bottom: rect.bottom,
 				width: rect.width,
 				height: rect.height,
 			});
@@ -273,12 +274,14 @@ export function Autocomplete({
 		const resizeObserver = new ResizeObserver(updatePosition);
 		resizeObserver.observe(element);
 
-		// Watch for window resize
+		// Watch for window resize and scroll
 		window.addEventListener("resize", updatePosition);
+		window.addEventListener("scroll", updatePosition, true);
 
 		return () => {
 			resizeObserver.disconnect();
 			window.removeEventListener("resize", updatePosition);
+			window.removeEventListener("scroll", updatePosition, true);
 		};
 	}, []);
 
