@@ -282,16 +282,23 @@ export function Autocomplete({
 		// Initial position
 		updatePosition();
 
-		// Watch for resize
+		// Watch for element resize
 		const resizeObserver = new ResizeObserver(updatePosition);
 		resizeObserver.observe(element);
 
-		// Watch for window resize
+		// Watch for document layout changes (e.g., images loading above this component)
+		const documentObserver = new ResizeObserver(updatePosition);
+		documentObserver.observe(document.documentElement);
+
+		// Watch for window resize and scroll
 		window.addEventListener("resize", updatePosition);
+		window.addEventListener("scroll", updatePosition, { passive: true });
 
 		return () => {
 			resizeObserver.disconnect();
+			documentObserver.disconnect();
 			window.removeEventListener("resize", updatePosition);
+			window.removeEventListener("scroll", updatePosition);
 		};
 	}, []);
 
