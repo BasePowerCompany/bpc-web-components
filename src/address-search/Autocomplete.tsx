@@ -141,30 +141,19 @@ function ComboBoxOverlay({
 		}
 	}
 
-	// When not activated, position offscreen to avoid flash of wrong position
-	const positionStyle: React.CSSProperties =
-		isActivated && overlayPosition
-			? {
-					top: overlayPosition.top,
-					left: overlayPosition.left,
-					width: overlayPosition.width,
-					zIndex: 1001,
-				}
-			: {
-					top: -9999,
-					left: -9999,
-					width: 300,
-					zIndex: zIndex,
-					visibility: "hidden" as const,
-				};
-
 	return createPortal(
 		<>
 			<div
 				className={styles.overlay}
 				style={{ display: isActivated ? "block" : "none" }}
 			/>
-			<div className={styles.inputPositioner} style={positionStyle}>
+			<div
+				className={styles.inputPositioner}
+				style={{
+					...(overlayPosition || {}),
+					zIndex: isActivated ? 1001 : zIndex,
+				}}
+			>
 				{expanded && (
 					<div
 						ref={resultsRef}
@@ -240,38 +229,34 @@ export function Autocomplete({
 	const [overlayPosition, setOverlayPosition] =
 		useState<OverlayPosition | null>(null);
 
-	function activate() {
-		// Calculate position at activation time
-		const element = inputContainerRef.current;
-		if (element) {
-			const rect = element.getBoundingClientRect();
-			setOverlayPosition({
-				top: rect.top + window.scrollY,
-				left: rect.left + window.scrollX,
-				width: rect.width,
-			});
-		}
-		setIsActivated(true);
-		// Focus immediately - input already exists in DOM (for iOS Safari keyboard)
-		inputRef.current?.focus();
-	}
-
-	// Update position on resize while overlay is active
-	useEffect(() => {
-		if (!isActivated) return;
-
+	const updatePosition = () => {
 		const element = inputContainerRef.current;
 		if (!element) return;
 
-		const updatePosition = () => {
-			const rect = element.getBoundingClientRect();
-			setOverlayPosition({
-				top: rect.top + window.scrollY,
-				left: rect.left + window.scrollX,
-				width: rect.width,
-			});
-		};
+		const rect = element.getBoundingClientRect();
+		setOverlayPosition({
+			top: rect.top + window.scrollY,
+			left: rect.left + window.scrollX,
+			width: rect.width,
+		});
+	};
 
+	function activate() {
+		// Recalculate position on activate to handle late-loading images
+		updatePosition();
+		setIsActivated(true);
+		inputRef.current?.focus();
+	}
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: We only want to run this on mount
+	useEffect(() => {
+		const element = inputContainerRef.current;
+		if (!element) return;
+
+		// Initial position
+		updatePosition();
+
+		// Watch for resize
 		const resizeObserver = new ResizeObserver(updatePosition);
 		resizeObserver.observe(element);
 
@@ -281,16 +266,16 @@ export function Autocomplete({
 			resizeObserver.disconnect();
 			window.removeEventListener("resize", updatePosition);
 		};
-	}, [isActivated]);
+	}, []);
 
 	return (
 		<>
 			<div className={cx(styles.autocomplete, isActivated && styles.activated)}>
-				{/* Placeholder for positioning - hidden when activated */}
+				{/* Hidden input container for positioning */}
 				<div
 					className={styles.inputContainer}
 					ref={inputContainerRef}
-					style={{ visibility: isActivated ? "hidden" : "visible" }}
+					style={{ visibility: "hidden" }}
 				>
 					<button
 						className={cx(styles.input, !value && styles.placeholder)}
@@ -304,7 +289,7 @@ export function Autocomplete({
 					{!!cta && <CtaButton title={cta} onClick={activate} />}
 				</div>
 
-				{/* Input always rendered in portal for iOS Safari focus */}
+				{/* Input always in portal for iOS Safari focus */}
 				<ComboBoxOverlay
 					zIndex={zIndex}
 					inputRef={inputRef}
