@@ -58,9 +58,9 @@ function ComboBoxOverlay({
 	const resultsRef = useRef<HTMLDivElement>(null);
 	const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
 
-	const listboxId = useId();
+	const listboxId = useId(); // unique id for aria-controls
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: Reset highlighted index when results change
+	// biome-ignore lint/correctness/useExhaustiveDependencies: We want to reset the highlighted index when the results change or the menu closes
 	useEffect(() => {
 		setHighlightedIndex(0);
 	}, [results]);
@@ -74,6 +74,7 @@ function ComboBoxOverlay({
 	function commitSelection(index: number) {
 		const item = results[index];
 		if (!item) return;
+		// Update the text field and notify host
 		onChange(item.mainText);
 		onSelect?.({ result: item });
 		inputRef.current?.blur();
@@ -171,6 +172,7 @@ function ComboBoxOverlay({
 						className={styles.results}
 						role="listbox"
 						aria-label="Suggestions"
+						// Prevent input blur before click handler runs
 						onMouseDown={(e) => e.preventDefault()}
 					>
 						{results.map((result, idx) => {
@@ -184,6 +186,7 @@ function ComboBoxOverlay({
 									role="option"
 									aria-selected={isActive}
 									className={cx(styles.result, isActive && styles.resultActive)}
+									// Prevent input blur before click handler runs
 									onMouseDown={(e) => e.preventDefault()}
 									onClick={() => commitSelection(idx)}
 									onMouseEnter={() => setHighlightedIndex(idx)}
@@ -237,64 +240,46 @@ export function Autocomplete({
 	const [overlayPosition, setOverlayPosition] =
 		useState<OverlayPosition | null>(null);
 
-	// Calculate position from the placeholder element
-	const updatePosition = () => {
-		const element = inputContainerRef.current;
-		if (!element) return;
-
-		const rect = element.getBoundingClientRect();
-		setOverlayPosition({
-			top: rect.top + window.scrollY,
-			left: rect.left + window.scrollX,
-			width: rect.width,
-		});
-	};
-
 	function activate() {
-		updatePosition();
+		// Calculate position at activation time
+		const element = inputContainerRef.current;
+		if (element) {
+			const rect = element.getBoundingClientRect();
+			setOverlayPosition({
+				top: rect.top + window.scrollY,
+				left: rect.left + window.scrollX,
+				width: rect.width,
+			});
+		}
 		setIsActivated(true);
-		// Focus immediately - input already exists in DOM (for iOS Safari)
+		// Focus immediately - input already exists in DOM (for iOS Safari keyboard)
 		inputRef.current?.focus();
 	}
 
-	function close() {
-		setIsActivated(false);
-	}
-
-	// Continuously sync position while overlay is active
-	// This handles late-loading images and any layout shifts
+	// Update position on resize while overlay is active
 	useEffect(() => {
 		if (!isActivated) return;
 
-		let rafId: number;
+		const element = inputContainerRef.current;
+		if (!element) return;
 
-		const syncPosition = () => {
-			const element = inputContainerRef.current;
-			if (element) {
-				const rect = element.getBoundingClientRect();
-				setOverlayPosition((prev) => {
-					const newTop = rect.top + window.scrollY;
-					const newLeft = rect.left + window.scrollX;
-					const newWidth = rect.width;
-					// Only update if position actually changed
-					if (
-						prev &&
-						prev.top === newTop &&
-						prev.left === newLeft &&
-						prev.width === newWidth
-					) {
-						return prev;
-					}
-					return { top: newTop, left: newLeft, width: newWidth };
-				});
-			}
-			rafId = requestAnimationFrame(syncPosition);
+		const updatePosition = () => {
+			const rect = element.getBoundingClientRect();
+			setOverlayPosition({
+				top: rect.top + window.scrollY,
+				left: rect.left + window.scrollX,
+				width: rect.width,
+			});
 		};
 
-		rafId = requestAnimationFrame(syncPosition);
+		const resizeObserver = new ResizeObserver(updatePosition);
+		resizeObserver.observe(element);
+
+		window.addEventListener("resize", updatePosition);
 
 		return () => {
-			cancelAnimationFrame(rafId);
+			resizeObserver.disconnect();
+			window.removeEventListener("resize", updatePosition);
 		};
 	}, [isActivated]);
 
@@ -329,7 +314,7 @@ export function Autocomplete({
 					results={results}
 					onSelect={onSelect}
 					portalRoot={portalRoot}
-					close={close}
+					close={() => setIsActivated(false)}
 					overlayPosition={overlayPosition}
 					isActivated={isActivated}
 				/>
