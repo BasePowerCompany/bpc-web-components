@@ -246,6 +246,20 @@ export function Autocomplete({
 		useState<OverlayPosition | null>(null);
 
 	function open() {
+		const element = inputContainerRef.current;
+		if (!element) return;
+		const updatePosition = () => {
+			const rect = element.getBoundingClientRect();
+			setOverlayPosition({
+				top: rect.top + window.scrollY,
+				left: rect.left + window.scrollX,
+				right: rect.right + window.scrollX,
+				bottom: rect.bottom + window.scrollY,
+				width: rect.width,
+				height: rect.height,
+			});
+		};
+		updatePosition();
 		setIsActivated(true);
 		inputRef.current?.focus();
 	}
@@ -253,7 +267,6 @@ export function Autocomplete({
 	useEffect(() => {
 		const element = inputContainerRef.current;
 		if (!element) return;
-
 		const updatePosition = () => {
 			const rect = element.getBoundingClientRect();
 			setOverlayPosition({
