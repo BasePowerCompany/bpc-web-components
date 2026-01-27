@@ -264,43 +264,50 @@ export function Autocomplete({
 		inputRef.current?.focus();
 	}
 
+	// Use rAF polling to track position changes from any source (images, fonts, dynamic content)
+	// Only runs when not activated; stops when user focuses the input
 	useEffect(() => {
 		const element = inputContainerRef.current;
 		if (!element) return;
-		const updatePosition = () => {
+
+		let rafId: number;
+		let lastTop = 0;
+		let lastLeft = 0;
+
+		const checkPosition = () => {
 			const rect = element.getBoundingClientRect();
-			setOverlayPosition({
-				top: rect.top + window.scrollY,
-				left: rect.left + window.scrollX,
-				right: rect.right + window.scrollX,
-				bottom: rect.bottom + window.scrollY,
-				width: rect.width,
-				height: rect.height,
-			});
+			const newTop = rect.top + window.scrollY;
+			const newLeft = rect.left + window.scrollX;
+
+			// Only update state if position changed to avoid unnecessary re-renders
+			if (
+				Math.abs(newTop - lastTop) > 0.5 ||
+				Math.abs(newLeft - lastLeft) > 0.5
+			) {
+				lastTop = newTop;
+				lastLeft = newLeft;
+				setOverlayPosition({
+					top: newTop,
+					left: newLeft,
+					right: rect.right + window.scrollX,
+					bottom: rect.bottom + window.scrollY,
+					width: rect.width,
+					height: rect.height,
+				});
+			}
+
+			rafId = requestAnimationFrame(checkPosition);
 		};
 
-		// Initial position
-		updatePosition();
-
-		// Watch for element resize
-		const resizeObserver = new ResizeObserver(updatePosition);
-		resizeObserver.observe(element);
-
-		// Watch for document layout changes (e.g., images loading above this component)
-		const documentObserver = new ResizeObserver(updatePosition);
-		documentObserver.observe(document.documentElement);
-
-		// Watch for window resize and scroll
-		window.addEventListener("resize", updatePosition);
-		window.addEventListener("scroll", updatePosition, { passive: true });
+		// Start polling when not activated
+		if (!isActivated) {
+			checkPosition();
+		}
 
 		return () => {
-			resizeObserver.disconnect();
-			documentObserver.disconnect();
-			window.removeEventListener("resize", updatePosition);
-			window.removeEventListener("scroll", updatePosition);
+			cancelAnimationFrame(rafId);
 		};
-	}, []);
+	}, [isActivated]);
 
 	return (
 		<>
