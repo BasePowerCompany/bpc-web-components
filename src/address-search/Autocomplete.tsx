@@ -178,7 +178,7 @@ function ActivatedOverlay({
 							const isActive = idx === highlightedIndex;
 							const optionId = `${listboxId}-option-${result.id}`;
 							return (
-								// biome-ignore lint/a11y/useKeyWithClickEvents: we want to prevent the input blur before the click handler runs
+								// biome-ignore lint/a11y/useKeyWithClickEvents: We want to prevent the input blur before the click handler runs
 								<div
 									key={result.id}
 									id={optionId}
@@ -292,7 +292,7 @@ export function Autocomplete({
 						onClick={activate}
 						onFocus={activate}
 					>
-						{value ?? placeholder}
+						{value || placeholder}
 					</button>
 					<MapPin className={styles.mapPin} />
 					{!!cta && <CtaButton title={cta} onClick={activate} />}
