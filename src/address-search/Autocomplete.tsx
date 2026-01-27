@@ -1,11 +1,4 @@
-import {
-	useCallback,
-	useEffect,
-	useId,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CtaButton } from "@/address-search/CtaButton";
 import { cx } from "@/utils/cx";
@@ -27,7 +20,7 @@ type OverlayPosition = {
 interface AutocompleteProps {
 	zIndex: number;
 	value: string;
-	placeholder: string;
+	placeholder?: string;
 	cta?: string;
 	onChange: (value: string) => void;
 	results: Result[];
@@ -35,19 +28,23 @@ interface AutocompleteProps {
 	portalRoot: ShadowRoot;
 }
 
-interface ActivatedOverlayProps {
+interface ComboBoxOverlayProps {
 	zIndex: number;
+	inputRef: React.RefObject<HTMLInputElement | null>;
 	value: string;
-	placeholder: string;
+	placeholder?: string;
 	onChange: (value: string) => void;
 	results: Result[];
 	onSelect?: ({ result }: { result: Result }) => void;
 	portalRoot: ShadowRoot;
 	close: () => void;
-	overlayPosition: OverlayPosition;
+	overlayPosition: OverlayPosition | null;
+	isActivated: boolean;
 }
 
-function ActivatedOverlay({
+function ComboBoxOverlay({
+	zIndex,
+	inputRef,
 	value,
 	placeholder,
 	onChange,
@@ -56,28 +53,19 @@ function ActivatedOverlay({
 	portalRoot,
 	close,
 	overlayPosition,
-}: ActivatedOverlayProps) {
-	const inputRef = useRef<HTMLInputElement | null>(null);
+	isActivated,
+}: ComboBoxOverlayProps) {
 	const resultsRef = useRef<HTMLDivElement>(null);
 	const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
 
-	const listboxId = useId(); // unique id for aria-controls
-
-	// Callback ref: focuses input immediately when DOM element is attached
-	// This is more reliable than useEffect for mobile Safari
-	const setInputRef = useCallback((el: HTMLInputElement | null) => {
-		inputRef.current = el;
-		if (el) {
-			el.focus();
-		}
-	}, []);
+	const listboxId = useId();
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: Reset highlighted index when results change
 	useEffect(() => {
 		setHighlightedIndex(0);
 	}, [results]);
 
-	const expanded = results.length > 0;
+	const expanded = isActivated && results.length > 0;
 	const activeDescendant = useMemo(() => {
 		if (!expanded || highlightedIndex < 0) return undefined;
 		return `${listboxId}-option-${results[highlightedIndex]?.id}`;
@@ -152,18 +140,30 @@ function ActivatedOverlay({
 		}
 	}
 
-	return createPortal(
-		<>
-			<div className={styles.overlay} />
-			<div
-				className={styles.inputPositioner}
-				style={{
+	// When not activated, position offscreen to avoid flash of wrong position
+	const positionStyle: React.CSSProperties =
+		isActivated && overlayPosition
+			? {
 					top: overlayPosition.top,
 					left: overlayPosition.left,
 					width: overlayPosition.width,
 					zIndex: 1001,
-				}}
-			>
+				}
+			: {
+					top: -9999,
+					left: -9999,
+					width: 300,
+					zIndex: zIndex,
+					visibility: "hidden" as const,
+				};
+
+	return createPortal(
+		<>
+			<div
+				className={styles.overlay}
+				style={{ display: isActivated ? "block" : "none" }}
+			/>
+			<div className={styles.inputPositioner} style={positionStyle}>
 				{expanded && (
 					<div
 						ref={resultsRef}
@@ -171,7 +171,6 @@ function ActivatedOverlay({
 						className={styles.results}
 						role="listbox"
 						aria-label="Suggestions"
-						// Prevent input blur before click handler runs
 						onMouseDown={(e) => e.preventDefault()}
 					>
 						{results.map((result, idx) => {
@@ -200,7 +199,7 @@ function ActivatedOverlay({
 				<div className={styles.inputContainer}>
 					<input
 						name="address-search"
-						ref={setInputRef}
+						ref={inputRef}
 						value={value}
 						onChange={(e) => onChange(e.target.value)}
 						placeholder={placeholder}
@@ -233,11 +232,13 @@ export function Autocomplete({
 	portalRoot,
 }: AutocompleteProps) {
 	const inputContainerRef = useRef<HTMLDivElement>(null);
+	const inputRef = useRef<HTMLInputElement>(null);
 	const [isActivated, setIsActivated] = useState(false);
 	const [overlayPosition, setOverlayPosition] =
 		useState<OverlayPosition | null>(null);
 
-	const updatePosition = useCallback(() => {
+	// Calculate position from the placeholder element
+	const updatePosition = () => {
 		const element = inputContainerRef.current;
 		if (!element) return;
 
@@ -247,40 +248,60 @@ export function Autocomplete({
 			left: rect.left + window.scrollX,
 			width: rect.width,
 		});
-	}, []);
+	};
 
 	function activate() {
 		updatePosition();
 		setIsActivated(true);
+		// Focus immediately - input already exists in DOM (for iOS Safari)
+		inputRef.current?.focus();
 	}
 
 	function close() {
 		setIsActivated(false);
-		setOverlayPosition(null);
 	}
 
-	// Update position on resize while overlay is active
+	// Continuously sync position while overlay is active
+	// This handles late-loading images and any layout shifts
 	useEffect(() => {
 		if (!isActivated) return;
 
-		const element = inputContainerRef.current;
-		if (!element) return;
+		let rafId: number;
 
-		const resizeObserver = new ResizeObserver(updatePosition);
-		resizeObserver.observe(element);
+		const syncPosition = () => {
+			const element = inputContainerRef.current;
+			if (element) {
+				const rect = element.getBoundingClientRect();
+				setOverlayPosition((prev) => {
+					const newTop = rect.top + window.scrollY;
+					const newLeft = rect.left + window.scrollX;
+					const newWidth = rect.width;
+					// Only update if position actually changed
+					if (
+						prev &&
+						prev.top === newTop &&
+						prev.left === newLeft &&
+						prev.width === newWidth
+					) {
+						return prev;
+					}
+					return { top: newTop, left: newLeft, width: newWidth };
+				});
+			}
+			rafId = requestAnimationFrame(syncPosition);
+		};
 
-		window.addEventListener("resize", updatePosition);
+		rafId = requestAnimationFrame(syncPosition);
 
 		return () => {
-			resizeObserver.disconnect();
-			window.removeEventListener("resize", updatePosition);
+			cancelAnimationFrame(rafId);
 		};
-	}, [isActivated, updatePosition]);
+	}, [isActivated]);
 
 	return (
 		<>
 			<div className={cx(styles.autocomplete, isActivated && styles.activated)}>
-				{/* Real input container - visible when not activated */}
+				{/* Placeholder for positioning - hidden when activated */}
 				<div
 					className={styles.inputContainer}
 					ref={inputContainerRef}
@@ -298,20 +319,20 @@ export function Autocomplete({
 					{!!cta && <CtaButton title={cta} onClick={activate} />}
 				</div>
 
-				{/* Portal overlay - only rendered when activated */}
-				{isActivated && overlayPosition && (
-					<ActivatedOverlay
-						zIndex={zIndex}
-						value={value}
-						placeholder={placeholder}
-						onChange={onChange}
-						results={results}
-						onSelect={onSelect}
-						portalRoot={portalRoot}
-						close={close}
-						overlayPosition={overlayPosition}
-					/>
-				)}
+				{/* Input always rendered in portal for iOS Safari focus */}
+				<ComboBoxOverlay
+					zIndex={zIndex}
+					inputRef={inputRef}
+					value={value}
+					placeholder={placeholder}
+					onChange={onChange}
+					results={results}
+					onSelect={onSelect}
+					portalRoot={portalRoot}
+					close={close}
+					overlayPosition={overlayPosition}
+					isActivated={isActivated}
+				/>
 			</div>
 
 			{!!cta && (
