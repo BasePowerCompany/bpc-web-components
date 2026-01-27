@@ -1,4 +1,11 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { CtaButton } from "@/address-search/CtaButton";
 import { cx } from "@/utils/cx";
@@ -245,20 +252,21 @@ export function Autocomplete({
 	const [overlayPosition, setOverlayPosition] =
 		useState<OverlayPosition | null>(null);
 
-	function open() {
+	const updatePosition = useCallback(() => {
 		const element = inputContainerRef.current;
 		if (!element) return;
-		const updatePosition = () => {
-			const rect = element.getBoundingClientRect();
-			setOverlayPosition({
-				top: rect.top + window.scrollY,
-				left: rect.left + window.scrollX,
-				right: rect.right + window.scrollX,
-				bottom: rect.bottom + window.scrollY,
-				width: rect.width,
-				height: rect.height,
-			});
-		};
+		const rect = element.getBoundingClientRect();
+		setOverlayPosition({
+			top: rect.top + window.scrollY,
+			left: rect.left + window.scrollX,
+			right: rect.right + window.scrollX,
+			bottom: rect.bottom + window.scrollY,
+			width: rect.width,
+			height: rect.height,
+		});
+	}, []);
+
+	function open() {
 		updatePosition();
 		setIsActivated(true);
 		inputRef.current?.focus();
@@ -270,7 +278,7 @@ export function Autocomplete({
 		const element = inputContainerRef.current;
 		if (!element) return;
 
-		let rafId: number;
+		let rafId: number | null = null;
 		let lastTop = 0;
 		let lastLeft = 0;
 
@@ -304,10 +312,19 @@ export function Autocomplete({
 			checkPosition();
 		}
 
+		// Handle resize regardless of activation state
+		const resizeObserver = new ResizeObserver(updatePosition);
+		resizeObserver.observe(element);
+		window.addEventListener("resize", updatePosition);
+
 		return () => {
-			cancelAnimationFrame(rafId);
+			if (rafId !== null) {
+				cancelAnimationFrame(rafId);
+			}
+			resizeObserver.disconnect();
+			window.removeEventListener("resize", updatePosition);
 		};
-	}, [isActivated]);
+	}, [isActivated, updatePosition]);
 
 	return (
 		<>
