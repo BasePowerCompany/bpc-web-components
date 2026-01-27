@@ -27,7 +27,7 @@ type OverlayPosition = {
 interface AutocompleteProps {
 	zIndex: number;
 	value: string;
-	placeholder?: string;
+	placeholder: string;
 	cta?: string;
 	onChange: (value: string) => void;
 	results: Result[];
@@ -38,7 +38,7 @@ interface AutocompleteProps {
 interface ActivatedOverlayProps {
 	zIndex: number;
 	value: string;
-	placeholder?: string;
+	placeholder: string;
 	onChange: (value: string) => void;
 	results: Result[];
 	onSelect?: ({ result }: { result: Result }) => void;
@@ -171,13 +171,14 @@ function ActivatedOverlay({
 						className={styles.results}
 						role="listbox"
 						aria-label="Suggestions"
+						// Prevent input blur before click handler runs
 						onMouseDown={(e) => e.preventDefault()}
 					>
 						{results.map((result, idx) => {
 							const isActive = idx === highlightedIndex;
 							const optionId = `${listboxId}-option-${result.id}`;
 							return (
-								// biome-ignore lint/a11y/useKeyWithClickEvents: Prevent input blur before click
+								// biome-ignore lint/a11y/useKeyWithClickEvents: we want to prevent the input blur before the click handler runs
 								<div
 									key={result.id}
 									id={optionId}
@@ -270,7 +271,7 @@ export function Autocomplete({
 						onClick={activate}
 						onFocus={activate}
 					>
-						{value || placeholder || "Enter your home address"}
+						{value ?? placeholder}
 					</button>
 					<MapPin className={styles.mapPin} />
 					{!!cta && <CtaButton title={cta} onClick={activate} />}
