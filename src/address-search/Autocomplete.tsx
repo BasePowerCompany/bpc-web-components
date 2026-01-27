@@ -61,7 +61,7 @@ function ActivatedOverlay({
 	const resultsRef = useRef<HTMLDivElement>(null);
 	const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
 
-	const listboxId = useId();
+	const listboxId = useId(); // unique id for aria-controls
 
 	// Callback ref: focuses input immediately when DOM element is attached
 	// This is more reliable than useEffect for mobile Safari
@@ -237,17 +237,20 @@ export function Autocomplete({
 	const [overlayPosition, setOverlayPosition] =
 		useState<OverlayPosition | null>(null);
 
-	function activate() {
+	const updatePosition = useCallback(() => {
 		const element = inputContainerRef.current;
 		if (!element) return;
 
-		// Calculate position at moment of activation
 		const rect = element.getBoundingClientRect();
 		setOverlayPosition({
 			top: rect.top + window.scrollY,
 			left: rect.left + window.scrollX,
 			width: rect.width,
 		});
+	}, []);
+
+	function activate() {
+		updatePosition();
 		setIsActivated(true);
 	}
 
@@ -255,6 +258,24 @@ export function Autocomplete({
 		setIsActivated(false);
 		setOverlayPosition(null);
 	}
+
+	// Update position on resize while overlay is active
+	useEffect(() => {
+		if (!isActivated) return;
+
+		const element = inputContainerRef.current;
+		if (!element) return;
+
+		const resizeObserver = new ResizeObserver(updatePosition);
+		resizeObserver.observe(element);
+
+		window.addEventListener("resize", updatePosition);
+
+		return () => {
+			resizeObserver.disconnect();
+			window.removeEventListener("resize", updatePosition);
+		};
+	}, [isActivated, updatePosition]);
 
 	return (
 		<>
