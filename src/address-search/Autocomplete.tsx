@@ -1,4 +1,11 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { CtaButton } from "@/address-search/CtaButton";
 import { cx } from "@/utils/cx";
@@ -245,7 +252,24 @@ export function Autocomplete({
 	const [overlayPosition, setOverlayPosition] =
 		useState<OverlayPosition | null>(null);
 
+	// update overlay position
+	// this is used when we 1) open the modal and 2) when resize event happens
+	const updatePosition = useCallback(() => {
+		const element = inputContainerRef.current;
+		if (!element) return;
+		const rect = element.getBoundingClientRect();
+		setOverlayPosition({
+			top: rect.top + window.scrollY,
+			left: rect.left + window.scrollX,
+			right: rect.right + window.scrollX,
+			bottom: rect.bottom + window.scrollY,
+			width: rect.width,
+			height: rect.height,
+		});
+	}, []);
+
 	function open() {
+		updatePosition();
 		setIsActivated(true);
 		inputRef.current?.focus();
 	}
@@ -254,21 +278,6 @@ export function Autocomplete({
 		const element = inputContainerRef.current;
 		if (!element) return;
 
-		const updatePosition = () => {
-			const rect = element.getBoundingClientRect();
-			setOverlayPosition({
-				top: rect.top + window.scrollY,
-				left: rect.left + window.scrollX,
-				right: rect.right + window.scrollX,
-				bottom: rect.bottom + window.scrollY,
-				width: rect.width,
-				height: rect.height,
-			});
-		};
-
-		// Initial position
-		updatePosition();
-
 		// Watch for resize
 		const resizeObserver = new ResizeObserver(updatePosition);
 		resizeObserver.observe(element);
@@ -276,11 +285,49 @@ export function Autocomplete({
 		// Watch for window resize
 		window.addEventListener("resize", updatePosition);
 
+		// use RAF to track layout shifts from images, fonts, lazy content
+		// we optimize by only updating overlay position when position drifts > 0.5px
+		let rafId: number | null = null;
+		let lastTop = 0;
+		let lastLeft = 0;
+
+		const updatePositionWithRaf = () => {
+			const rect = element.getBoundingClientRect();
+			const newTop = rect.top + window.scrollY;
+			const newLeft = rect.left + window.scrollX;
+
+			if (
+				Math.abs(newTop - lastTop) > 0.5 ||
+				Math.abs(newLeft - lastLeft) > 0.5
+			) {
+				lastTop = newTop;
+				lastLeft = newLeft;
+				setOverlayPosition({
+					top: newTop,
+					left: newLeft,
+					right: rect.right + window.scrollX,
+					bottom: rect.bottom + window.scrollY,
+					width: rect.width,
+					height: rect.height,
+				});
+			}
+
+			rafId = requestAnimationFrame(updatePositionWithRaf);
+		};
+
+		if (!isActivated) {
+			// Start RAF tracking when not activated
+			updatePositionWithRaf();
+		}
+
 		return () => {
+			if (rafId !== null) {
+				cancelAnimationFrame(rafId);
+			}
 			resizeObserver.disconnect();
 			window.removeEventListener("resize", updatePosition);
 		};
-	}, []);
+	}, [isActivated, updatePosition]);
 
 	return (
 		<>
