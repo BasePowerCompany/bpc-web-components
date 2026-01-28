@@ -252,6 +252,8 @@ export function Autocomplete({
 	const [overlayPosition, setOverlayPosition] =
 		useState<OverlayPosition | null>(null);
 
+	// update overlay position
+	// this is used when we 1) open the modal and 2) when resize event happens
 	const updatePosition = useCallback(() => {
 		const element = inputContainerRef.current;
 		if (!element) return;
@@ -272,22 +274,28 @@ export function Autocomplete({
 		inputRef.current?.focus();
 	}
 
-	// Use rAF polling to track position changes from any source (images, fonts, dynamic content)
-	// Only runs when not activated; stops when user focuses the input
 	useEffect(() => {
 		const element = inputContainerRef.current;
 		if (!element) return;
 
+		// Watch for resize
+		const resizeObserver = new ResizeObserver(updatePosition);
+		resizeObserver.observe(element);
+
+		// Watch for window resize
+		window.addEventListener("resize", updatePosition);
+
+		// use RAF to track layout shifts from images, fonts, lazy content
+		// we optimize by only updating overlay position when position drifts > 0.5px
 		let rafId: number | null = null;
 		let lastTop = 0;
 		let lastLeft = 0;
 
-		const checkPosition = () => {
+		const updatePositionWithRaf = () => {
 			const rect = element.getBoundingClientRect();
 			const newTop = rect.top + window.scrollY;
 			const newLeft = rect.left + window.scrollX;
 
-			// Only update state if position changed to avoid unnecessary re-renders
 			if (
 				Math.abs(newTop - lastTop) > 0.5 ||
 				Math.abs(newLeft - lastLeft) > 0.5
@@ -304,18 +312,13 @@ export function Autocomplete({
 				});
 			}
 
-			rafId = requestAnimationFrame(checkPosition);
+			rafId = requestAnimationFrame(updatePositionWithRaf);
 		};
 
-		// Start polling when not activated
 		if (!isActivated) {
-			checkPosition();
+			// Start RAF tracking when not activated
+			updatePositionWithRaf();
 		}
-
-		// Handle resize regardless of activation state
-		const resizeObserver = new ResizeObserver(updatePosition);
-		resizeObserver.observe(element);
-		window.addEventListener("resize", updatePosition);
 
 		return () => {
 			if (rafId !== null) {
