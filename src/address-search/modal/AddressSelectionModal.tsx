@@ -65,10 +65,8 @@ export function AddressSelectionModal({
 			selectedAddress === "existing" ? existingAddress : originalAddress;
 
 		posthogCapture("address_search_address_selection_confirmed", {
-			selectedOption: selectedAddress,
-			selectedAddress: selected,
-			existingAddress: existingAddress,
-			originalAddress: originalAddress,
+			selectionType: selectedAddress,
+			selectedAddress: selected.formattedAddress,
 		});
 
 		onSelectAddress(selected);
