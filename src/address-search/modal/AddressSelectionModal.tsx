@@ -3,6 +3,7 @@ import type {
 	AddressResult,
 	RedirectMultipleAddress,
 } from "@/address-search/types";
+import { posthogCapture } from "@/address-search/utils";
 import { ModalLayout } from "./ModalLayout";
 import styles from "./styles.module.css";
 
@@ -62,6 +63,14 @@ export function AddressSelectionModal({
 	const handleContinue = () => {
 		const selected =
 			selectedAddress === "existing" ? existingAddress : originalAddress;
+
+		posthogCapture("address_search_address_selection_confirmed", {
+			selectedOption: selectedAddress,
+			selectedAddress: selected,
+			existingAddress: existingAddress,
+			originalAddress: originalAddress,
+		});
+
 		onSelectAddress(selected);
 	};
 
