@@ -13,6 +13,7 @@ import { AddressSearch } from "./AddressSearch";
 export type AddressSearchAppProps = {
 	placeholder?: string;
 	cta?: string;
+	isEnergyOnly: boolean;
 	portalRoot: ShadowRoot;
 	zIndex: number;
 	onSelectEvent: (detail: {
@@ -29,6 +30,7 @@ export type AddressSearchAppProps = {
 export function AddressSearchApp({
 	placeholder,
 	cta,
+	isEnergyOnly,
 	portalRoot,
 	zIndex,
 	onSelectEvent,
@@ -50,6 +52,9 @@ export function AddressSearchApp({
 	const [multipleAddressResults, setMultipleAddressResults] = useState<
 		RedirectMultipleAddress | undefined
 	>();
+	const [energySplashRedirectUrl, setEnergySplashRedirectUrl] = useState<
+		string | undefined
+	>();
 
 	const handleSelect = useCallback(
 		async (detail: {
@@ -68,6 +73,7 @@ export function AddressSearchApp({
 			const result = await fetchHydration(
 				detail.selection,
 				detail.confirmAddress,
+				isEnergyOnly,
 			);
 			if (result.success) {
 				setExternalAddressId(result.data.externalAddressId);
@@ -106,6 +112,13 @@ export function AddressSearchApp({
 					posthogCapture("address_search_single_result", {
 						selection: detail.selection,
 					});
+
+					if (isEnergyOnly) {
+						// Show splash screen before redirecting
+						setEnergySplashRedirectUrl(result.data.redirectUrl);
+						return;
+					}
+
 					onResultEvent({
 						result: result.data,
 						selection: detail.selection,
@@ -119,7 +132,7 @@ export function AddressSearchApp({
 				onErrorEvent({ error: result.error });
 			}
 		},
-		[onSelectEvent, onResultEvent, onErrorEvent],
+		[isEnergyOnly, onSelectEvent, onResultEvent, onErrorEvent],
 	);
 
 	const handleRedirect = useCallback(
@@ -148,11 +161,14 @@ export function AddressSearchApp({
 		setMultipleAddressResults(undefined);
 		setSelection(undefined);
 		setExternalAddressId(undefined);
+		setEnergySplashRedirectUrl(undefined);
 	}, []);
 
 	const shouldShowModal =
 		selection &&
-		(multipleAddressResults != null || multipleUtilityResult != null);
+		(multipleAddressResults != null ||
+			multipleUtilityResult != null ||
+			energySplashRedirectUrl != null);
 
 	return (
 		<>
@@ -176,6 +192,7 @@ export function AddressSearchApp({
 						multipleUtilityOptions={
 							multipleUtilityResult?.redirectStrategy.multiple.options
 						}
+						energySplashRedirectUrl={energySplashRedirectUrl}
 						onSelectAddress={handleUserSelectAddress}
 						onTriggerRedirect={handleRedirect}
 						onBack={handleBack}
