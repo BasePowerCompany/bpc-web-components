@@ -83,6 +83,8 @@ class AddressSearchElement extends HTMLElement {
 		this.reactRoot?.unmount();
 		this.reactRoot = undefined;
 		this.overlayWrapper?.remove();
+		this.overlayRoot = undefined;
+		this.overlayWrapper = undefined;
 	}
 
 	private renderApp() {
