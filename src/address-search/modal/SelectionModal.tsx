@@ -4,6 +4,7 @@ import type {
 	RedirectMultipleOption,
 } from "@/address-search/types";
 import { AddressSelectionModal } from "./AddressSelectionModal";
+import { EnergyOnlySplashModal } from "./EnergyOnlySplashModal";
 import { UtilitySelectionModal } from "./UtilitySelectionModal";
 
 export type SelectionModalProps = {
@@ -11,6 +12,7 @@ export type SelectionModalProps = {
 	externalAddressId: string;
 	multipleAddressOptions: RedirectMultipleAddress | undefined;
 	multipleUtilityOptions: RedirectMultipleOption[] | undefined;
+	energySplashRedirectUrl: string | undefined;
 	onSelectAddress: (address: AddressResult) => void;
 	onTriggerRedirect: (redirectUrl: string) => void;
 	onBack: () => void;
@@ -21,6 +23,7 @@ export function SelectionModal({
 	externalAddressId,
 	multipleAddressOptions,
 	multipleUtilityOptions,
+	energySplashRedirectUrl,
 	onSelectAddress,
 	onTriggerRedirect,
 	onBack,
@@ -44,6 +47,17 @@ export function SelectionModal({
 				externalAddressId={externalAddressId}
 				utilityOptions={multipleUtilityOptions}
 				onTriggerRedirect={onTriggerRedirect}
+				onBack={onBack}
+			/>
+		);
+	}
+
+	if (energySplashRedirectUrl) {
+		return (
+			<EnergyOnlySplashModal
+				address={address}
+				redirectUrl={energySplashRedirectUrl}
+				onRedirect={onTriggerRedirect}
 				onBack={onBack}
 			/>
 		);

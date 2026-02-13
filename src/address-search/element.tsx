@@ -10,7 +10,8 @@ function parseProps(el: HTMLElement) {
 	const publicApiKey = el.getAttribute("public-key") || "";
 	const placeholder = el.getAttribute("placeholder") || undefined;
 	const cta = el.getAttribute("cta") || undefined;
-	return { publicApiKey, placeholder, cta };
+	const isEnergyOnly = el.getAttribute("is-energy-only") === "true";
+	return { publicApiKey, placeholder, cta, isEnergyOnly };
 }
 
 function getZIndex(el: HTMLElement) {
@@ -34,9 +35,8 @@ class AddressSearchElement extends HTMLElement {
 	private overlayRoot?: ShadowRoot;
 	private overlayWrapper?: HTMLElement;
 	private reactRoot?: Root;
-
 	static get observedAttributes() {
-		return ["public-key", "placeholder", "cta"];
+		return ["public-key", "placeholder", "cta", "is-energy-only"];
 	}
 
 	connectedCallback() {
@@ -97,6 +97,7 @@ class AddressSearchElement extends HTMLElement {
 				<AddressSearchApp
 					placeholder={props.placeholder}
 					cta={props.cta}
+					isEnergyOnly={props.isEnergyOnly}
 					portalRoot={this.overlayRoot}
 					zIndex={zIndex}
 					onSelectEvent={(detail) =>

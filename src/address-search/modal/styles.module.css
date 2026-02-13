@@ -386,3 +386,28 @@
 		padding: 4px 8px;
 	}
 }
+
+/* Energy-Only Splash Screen */
+.splashContent {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	gap: 32px;
+}
+
+.splashSpinner {
+	color: #1e4d2b;
+	animation: splashSpin 1.5s ease-in-out infinite;
+	overflow: hidden;
+}
+
+.splashBatteryFill {
+	fill: #b2dd79;
+}
+
+@keyframes splashSpin {
+	to {
+		transform: rotate(360deg);
+	}
+}

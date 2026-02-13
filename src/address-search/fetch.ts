@@ -3,6 +3,7 @@ import type { AddressResult, HydrationResult } from "@/address-search/types";
 export function fetchHydration(
 	selection: AddressResult,
 	confirmAddress: boolean = false,
+	isEnergyOnly: boolean = false,
 ): Promise<HydrationResult> {
 	return fetch(
 		`${import.meta.env.VITE_BPC_DASHBOARD_WEB_HOST}/api/address-router`,
@@ -11,7 +12,11 @@ export function fetchHydration(
 			headers: {
 				"Content-Type": "application/json",
 			},
-			body: JSON.stringify({ selection, confirm_address: confirmAddress }),
+			body: JSON.stringify({
+				selection,
+				confirm_address: confirmAddress,
+				is_energy_only: isEnergyOnly,
+			}),
 		},
 	)
 		.then((res) => res.json() as Promise<HydrationResult>)
