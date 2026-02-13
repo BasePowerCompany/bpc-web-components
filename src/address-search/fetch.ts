@@ -11,7 +11,7 @@ export function fetchHydration(
 			headers: {
 				"Content-Type": "application/json",
 			},
-			body: JSON.stringify({ selection, confirmAddress }),
+			body: JSON.stringify({ selection, confirm_address: confirmAddress }),
 		},
 	)
 		.then((res) => res.json() as Promise<HydrationResult>)
