@@ -81,6 +81,7 @@ class AddressSearchElement extends HTMLElement {
 
 	disconnectedCallback() {
 		this.reactRoot?.unmount();
+		this.reactRoot = undefined;
 		this.overlayWrapper?.remove();
 	}
 
