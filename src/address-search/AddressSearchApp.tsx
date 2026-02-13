@@ -84,8 +84,9 @@ export function AddressSearchApp({
 						redirectStrategy: result.data.redirectStrategy,
 						externalAddressId: result.data.externalAddressId,
 					});
-					// clear multiple address results
+					// clear other modal states
 					setMultipleAddressResults(undefined);
+					setEnergySplashRedirectUrl(undefined);
 					posthogCapture("address_search_multiple_utility_result", {
 						selection: detail.selection,
 						multipleResult: {
@@ -100,8 +101,9 @@ export function AddressSearchApp({
 					setMultipleAddressResults(
 						result.data.redirectStrategy.multipleAddresses,
 					);
-					// clear multiple utility results
+					// clear other modal states
 					setMultipleUtilityResult(undefined);
+					setEnergySplashRedirectUrl(undefined);
 					posthogCapture("address_search_multiple_address_result", {
 						selection: detail.selection,
 						multipleResult: result.data.redirectStrategy.multipleAddresses,
