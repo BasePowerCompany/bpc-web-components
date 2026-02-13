@@ -115,6 +115,8 @@ export function AddressSearchApp({
 
 					if (isEnergyOnly) {
 						// Show splash screen before redirecting
+						setMultipleAddressResults(undefined);
+						setMultipleUtilityResult(undefined);
 						setEnergySplashRedirectUrl(result.data.redirectUrl);
 						return;
 					}
