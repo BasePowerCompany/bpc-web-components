@@ -18,3 +18,6 @@ npm run dev
 ### Deployment
 
 This is hosted via jsdelivr. To support the delivery of the JS files, the built files _must_ be checked in. 
+
+### Release
+- This should follow SemVer- new features should only be released in minor versions.
