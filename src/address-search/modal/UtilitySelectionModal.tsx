@@ -37,7 +37,7 @@ export function UtilitySelectionModal({
 			return;
 		}
 
-		if (utility === "OTHER") {
+		if (utility === "DEREG") {
 			posthogCapture("address_search_modal_selection_utility_other", {
 				addressSelected: address,
 				utility: utility,
