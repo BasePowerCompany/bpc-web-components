@@ -28,6 +28,7 @@ export function AddressSearch({
 	const placesRef = useRef<
 		Record<string, google.maps.places.AutocompleteSuggestion | undefined>
 	>({});
+	const correctedTextRef = useRef<Record<string, string>>({});
 	const [inputValue, setInputValue] = useState<string>("");
 	const searchQuery = inputValue.trim();
 	const [cache, setCache] = useState<
@@ -63,12 +64,57 @@ export function AddressSearch({
 						// region: "US", // Don't restrict to US -- this changes the way the formatted address is returned
 						language: "en",
 						includedPrimaryTypes: ["street_address"],
-					}).then(({ suggestions }) => {
+					}).then(async ({ suggestions }) => {
 						suggestions.forEach((suggestion) => {
 							if (!suggestion.placePrediction?.placeId) return;
 							placesRef.current[suggestion.placePrediction.placeId] =
 								suggestion;
 						});
+
+						// Fetch place details to get correct city names (autocomplete
+						// secondaryText can return CDPs like "Briarcliff" instead of
+						// the USPS/postal city like "Austin")
+						await Promise.all(
+							suggestions.map(async (suggestion) => {
+								const placeId = suggestion.placePrediction?.placeId;
+								if (!placeId || correctedTextRef.current[placeId]) return;
+
+								try {
+									const place = new places.Place({ id: placeId });
+									const { place: details } = await place.fetchFields({
+										fields: ["addressComponents"],
+									});
+
+									const addr =
+										details.addressComponents?.reduce(
+											(acc, data) => {
+												data.types.forEach((type) => {
+													acc[type] = data;
+												});
+												return acc;
+											},
+											{} as Record<string, google.maps.places.AddressComponent>,
+										) || {};
+
+									const city =
+										[
+											addr.locality?.longText,
+											addr.sublocality?.longText,
+											addr.administrative_area_level_2?.longText,
+										].filter(Boolean)[0] || "";
+									const state =
+										addr.administrative_area_level_1?.shortText || "";
+									const country = addr.country?.longText || "";
+
+									correctedTextRef.current[placeId] = [city, state, country]
+										.filter(Boolean)
+										.join(", ");
+								} catch {
+									// Fall back to default secondaryText on error
+								}
+							}),
+						);
+
 						return suggestions;
 					}),
 			};
@@ -97,7 +143,8 @@ export function AddressSearch({
 			setInputValue(
 				[
 					place.placePrediction?.mainText?.text,
-					place.placePrediction?.secondaryText?.text,
+					correctedTextRef.current[result.id] ||
+						place.placePrediction?.secondaryText?.text,
 				]
 					.filter(Boolean)
 					.join(", "),
@@ -114,6 +161,7 @@ export function AddressSearch({
 			// Clear cached values now that our selection is complete -- the token is only valid until the first toPlace() call
 			setCache({});
 			placesRef.current = {};
+			correctedTextRef.current = {};
 			token.current = null;
 		},
 		[onSelect],
@@ -124,7 +172,10 @@ export function AddressSearch({
 			(suggestion) =>
 				({
 					mainText: suggestion.placePrediction?.mainText?.text,
-					secondaryText: suggestion.placePrediction?.secondaryText?.text,
+					secondaryText:
+						correctedTextRef.current[
+							suggestion.placePrediction?.placeId || ""
+						] || suggestion.placePrediction?.secondaryText?.text,
 					id: suggestion.placePrediction?.placeId,
 				}) as Result,
 		);
