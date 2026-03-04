@@ -71,49 +71,52 @@ export function AddressSearch({
 								suggestion;
 						});
 
-						// Fetch place details to get correct city names (autocomplete
-						// secondaryText can return CDPs like "Briarcliff" instead of
-						// the USPS/postal city like "Austin")
-						await Promise.all(
-							suggestions.map(async (suggestion) => {
-								const placeId = suggestion.placePrediction?.placeId;
-								if (!placeId || correctedTextRef.current[placeId]) return;
+						// Geocode each suggestion to get correct city names.
+						// Autocomplete secondaryText returns CDPs like "Briarcliff"
+						// instead of the USPS postal city like "Austin". The Geocoding
+						// API normalizes to postal cities.
+						try {
+							const geocodingLib = (await google.maps.importLibrary(
+								"geocoding",
+							)) as google.maps.GeocodingLibrary;
+							const geocoder = new geocodingLib.Geocoder();
 
-								try {
-									const place = new places.Place({ id: placeId });
-									const { place: details } = await place.fetchFields({
-										fields: ["addressComponents"],
-									});
+							await Promise.all(
+								suggestions.map(async (suggestion) => {
+									const placeId = suggestion.placePrediction?.placeId;
+									const text = suggestion.placePrediction?.text?.text;
+									if (!placeId || !text || correctedTextRef.current[placeId])
+										return;
 
-									const addr =
-										details.addressComponents?.reduce(
-											(acc, data) => {
-												data.types.forEach((type) => {
-													acc[type] = data;
-												});
-												return acc;
-											},
-											{} as Record<string, google.maps.places.AddressComponent>,
-										) || {};
+									try {
+										const { results } = await geocoder.geocode({
+											address: text,
+										});
+										const components = results?.[0]?.address_components;
+										if (!components) return;
 
-									const city =
-										[
-											addr.locality?.longText,
-											addr.sublocality?.longText,
-											addr.administrative_area_level_2?.longText,
-										].filter(Boolean)[0] || "";
-									const state =
-										addr.administrative_area_level_1?.shortText || "";
-									const country = addr.country?.longText || "";
+										const city =
+											components.find((c) => c.types.includes("locality"))
+												?.long_name || "";
+										const state =
+											components.find((c) =>
+												c.types.includes("administrative_area_level_1"),
+											)?.short_name || "";
+										const country =
+											components.find((c) => c.types.includes("country"))
+												?.long_name || "";
 
-									correctedTextRef.current[placeId] = [city, state, country]
-										.filter(Boolean)
-										.join(", ");
-								} catch {
-									// Fall back to default secondaryText on error
-								}
-							}),
-						);
+										correctedTextRef.current[placeId] = [city, state, country]
+											.filter(Boolean)
+											.join(", ");
+									} catch {
+										// Fall back to default secondaryText on error
+									}
+								}),
+							);
+						} catch {
+							// Geocoding library not available, keep default text
+						}
 
 						return suggestions;
 					}),
