@@ -5,7 +5,6 @@ import type { AddressResult } from "@/address-search/types";
 import { parseAddress } from "@/address-search/utils";
 import { useMapsLibrary } from "@/utils/useMapsLibrary";
 import { Autocomplete, type Result } from "./Autocomplete";
-import { validateAddress } from "./fetch";
 
 export type AddressSearchProps = {
 	placeholder?: string;
@@ -94,15 +93,39 @@ export function AddressSearch({
 										? searchQuery
 										: streetAddress;
 
-								const result = await validateAddress(addressInput);
-								if (result?.city) {
-									correctedTextRef.current[placeId] = [
-										result.city,
-										result.state,
-										result.country,
-									]
-										.filter(Boolean)
-										.join(", ");
+								try {
+									const { AddressValidation } =
+										await google.maps.importLibrary("addressValidation");
+									const validation =
+										await AddressValidation.fetchAddressValidation({
+											address: {
+												addressLines: [addressInput],
+												regionCode: "US",
+											},
+											uspsCASSEnabled: true,
+										});
+
+									const uspsCity =
+										validation.uspsData?.standardizedAddress?.city;
+									const postalAddress = validation.address?.postalAddress;
+									const rawCity = uspsCity || postalAddress?.locality || "";
+									// USPS city is uppercase (e.g. "AUSTIN"), title-case it
+									const city = rawCity
+										.toLowerCase()
+										.replace(/\b\w/g, (c: string) => c.toUpperCase());
+									const state = postalAddress?.administrativeArea || "";
+									const country =
+										postalAddress?.regionCode === "US"
+											? "USA"
+											: (postalAddress?.regionCode ?? "");
+
+									if (city) {
+										correctedTextRef.current[placeId] = [city, state, country]
+											.filter(Boolean)
+											.join(", ");
+									}
+								} catch {
+									// Fall back to default secondaryText on error
 								}
 							}),
 						);
