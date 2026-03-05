@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { posthogCapture } from "@/address-search/utils";
 import styles from "./styles.module.css";
 
+// delay for step completion animation rendering
 const STEP_DURATION_MS = 1000;
 
 const STEPS = [
@@ -72,18 +73,18 @@ export function EnergyOnlySplashModal({
 		posthogCapture("energy_only_splash_shown", { address });
 
 		const timers = STEPS.map((_, index) =>
-			setTimeout(() => {
-				setCompletedSteps(index + 1);
-				if (index === STEPS.length - 1 && !hasRedirected.current) {
-					hasRedirected.current = true;
-					posthogCapture("energy_only_splash_redirect", { redirectUrl });
-					// Delay redirect by 300ms so React has time to commit the final
-					// step's completed state before navigation unmounts the component.
-					// Without this, setCompletedSteps and onRedirect fire in the same
-					// tick and the user never sees the last checkmark.
-					setTimeout(() => onRedirect(redirectUrl), 300);
-				}
-			}, STEP_DURATION_MS * (index + 1)),
+			setTimeout(
+				() => {
+					setCompletedSteps(index + 1);
+					if (index === STEPS.length - 1 && !hasRedirected.current) {
+						hasRedirected.current = true;
+						posthogCapture("energy_only_splash_redirect", { redirectUrl });
+						// small delay before redirect, ensure final step checkmark is rendered
+						setTimeout(() => onRedirect(redirectUrl), 300);
+					}
+				},
+				STEP_DURATION_MS * (index + 1),
+			),
 		);
 
 		return () => timers.forEach(clearTimeout);
