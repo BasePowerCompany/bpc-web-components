@@ -77,7 +77,11 @@ export function EnergyOnlySplashModal({
 				if (index === STEPS.length - 1 && !hasRedirected.current) {
 					hasRedirected.current = true;
 					posthogCapture("energy_only_splash_redirect", { redirectUrl });
-					onRedirect(redirectUrl);
+					// Delay redirect by 300ms so React has time to commit the final
+					// step's completed state before navigation unmounts the component.
+					// Without this, setCompletedSteps and onRedirect fire in the same
+					// tick and the user never sees the last checkmark.
+					setTimeout(() => onRedirect(redirectUrl), 300);
 				}
 			}, STEP_DURATION_MS * (index + 1)),
 		);
