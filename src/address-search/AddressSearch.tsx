@@ -137,6 +137,7 @@ export function AddressSearch({
 	}, [places, searchQuery]);
 
 	useEffect(() => {
+		let stale = false;
 		if (!searchQuery) {
 			setPlacesResult([]);
 			return;
@@ -145,9 +146,12 @@ export function AddressSearch({
 		const cached = cache[searchQuery];
 		if (cached) {
 			cached.then((suggestions) => {
-				setPlacesResult(suggestions);
+				if (!stale) setPlacesResult(suggestions);
 			});
 		}
+		return () => {
+			stale = true;
+		};
 	}, [cache, searchQuery]);
 
 	const handleSelect = useCallback(
