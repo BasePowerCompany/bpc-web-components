@@ -388,26 +388,135 @@
 }
 
 /* Energy-Only Splash Screen */
-.splashContent {
+.splashOverlay {
+	position: fixed;
+	inset: 0;
+	z-index: 10001;
+	background-color: #f0eeeb;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.splashCard {
+	background: white;
+	border-radius: 32px;
+	padding: 32px;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	text-align: center;
-	gap: 32px;
+	gap: 4px;
+	width: 800px;
+}
+
+.splashSpinnerWrapper {
+	width: 48px;
+	height: 48px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .splashSpinner {
-	color: #1e4d2b;
-	animation: splashSpin 1.5s ease-in-out infinite;
-	overflow: hidden;
+	width: 24px;
+	height: 24px;
+	border: 2.5px solid #e8e6e3;
+	border-top-color: #1e4d2b;
+	border-radius: 50%;
+	animation: splashSpin 0.8s linear infinite;
 }
 
-.splashBatteryFill {
-	fill: #b2dd79;
+.splashCardContent {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 32px;
+	width: 100%;
+}
+
+.splashTextGroup {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+}
+
+.splashTitle {
+	font-size: 32px;
+	font-weight: 600;
+	color: #1c2829;
+	text-align: center;
+	line-height: 1.2;
+	margin: 0;
+}
+
+.splashSubtitle {
+	font-size: 12px;
+	font-weight: 500;
+	color: #7f7d7a;
+	text-align: center;
+	letter-spacing: 0.2px;
+	margin: 0;
+}
+
+.splashSteps {
+	display: flex;
+	gap: 12px;
+}
+
+.splashStep {
+	display: flex;
+	justify-content: start;
+	align-items: center;
+	gap: 6px;
+}
+
+.splashStepLabel {
+	font-size: 12px;
+	font-weight: 500;
+	color: #292826;
+	letter-spacing: 0.2px;
+	white-space: nowrap;
+}
+
+/* Invisible bold ghost of the label text. Reserves the bold width so the
+   container doesn't resize when the label transitions from regular to bold,
+   preventing layout shift. data-label is set to the label text in the JSX. */
+.splashStepLabel::after {
+	display: block;
+	content: attr(data-label);
+	font-weight: 700;
+	height: 0;
+	overflow: hidden;
+	visibility: hidden;
+	white-space: nowrap;
+}
+
+.splashStepLabelComplete {
+	font-size: 12px;
+	font-weight: 700;
+	color: #1e4d2b;
+	letter-spacing: 0.2px;
+	white-space: nowrap;
 }
 
 @keyframes splashSpin {
 	to {
 		transform: rotate(360deg);
+	}
+}
+
+@media screen and (max-width: 768px) {
+	.splashCard {
+		width: 321px;
+	}
+
+	.splashSteps {
+		flex-direction: column;
+	}
+
+	.splashTextGroup {
+		gap: 4px;
 	}
 }
