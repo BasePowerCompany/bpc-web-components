@@ -168,13 +168,31 @@ export function AddressSearch({
 					.filter(Boolean)
 					.join(", "),
 			);
+			// Save corrected city before refs are cleared
+			const corrected = correctedTextRef.current[result.id];
 			await place.placePrediction
 				?.toPlace()
 				.fetchFields({
 					fields: ["location", "formattedAddress", "addressComponents"],
 				})
 				.then(({ place }) => {
-					return onSelect?.({ selection: parseAddress(place) });
+					const selection = parseAddress(place);
+					// Override city and formattedAddress with USPS-validated city
+					if (selection && corrected) {
+						const correctedCity = corrected.split(",")[0].trim();
+						if (correctedCity) {
+							const originalCity = selection.address.city;
+							selection.address.city = correctedCity;
+							if (originalCity) {
+								selection.formattedAddress =
+									selection.formattedAddress.replace(
+										originalCity,
+										correctedCity,
+									);
+							}
+						}
+					}
+					return onSelect?.({ selection });
 				});
 
 			// Clear cached values now that our selection is complete -- the token is only valid until the first toPlace() call
