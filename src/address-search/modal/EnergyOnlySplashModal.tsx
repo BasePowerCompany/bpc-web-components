@@ -72,6 +72,7 @@ export function EnergyOnlySplashModal({
 	useEffect(() => {
 		posthogCapture("energy_only_splash_shown", { address });
 
+		let redirectTimer: ReturnType<typeof setTimeout>;
 		const timers = STEPS.map((_, index) =>
 			setTimeout(
 				() => {
@@ -80,14 +81,17 @@ export function EnergyOnlySplashModal({
 						hasRedirected.current = true;
 						posthogCapture("energy_only_splash_redirect", { redirectUrl });
 						// small delay before redirect, ensure final step checkmark is rendered
-						setTimeout(() => onRedirect(redirectUrl), 300);
+						redirectTimer = setTimeout(() => onRedirect(redirectUrl), 300);
 					}
 				},
 				STEP_DURATION_MS * (index + 1),
 			),
 		);
 
-		return () => timers.forEach(clearTimeout);
+		return () => {
+			timers.forEach(clearTimeout);
+			clearTimeout(redirectTimer);
+		};
 	}, [address, redirectUrl, onRedirect]);
 
 	return (
