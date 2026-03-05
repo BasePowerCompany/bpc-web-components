@@ -184,11 +184,10 @@ export function AddressSearch({
 							const originalCity = selection.address.city;
 							selection.address.city = correctedCity;
 							if (originalCity) {
-								selection.formattedAddress =
-									selection.formattedAddress.replace(
-										originalCity,
-										correctedCity,
-									);
+								selection.formattedAddress = selection.formattedAddress.replace(
+									originalCity,
+									correctedCity,
+								);
 							}
 						}
 					}
