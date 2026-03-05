@@ -95,6 +95,7 @@ class AddressSearchElement extends HTMLElement {
 		this.reactRoot.render(
 			<StrictMode>
 				<AddressSearchApp
+					apiKey={props.publicApiKey}
 					placeholder={props.placeholder}
 					cta={props.cta}
 					isEnergyOnly={props.isEnergyOnly}
