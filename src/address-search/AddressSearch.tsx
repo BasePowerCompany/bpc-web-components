@@ -5,9 +5,9 @@ import type { AddressResult } from "@/address-search/types";
 import { parseAddress } from "@/address-search/utils";
 import { useMapsLibrary } from "@/utils/useMapsLibrary";
 import { Autocomplete, type Result } from "./Autocomplete";
+import { validateAddress } from "./fetch";
 
 export type AddressSearchProps = {
-	apiKey: string;
 	placeholder?: string;
 	cta?: string;
 	onSelect?: (detail: { selection: AddressResult | undefined }) => void;
@@ -16,7 +16,6 @@ export type AddressSearchProps = {
 };
 
 export function AddressSearch({
-	apiKey,
 	zIndex,
 	onSelect,
 	placeholder,
@@ -95,41 +94,15 @@ export function AddressSearch({
 										? searchQuery
 										: streetAddress;
 
-								try {
-									const res = await fetch(
-										`https://addressvalidation.googleapis.com/v1:validateAddress?key=${apiKey}`,
-										{
-											method: "POST",
-											headers: { "Content-Type": "application/json" },
-											body: JSON.stringify({
-												address: { addressLines: [addressInput] },
-												enableUspsCass: true,
-											}),
-										},
-									);
-									const data = await res.json();
-
-									const uspsCity =
-										data.result?.uspsData?.standardizedAddress?.city;
-									const postalAddress = data.result?.address?.postalAddress;
-									// USPS city is uppercase (e.g. "AUSTIN"), title-case it
-									const rawCity = uspsCity || postalAddress?.locality || "";
-									const city = rawCity
-										.toLowerCase()
-										.replace(/\b\w/g, (c: string) => c.toUpperCase());
-									const state = postalAddress?.administrativeArea || "";
-									const country =
-										postalAddress?.regionCode === "US"
-											? "USA"
-											: postalAddress?.regionCode || "";
-
-									if (city) {
-										correctedTextRef.current[placeId] = [city, state, country]
-											.filter(Boolean)
-											.join(", ");
-									}
-								} catch {
-									// Fall back to default secondaryText on error
+								const result = await validateAddress(addressInput);
+								if (result?.city) {
+									correctedTextRef.current[placeId] = [
+										result.city,
+										result.state,
+										result.country,
+									]
+										.filter(Boolean)
+										.join(", ");
 								}
 							}),
 						);
@@ -138,7 +111,7 @@ export function AddressSearch({
 					}),
 			};
 		});
-	}, [places, searchQuery, apiKey]);
+	}, [places, searchQuery]);
 
 	useEffect(() => {
 		if (!searchQuery) {

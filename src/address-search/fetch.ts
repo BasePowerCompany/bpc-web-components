@@ -28,6 +28,32 @@ export function fetchHydration(
 		});
 }
 
+export type ValidateAddressResult = {
+	city: string;
+	state: string;
+	country: string;
+};
+
+export function validateAddress(
+	address: string,
+): Promise<ValidateAddressResult | null> {
+	return fetch(
+		`${import.meta.env.VITE_BPC_DASHBOARD_WEB_HOST}/api/validate-address`,
+		{
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ address }),
+		},
+	)
+		.then((res) => {
+			if (!res.ok) return null;
+			return res.json() as Promise<ValidateAddressResult>;
+		})
+		.catch(() => null);
+}
+
 export function setUtilityUserConfirmed(utility: string, externalId: string) {
 	return fetch(
 		`${import.meta.env.VITE_BPC_DASHBOARD_WEB_HOST}/api/utility-select`,

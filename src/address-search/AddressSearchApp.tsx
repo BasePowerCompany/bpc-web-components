@@ -11,7 +11,6 @@ import { posthogCapture } from "@/address-search/utils";
 import { AddressSearch } from "./AddressSearch";
 
 export type AddressSearchAppProps = {
-	apiKey: string;
 	placeholder?: string;
 	cta?: string;
 	isEnergyOnly: boolean;
@@ -29,7 +28,6 @@ export type AddressSearchAppProps = {
 };
 
 export function AddressSearchApp({
-	apiKey,
 	placeholder,
 	cta,
 	isEnergyOnly,
@@ -179,7 +177,6 @@ export function AddressSearchApp({
 	return (
 		<>
 			<AddressSearch
-				apiKey={apiKey}
 				placeholder={placeholder}
 				cta={cta}
 				zIndex={zIndex}
