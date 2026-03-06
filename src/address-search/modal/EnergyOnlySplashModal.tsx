@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { posthogCapture } from "@/address-search/utils";
 import { CheckCircleIcon } from "@/address-search/icons/CheckCircleIcon";
 import { EmptyCircleIcon } from "@/address-search/icons/EmptyCircleIcon";
+import { posthogCapture } from "@/address-search/utils";
 import styles from "./styles.module.css";
 
 // delay for step completion animation rendering
