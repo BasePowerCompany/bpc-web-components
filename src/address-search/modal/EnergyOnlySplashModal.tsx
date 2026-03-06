@@ -1,54 +1,17 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { CheckCircleIcon } from "@/address-search/icons/CheckCircleIcon";
+import { EmptyCircleIcon } from "@/address-search/icons/EmptyCircleIcon";
 import { posthogCapture } from "@/address-search/utils";
-import { ModalLayout } from "./ModalLayout";
 import styles from "./styles.module.css";
 
-const SPLASH_DURATION_MS = 3000;
+// delay for step completion animation rendering
+const STEP_DURATION_MS = 1000;
 
-function BatteryIcon() {
-	return (
-		<svg
-			width="144"
-			height="72"
-			viewBox="0 0 24 24"
-			fill="none"
-			xmlns="http://www.w3.org/2000/svg"
-			aria-hidden="true"
-		>
-			<rect
-				x="2"
-				y="6"
-				width="18"
-				height="12"
-				rx="2"
-				stroke="currentColor"
-				strokeWidth="1.5"
-			/>
-			<rect
-				x="5"
-				y="9"
-				width="4"
-				height="6"
-				rx="0.5"
-				className={styles.splashBatteryFill}
-			/>
-			<rect
-				x="10.5"
-				y="9"
-				width="4"
-				height="6"
-				rx="0.5"
-				className={styles.splashBatteryFill}
-			/>
-			<path
-				d="M22 10V14"
-				stroke="currentColor"
-				strokeWidth="1.5"
-				strokeLinecap="round"
-			/>
-		</svg>
-	);
-}
+const STEPS = [
+	"Verifying address",
+	"Checking utility",
+	"Preparing report",
+] as const;
 
 export type EnergyOnlySplashModalProps = {
 	address: string;
@@ -61,43 +24,68 @@ export function EnergyOnlySplashModal({
 	address,
 	redirectUrl,
 	onRedirect,
-	onBack,
 }: EnergyOnlySplashModalProps) {
+	const [completedSteps, setCompletedSteps] = useState(0);
 	const hasRedirected = useRef(false);
 
 	useEffect(() => {
 		posthogCapture("energy_only_splash_shown", { address });
 
-		const timer = setTimeout(() => {
-			if (!hasRedirected.current) {
-				hasRedirected.current = true;
-				posthogCapture("energy_only_splash_redirect", { redirectUrl });
-				onRedirect(redirectUrl);
-			}
-		}, SPLASH_DURATION_MS);
+		let redirectTimer: ReturnType<typeof setTimeout>;
+		const timers = STEPS.map((_, index) =>
+			setTimeout(
+				() => {
+					setCompletedSteps(index + 1);
+					if (index === STEPS.length - 1 && !hasRedirected.current) {
+						hasRedirected.current = true;
+						posthogCapture("energy_only_splash_redirect", { redirectUrl });
+						// small delay before redirect, ensure final step checkmark is rendered
+						redirectTimer = setTimeout(() => onRedirect(redirectUrl), 300);
+					}
+				},
+				STEP_DURATION_MS * (index + 1),
+			),
+		);
 
-		return () => clearTimeout(timer);
+		return () => {
+			timers.forEach(clearTimeout);
+			clearTimeout(redirectTimer);
+		};
 	}, [address, redirectUrl, onRedirect]);
 
-	const handleBack = () => {
-		hasRedirected.current = true;
-		posthogCapture("energy_only_splash_dismissed", {});
-		onBack();
-	};
-
 	return (
-		<ModalLayout onBack={handleBack}>
-			<div className={styles.splashContent}>
-				<div>
-					<h1 className={styles.utilityModalTitle}>
-						Finding the best energy plan for you at
-					</h1>
-					<p className={styles.utilityModalSubtitle}>{address}</p>
+		<div className={styles.splashOverlay}>
+			<div className={styles.splashCard}>
+				<div className={styles.splashSpinnerWrapper}>
+					<div className={styles.splashSpinner} aria-hidden="true" />
 				</div>
-				<div className={styles.splashSpinner}>
-					<BatteryIcon />
+				<div className={styles.splashCardContent}>
+					<div className={styles.splashTextGroup}>
+						<p className={styles.splashTitle}>Calculating your savings...</p>
+						<p className={styles.splashSubtitle}>This only takes a moment.</p>
+					</div>
+					<div className={styles.splashSteps}>
+						{STEPS.map((label, index) => {
+							const isComplete = index < completedSteps;
+							return (
+								<div key={label} className={styles.splashStep}>
+									{isComplete ? <CheckCircleIcon /> : <EmptyCircleIcon />}
+									<span
+										className={
+											isComplete
+												? styles.splashStepLabelComplete
+												: styles.splashStepLabel
+										}
+										data-label={label}
+									>
+										{label}
+									</span>
+								</div>
+							);
+						})}
+					</div>
 				</div>
 			</div>
-		</ModalLayout>
+		</div>
 	);
 }
