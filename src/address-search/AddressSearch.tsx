@@ -22,6 +22,7 @@ export function AddressSearch({
 	portalRoot,
 }: AddressSearchProps) {
 	const places = useMapsLibrary("places");
+	const addressValidation = useMapsLibrary("addressValidation");
 	const token = useRef<google.maps.places.AutocompleteSessionToken | null>(
 		null,
 	);
@@ -42,7 +43,7 @@ export function AddressSearch({
 	>([]);
 
 	useEffect(() => {
-		if (!places) return;
+		if (!places || !addressValidation) return;
 
 		// Create new token if not exists
 		if (!token.current) {
@@ -94,16 +95,16 @@ export function AddressSearch({
 										: streetAddress;
 
 								try {
-									const { AddressValidation } =
-										await google.maps.importLibrary("addressValidation");
 									const validation =
-										await AddressValidation.fetchAddressValidation({
-											address: {
-												addressLines: [addressInput],
-												regionCode: "US",
+										await addressValidation.AddressValidation.fetchAddressValidation(
+											{
+												address: {
+													addressLines: [addressInput],
+													regionCode: "US",
+												},
+												uspsCASSEnabled: true,
 											},
-											uspsCASSEnabled: true,
-										});
+										);
 
 									const uspsCity =
 										validation.uspsData?.standardizedAddress?.city;
@@ -134,7 +135,7 @@ export function AddressSearch({
 					}),
 			};
 		});
-	}, [places, searchQuery]);
+	}, [places, addressValidation, searchQuery]);
 
 	useEffect(() => {
 		let stale = false;
@@ -184,10 +185,11 @@ export function AddressSearch({
 							const originalCity = selection.address.city;
 							selection.address.city = correctedCity;
 							if (originalCity) {
-								selection.formattedAddress = selection.formattedAddress.replace(
-									originalCity,
-									correctedCity,
-								);
+								selection.formattedAddress =
+									selection.formattedAddress.replace(
+										originalCity,
+										correctedCity,
+									);
 							}
 						}
 					}

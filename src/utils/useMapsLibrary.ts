@@ -13,6 +13,7 @@ interface ApiLibraries {
 	journeySharing: google.maps.JourneySharingLibrary;
 	drawing: google.maps.DrawingLibrary;
 	visualization: google.maps.VisualizationLibrary;
+	addressValidation: google.maps.AddressValidationLibrary;
 }
 
 export const useMapsLibrary = <
