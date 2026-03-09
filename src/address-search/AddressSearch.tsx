@@ -22,12 +22,14 @@ export function AddressSearch({
 	portalRoot,
 }: AddressSearchProps) {
 	const places = useMapsLibrary("places");
+	const addressValidation = useMapsLibrary("addressValidation");
 	const token = useRef<google.maps.places.AutocompleteSessionToken | null>(
 		null,
 	);
 	const placesRef = useRef<
 		Record<string, google.maps.places.AutocompleteSuggestion | undefined>
 	>({});
+	const correctedTextRef = useRef<Record<string, string>>({});
 	const [inputValue, setInputValue] = useState<string>("");
 	const searchQuery = inputValue.trim();
 	const [cache, setCache] = useState<
@@ -41,7 +43,7 @@ export function AddressSearch({
 	>([]);
 
 	useEffect(() => {
-		if (!places) return;
+		if (!places || !addressValidation) return;
 
 		// Create new token if not exists
 		if (!token.current) {
@@ -63,19 +65,80 @@ export function AddressSearch({
 						// region: "US", // Don't restrict to US -- this changes the way the formatted address is returned
 						language: "en",
 						includedPrimaryTypes: ["street_address"],
-					}).then(({ suggestions }) => {
+					}).then(async ({ suggestions }) => {
 						suggestions.forEach((suggestion) => {
 							if (!suggestion.placePrediction?.placeId) return;
 							placesRef.current[suggestion.placePrediction.placeId] =
 								suggestion;
 						});
+
+						// Use Address Validation API to get correct USPS city names.
+						// Autocomplete secondaryText returns CDPs like "Briarcliff"
+						// instead of the postal city like "Austin".
+						await Promise.all(
+							suggestions.map(async (suggestion) => {
+								const placeId = suggestion.placePrediction?.placeId;
+								const streetAddress =
+									suggestion.placePrediction?.mainText?.text;
+								if (
+									!placeId ||
+									!streetAddress ||
+									correctedTextRef.current[placeId]
+								)
+									return;
+
+								// Use whichever has more info: user's input (may include
+								// city/state) or the autocomplete street address
+								const addressInput =
+									searchQuery.length > streetAddress.length
+										? searchQuery
+										: streetAddress;
+
+								try {
+									const validation =
+										await addressValidation.AddressValidation.fetchAddressValidation(
+											{
+												address: {
+													addressLines: [addressInput],
+													regionCode: "US",
+												},
+												uspsCASSEnabled: true,
+											},
+										);
+
+									const uspsCity =
+										validation.uspsData?.standardizedAddress?.city;
+									const postalAddress = validation.address?.postalAddress;
+									const rawCity = uspsCity || postalAddress?.locality || "";
+									// USPS city is uppercase (e.g. "AUSTIN"), title-case it
+									const city = rawCity
+										.toLowerCase()
+										.replace(/\b\w/g, (c: string) => c.toUpperCase());
+									const state = postalAddress?.administrativeArea || "";
+									const country =
+										postalAddress?.regionCode === "US"
+											? "USA"
+											: (postalAddress?.regionCode ?? "");
+
+									if (city) {
+										correctedTextRef.current[placeId] = [city, state, country]
+											.filter(Boolean)
+											.join(", ");
+									}
+								} catch {
+									// Fall back to default secondaryText on error
+								}
+							}),
+						);
+
 						return suggestions;
 					}),
 			};
 		});
-	}, [places, searchQuery]);
+	}, [places, addressValidation, searchQuery]);
 
 	useEffect(() => {
+		let stale = false;
 		if (!searchQuery) {
 			setPlacesResult([]);
 			return;
@@ -84,9 +147,12 @@ export function AddressSearch({
 		const cached = cache[searchQuery];
 		if (cached) {
 			cached.then((suggestions) => {
-				setPlacesResult(suggestions);
+				if (!stale) setPlacesResult(suggestions);
 			});
 		}
+		return () => {
+			stale = true;
+		};
 	}, [cache, searchQuery]);
 
 	const handleSelect = useCallback(
@@ -97,23 +163,43 @@ export function AddressSearch({
 			setInputValue(
 				[
 					place.placePrediction?.mainText?.text,
-					place.placePrediction?.secondaryText?.text,
+					correctedTextRef.current[result.id] ||
+						place.placePrediction?.secondaryText?.text,
 				]
 					.filter(Boolean)
 					.join(", "),
 			);
+			// Save corrected city before refs are cleared
+			const corrected = correctedTextRef.current[result.id];
 			await place.placePrediction
 				?.toPlace()
 				.fetchFields({
 					fields: ["location", "formattedAddress", "addressComponents"],
 				})
 				.then(({ place }) => {
-					return onSelect?.({ selection: parseAddress(place) });
+					const selection = parseAddress(place);
+					// Override city and formattedAddress with USPS-validated city
+					if (selection && corrected) {
+						const correctedCity = corrected.split(",")[0].trim();
+						if (correctedCity) {
+							const originalCity = selection.address.city;
+							selection.address.city = correctedCity;
+							if (originalCity) {
+								selection.formattedAddress =
+									selection.formattedAddress.replace(
+										originalCity,
+										correctedCity,
+									);
+							}
+						}
+					}
+					return onSelect?.({ selection });
 				});
 
 			// Clear cached values now that our selection is complete -- the token is only valid until the first toPlace() call
 			setCache({});
 			placesRef.current = {};
+			correctedTextRef.current = {};
 			token.current = null;
 		},
 		[onSelect],
@@ -124,7 +210,10 @@ export function AddressSearch({
 			(suggestion) =>
 				({
 					mainText: suggestion.placePrediction?.mainText?.text,
-					secondaryText: suggestion.placePrediction?.secondaryText?.text,
+					secondaryText:
+						correctedTextRef.current[
+							suggestion.placePrediction?.placeId || ""
+						] || suggestion.placePrediction?.secondaryText?.text,
 					id: suggestion.placePrediction?.placeId,
 				}) as Result,
 		);
