@@ -62,7 +62,7 @@ export function AddressSearch({
 						sessionToken: curToken,
 						// region: "US", // Don't restrict to US -- this changes the way the formatted address is returned
 						language: "en",
-						includedPrimaryTypes: ["street_address"],
+						// includedPrimaryTypes: ["street_address"],
 					}).then(({ suggestions }) => {
 						suggestions.forEach((suggestion) => {
 							if (!suggestion.placePrediction?.placeId) return;
