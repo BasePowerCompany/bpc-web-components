@@ -1,26 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AddressResult } from "@/address-search/types";
-import { parseAddress } from "@/address-search/utils";
+import type {
+	AddressResult,
+	ParsedGoogleAddressComponents,
+} from "@/address-search/types";
+import {
+	parseAddress,
+	parseGoogleAddressComponents,
+} from "@/address-search/utils";
 import { useMapsLibrary } from "@/utils/useMapsLibrary";
-import { Autocomplete, type Result } from "./Autocomplete";
+import type { Result } from "./Autocomplete";
 
-export type AddressSearchProps = {
-	placeholder?: string;
-	cta?: string;
-	onSelect?: (detail: { selection: AddressResult | undefined }) => void;
-	portalRoot: ShadowRoot;
-	zIndex: number;
+export type ResolvedAddressSelection = {
+	selection: AddressResult | undefined;
+	googleAddressComponents: ParsedGoogleAddressComponents | undefined;
 };
 
-export function AddressSearch({
-	zIndex,
-	onSelect,
-	placeholder,
-	cta,
-	portalRoot,
-}: AddressSearchProps) {
+export function useAddressAutocomplete(inputValue: string) {
 	const places = useMapsLibrary("places");
 	const token = useRef<google.maps.places.AutocompleteSessionToken | null>(
 		null,
@@ -28,7 +25,6 @@ export function AddressSearch({
 	const placesRef = useRef<
 		Record<string, google.maps.places.AutocompleteSuggestion | undefined>
 	>({});
-	const [inputValue, setInputValue] = useState<string>("");
 	const searchQuery = inputValue.trim();
 	const [cache, setCache] = useState<
 		Record<
@@ -43,8 +39,9 @@ export function AddressSearch({
 	useEffect(() => {
 		if (!places) return;
 
-		// Create new token if not exists
 		if (!token.current) {
+			// Keep a single session token across keystrokes so Google can treat
+			// one search interaction as one autocomplete session for either flow.
 			token.current = new places.AutocompleteSessionToken();
 		}
 
@@ -57,10 +54,12 @@ export function AddressSearch({
 			return {
 				...prev,
 				[searchQuery]:
+					// Shared input: both battery and energy-only ask for the same
+					// street-address suggestions, but each flow decides how to use
+					// the selected result afterward.
 					places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
 						input: searchQuery,
 						sessionToken: curToken,
-						// region: "US", // Don't restrict to US -- this changes the way the formatted address is returned
 						language: "en",
 						includedPrimaryTypes: ["street_address"],
 					}).then(({ suggestions }) => {
@@ -82,41 +81,45 @@ export function AddressSearch({
 		}
 
 		const cached = cache[searchQuery];
-		if (cached) {
-			cached.then((suggestions) => {
-				setPlacesResult(suggestions);
-			});
-		}
+		if (!cached) return;
+
+		cached.then((suggestions) => {
+			setPlacesResult(suggestions);
+		});
 	}, [cache, searchQuery]);
 
-	const handleSelect = useCallback(
+	const resolveSelection = useCallback(
 		async ({ result }: { result: Result }) => {
-			const place = placesRef.current[result.id];
-			if (!place) return;
+			const suggestion = placesRef.current[result.id];
+			if (!suggestion) return undefined;
 
-			setInputValue(
-				[
-					place.placePrediction?.mainText?.text,
-					place.placePrediction?.secondaryText?.text,
-				]
-					.filter(Boolean)
-					.join(", "),
+			const place = suggestion.placePrediction?.toPlace();
+			if (!place) return undefined;
+
+			const resolved = await place.fetchFields({
+				fields: ["location", "formattedAddress", "addressComponents"],
+			});
+
+			// Return both shapes from the same place:
+			// - `selection` is the submit payload shared by both flows
+			// - `googleAddressComponents` is the parsed Google-derived shape used by energy-only
+			const selection = parseAddress(resolved.place);
+			const googleAddressComponents = parseGoogleAddressComponents(
+				resolved.place,
 			);
-			await place.placePrediction
-				?.toPlace()
-				.fetchFields({
-					fields: ["location", "formattedAddress", "addressComponents"],
-				})
-				.then(({ place }) => {
-					return onSelect?.({ selection: parseAddress(place) });
-				});
 
-			// Clear cached values now that our selection is complete -- the token is only valid until the first toPlace() call
+			// Once a suggestion is resolved to a place, the current autocomplete
+			// session is complete and the next edit should start a new one.
 			setCache({});
 			placesRef.current = {};
 			token.current = null;
+
+			return {
+				selection,
+				googleAddressComponents,
+			} satisfies ResolvedAddressSelection;
 		},
-		[onSelect],
+		[],
 	);
 
 	const results = useMemo(() => {
@@ -130,16 +133,8 @@ export function AddressSearch({
 		);
 	}, [placesResult]);
 
-	return (
-		<Autocomplete
-			zIndex={zIndex}
-			value={inputValue}
-			onChange={setInputValue}
-			results={results}
-			onSelect={handleSelect}
-			placeholder={placeholder || "Enter your home address"}
-			cta={cta}
-			portalRoot={portalRoot}
-		/>
-	);
+	return {
+		results,
+		resolveSelection,
+	};
 }

@@ -203,6 +203,73 @@ button.input {
 	overflow: auto;
 }
 
+.energyOnlyForm {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin-top: 12px;
+}
+
+.energyOnlyGrid {
+	display: grid;
+	grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr) minmax(0, 1fr);
+	gap: 12px;
+}
+
+.energyFormInput {
+	width: 100%;
+	padding: 20px 16px;
+	font-size: 16px;
+	line-height: 24px;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	outline: none;
+	font: inherit;
+	background-color: white;
+}
+
+.energyFormInput::placeholder {
+	color: var(--grey-90);
+}
+
+.energyFormInput:focus {
+	border-color: var(--grey-90);
+	outline: 2px solid var(--grey-20);
+	outline-offset: 0;
+}
+
+.energyFormInput:disabled {
+	color: var(--grey-90);
+	background-color: #f6f5f3;
+	cursor: not-allowed;
+}
+
+.energyOnlyContinueButton {
+	font-size: 16px;
+	font-family: inherit;
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: #084d41;
+	font-weight: 600;
+	border-radius: 12px;
+	transition: background-color 0.2s ease-in-out;
+	background-color: #d0f585;
+	padding: 16px 32px;
+	box-shadow: inset 0 0 0 1px #0b0e0f0d;
+	width: 100%;
+}
+
+.energyOnlyContinueButton:hover {
+	background-color: #ecfad0;
+}
+
+.energyOnlyContinueButton:disabled {
+	cursor: not-allowed;
+	background-color: #e8e6e3;
+	color: #7f7d7a;
+}
+
 @media screen and (max-width: 540px) {
 	.input {
 		padding: 12px 8px 12px 40px;
@@ -221,5 +288,8 @@ button.input {
 	.modal {
 		aspect-ratio: 1 / 1;
 		padding: 24px;
+	}
+	.energyOnlyGrid {
+		grid-template-columns: 1fr;
 	}
 }

@@ -32,6 +32,7 @@ interface AutocompleteProps {
 	value: string;
 	placeholder?: string;
 	cta?: string;
+	showCtaButton?: boolean;
 	onChange: (value: string) => void;
 	results: Result[];
 	onSelect?: ({ result }: { result: Result }) => void;
@@ -52,6 +53,7 @@ interface ComboBoxOverlayProps {
 	overlayPosition: OverlayPosition | null;
 	isActivated: boolean;
 	cta?: string;
+	showCtaButton: boolean;
 }
 
 export function ComboBoxOverlay({
@@ -68,6 +70,7 @@ export function ComboBoxOverlay({
 	overlayPosition,
 	isActivated,
 	cta,
+	showCtaButton,
 }: ComboBoxOverlayProps) {
 	const resultsRef = useRef<HTMLDivElement>(null);
 	const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
@@ -228,7 +231,9 @@ export function ComboBoxOverlay({
 						aria-autocomplete="list"
 					/>
 					<MapPin className={styles.mapPin} />
-					{!!cta && !isActivated && <CtaButton title={cta} onClick={open} />}
+					{!!cta && showCtaButton && !isActivated && (
+						<CtaButton title={cta} onClick={open} />
+					)}
 				</div>
 			</div>
 		</>,
@@ -241,6 +246,7 @@ export function Autocomplete({
 	value,
 	placeholder,
 	cta,
+	showCtaButton = true,
 	onChange,
 	results,
 	onSelect,
@@ -347,7 +353,7 @@ export function Autocomplete({
 						{!value ? placeholder : value}
 					</button>
 					<MapPin className={styles.mapPin} />
-					{!!cta && <CtaButton title={cta} onClick={open} />}
+					{!!cta && showCtaButton && <CtaButton title={cta} onClick={open} />}
 				</div>
 				<ComboBoxOverlay
 					zIndex={zIndex}
@@ -363,10 +369,11 @@ export function Autocomplete({
 					overlayPosition={overlayPosition}
 					isActivated={isActivated}
 					cta={cta}
+					showCtaButton={showCtaButton}
 				/>
 			</div>
 
-			{!!cta && (
+			{!!cta && showCtaButton && (
 				<CtaButton title={cta} onClick={open} className={styles.mobileBtn} />
 			)}
 		</>
