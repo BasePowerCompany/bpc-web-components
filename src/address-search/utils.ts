@@ -1,4 +1,43 @@
-import type { AddressResult } from "@/address-search/types";
+import type {
+	AddressResult,
+	ParsedGoogleAddressComponents,
+} from "@/address-search/types";
+
+export function parseGoogleAddressComponents(
+	place: google.maps.places.Place,
+): ParsedGoogleAddressComponents | undefined {
+	if (!place.formattedAddress || !place.addressComponents) return undefined;
+
+	const addr = place.addressComponents.reduce(
+		(acc, data) => {
+			data.types.forEach((type) => {
+				acc[type] = data;
+			});
+			return acc;
+		},
+		{} as Record<string, google.maps.places.AddressComponent>,
+	);
+
+	const city =
+		[
+			addr.locality?.longText,
+			addr.sublocality?.longText,
+			addr.administrative_area_level_2?.longText,
+		].filter(Boolean)[0] || "";
+
+	return {
+		line1: [addr.street_number?.longText, addr.route?.longText]
+			.filter(Boolean)
+			.join(" "),
+		line2: addr.subpremise?.longText || "",
+		city,
+		state: addr.administrative_area_level_1?.shortText || "",
+		postalCode: addr.postal_code?.longText || "",
+		country: addr.country?.shortText || "",
+		latitude: place.location?.lat(),
+		longitude: place.location?.lng(),
+	};
+}
 
 export function parseAddress(
 	place: google.maps.places.Place,

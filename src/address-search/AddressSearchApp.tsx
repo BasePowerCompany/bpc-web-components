@@ -8,7 +8,8 @@ import type {
 	RedirectStrategyMultipleUtility,
 } from "@/address-search/types";
 import { posthogCapture } from "@/address-search/utils";
-import { AddressSearch } from "./AddressSearch";
+import { BatteryAddressSearchFlow } from "./BatteryAddressSearchFlow";
+import { EnergyOnlyAddressEntryFlow } from "./EnergyOnlyAddressEntryFlow";
 
 export type AddressSearchAppProps = {
 	placeholder?: string;
@@ -176,17 +177,23 @@ export function AddressSearchApp({
 
 	return (
 		<>
-			<AddressSearch
-				placeholder={placeholder}
-				cta={cta}
-				zIndex={zIndex}
-				onSelect={(detail) => {
-					// the first time user selects address from AddressSearch
-					// we always want to confirm the address
-					handleSelect({ ...detail, confirmAddress: true });
-				}}
-				portalRoot={portalRoot}
-			/>
+			{isEnergyOnly ? (
+				<EnergyOnlyAddressEntryFlow
+					placeholder={placeholder}
+					cta={cta}
+					zIndex={zIndex}
+					portalRoot={portalRoot}
+					onSubmitSelection={handleSelect}
+				/>
+			) : (
+				<BatteryAddressSearchFlow
+					placeholder={placeholder}
+					cta={cta}
+					zIndex={zIndex}
+					portalRoot={portalRoot}
+					onSubmitSelection={handleSelect}
+				/>
+			)}
 			{shouldShowModal &&
 				createPortal(
 					<SelectionModal
