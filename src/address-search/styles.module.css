@@ -225,7 +225,7 @@ button.input {
 	border: 1px solid transparent;
 	border-radius: 8px;
 	outline: none;
-	font: inherit;
+	font-family: inherit;
 	background-color: white;
 }
 

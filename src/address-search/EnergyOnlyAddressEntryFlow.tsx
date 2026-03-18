@@ -30,6 +30,9 @@ export function EnergyOnlyAddressEntryFlow({
 	const [selectedSelection, setSelectedSelection] = useState<
 		AddressResult | undefined
 	>();
+	// Share the actual Autocomplete input element so Continue can focus line_1
+	// when energy-only has not selected a suggestion yet.
+	const line1Ref = useRef<HTMLInputElement>(null);
 	const line2Ref = useRef<HTMLInputElement>(null);
 	const { results, resolveSelection } = useAddressAutocomplete(line1);
 
@@ -77,7 +80,10 @@ export function EnergyOnlyAddressEntryFlow({
 	);
 
 	const handleContinue = useCallback(() => {
-		if (!selectedSelection) return;
+		if (!selectedSelection) {
+			line1Ref.current?.focus();
+			return;
+		}
 
 		// format the address payload, combining line1, line2, city, state, and postal code
 		// format like "300 East Riverside Drive unit 345, Austin, TX 78704, US"
@@ -120,6 +126,7 @@ export function EnergyOnlyAddressEntryFlow({
 		<div className={styles.energyOnlyForm}>
 			<Autocomplete
 				zIndex={zIndex}
+				inputRef={line1Ref}
 				value={line1}
 				onChange={handleInputChange}
 				results={results}
@@ -168,7 +175,6 @@ export function EnergyOnlyAddressEntryFlow({
 				type="button"
 				className={styles.energyOnlyContinueButton}
 				onClick={handleContinue}
-				disabled={!selectedSelection}
 			>
 				{cta || "Continue"}
 			</button>

@@ -33,6 +33,9 @@ interface AutocompleteProps {
 	placeholder?: string;
 	cta?: string;
 	showCtaButton?: boolean;
+	// Optional escape hatch for flows like energy-only that need to return
+	// focus to the shared line_1 input from outside the component.
+	inputRef?: React.RefObject<HTMLInputElement | null>;
 	onChange: (value: string) => void;
 	results: Result[];
 	onSelect?: ({ result }: { result: Result }) => void;
@@ -41,7 +44,7 @@ interface AutocompleteProps {
 
 interface ComboBoxOverlayProps {
 	zIndex: number;
-	ref: React.RefObject<HTMLInputElement | null>;
+	inputRef: React.RefObject<HTMLInputElement | null>;
 	value: string;
 	placeholder?: string;
 	onChange: (value: string) => void;
@@ -58,7 +61,7 @@ interface ComboBoxOverlayProps {
 
 export function ComboBoxOverlay({
 	zIndex,
-	ref: inputRef,
+	inputRef,
 	value,
 	placeholder,
 	onChange,
@@ -247,13 +250,18 @@ export function Autocomplete({
 	placeholder,
 	cta,
 	showCtaButton = true,
+	inputRef: externalInputRef,
 	onChange,
 	results,
 	onSelect,
 	portalRoot,
 }: AutocompleteProps) {
 	const inputContainerRef = useRef<HTMLDivElement>(null);
-	const inputRef = useRef<HTMLInputElement>(null);
+	const internalInputRef = useRef<HTMLInputElement>(null);
+	// We still create our own ref unconditionally because hooks cannot be
+	// called conditionally, and `useRef` stores a current value rather than
+	// accepting another ref object as its initializer.
+	const inputRef = externalInputRef ?? internalInputRef;
 	const [isActivated, setIsActivated] = useState(false);
 	const [overlayPosition, setOverlayPosition] =
 		useState<OverlayPosition | null>(null);
@@ -357,7 +365,7 @@ export function Autocomplete({
 				</div>
 				<ComboBoxOverlay
 					zIndex={zIndex}
-					ref={inputRef}
+					inputRef={inputRef}
 					value={value}
 					placeholder={placeholder}
 					onChange={onChange}
