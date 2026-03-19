@@ -242,13 +242,7 @@ button.input {
 }
 
 .energyOnlyDisclosureIcon {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 20px;
-	height: 20px;
-	border: 1px solid var(--NEW-Greyscale-Grey-80, #54524f);
-	border-radius: 999px;
+	margin-left: 4px;
 	color: var(--NEW-Greyscale-Grey-80, #54524f);
 	font-family: inherit;
 	font-size: 14px;
