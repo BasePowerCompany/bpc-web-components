@@ -1,4 +1,5 @@
 :host {
+	display: block;
 	--grey-20: #d8d7d5;
 	--grey-90: #999;
 	font: inherit;
