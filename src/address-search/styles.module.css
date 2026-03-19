@@ -210,6 +210,56 @@ button.input {
 	margin-top: 12px;
 }
 
+.energyOnlyDisclosureButton {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	align-self: flex-start;
+	padding: 0;
+	border: none;
+	background: none;
+	color: var(--NEW-Greyscale-Grey-80, #54524f);
+	font-family: "PP Neue Montreal";
+	font-size: 14px;
+	font-style: normal;
+	font-weight: 500;
+	line-height: 140%;
+	letter-spacing: 0.2px;
+	cursor: pointer;
+}
+
+.energyOnlyDisclosureButton:hover {
+	color: var(--NEW-Greyscale-Grey-80, #54524f);
+}
+
+.energyOnlyDisclosureButtonExpanded {
+	color: var(--NEW-Greyscale-Grey-80, #54524f);
+}
+
+.energyOnlyDisclosureIcon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	border: 1px solid var(--NEW-Greyscale-Grey-80, #54524f);
+	border-radius: 999px;
+	color: var(--NEW-Greyscale-Grey-80, #54524f);
+	font-family: inherit;
+	font-size: 14px;
+	font-style: inherit;
+	font-weight: inherit;
+	line-height: 1;
+	letter-spacing: inherit;
+	flex-shrink: 0;
+}
+
+.energyOnlyExpandedFields {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
 .energyOnlyGrid {
 	display: grid;
 	grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr) minmax(0, 1fr);

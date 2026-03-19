@@ -54,7 +54,8 @@ Energy-only owns the energy-only pre-submit UX.
 Responsibilities:
 
 - render the shared autocomplete UI for `line_1`
-- manage `line_2`, city, state, and ZIP form state
+- keep `line_2`, city, state, and ZIP behind a progressive disclosure toggle
+- manage `line_2`, city, state, and ZIP form state when disclosed
 - apply energy-only interaction rules before submission
 - submit only when the user explicitly clicks `Continue`
 
@@ -180,10 +181,12 @@ This is intentionally centralized because both flows submit the same
 4. Energy-only resolves it into:
    - `AddressResult`
    - `ParsedGoogleAddressComponents`
-5. Energy-only uses the parsed Google components to prefill form fields
-6. User edits `line_2`, city, state, and ZIP as needed
-7. Energy-only converts the edited form back into `AddressResult`
-8. `AddressSearchApp` handles shared post-submit behavior
+5. Collapsed mode keeps the selected autocomplete value in `line_1`
+6. If the user expands apartment / unit entry, energy-only uses the parsed Google
+   components to prefill `line_1`, `line_2`, city, state, and ZIP
+7. User edits the disclosed fields as needed
+8. Energy-only converts the active form state back into `AddressResult`
+9. `AddressSearchApp` handles shared post-submit behavior
 
 ## Invariants
 

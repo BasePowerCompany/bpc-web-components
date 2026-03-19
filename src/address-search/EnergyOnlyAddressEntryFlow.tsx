@@ -1,5 +1,9 @@
 import { useCallback, useRef, useState } from "react";
-import type { AddressResult } from "@/address-search/types";
+import type {
+	AddressResult,
+	ParsedGoogleAddressComponents,
+} from "@/address-search/types";
+import { cx } from "@/utils/cx";
 import { Autocomplete, type Result } from "./Autocomplete";
 import styles from "./styles.module.css";
 import { useAddressAutocomplete } from "./useAddressAutocomplete";
@@ -23,10 +27,15 @@ export function EnergyOnlyAddressEntryFlow({
 	onSubmitSelection,
 }: EnergyOnlyAddressEntryFlowProps) {
 	const [line1, setLine1] = useState("");
+	const [expandedLine1, setExpandedLine1] = useState("");
 	const [line2, setLine2] = useState("");
 	const [city, setCity] = useState("");
 	const [state, setState] = useState("");
 	const [postalCode, setPostalCode] = useState("");
+	const [isUnitExpanded, setIsUnitExpanded] = useState(false);
+	const [googleAddressComponents, setGoogleAddressComponents] = useState<
+		ParsedGoogleAddressComponents | undefined
+	>();
 	const [selectedSelection, setSelectedSelection] = useState<
 		AddressResult | undefined
 	>();
@@ -36,9 +45,78 @@ export function EnergyOnlyAddressEntryFlow({
 	const line2Ref = useRef<HTMLInputElement>(null);
 	const { results, resolveSelection } = useAddressAutocomplete(line1);
 
+	const focusLine2 = useCallback(() => {
+		requestAnimationFrame(() => {
+			line2Ref.current?.focus();
+		});
+	}, []);
+
+	const populateExpandedFields = useCallback(
+		({
+			selection,
+			googleComponents,
+			focusLine2Field = false,
+		}: {
+			selection?: AddressResult;
+			googleComponents?: ParsedGoogleAddressComponents;
+			focusLine2Field?: boolean;
+		}) => {
+			const nextExpandedLine1 =
+				googleComponents?.line1 || selection?.address.line1 || line1;
+			setExpandedLine1(nextExpandedLine1);
+			setLine1(nextExpandedLine1);
+			setLine2(googleComponents?.line2 || "");
+			setCity(googleComponents?.city || selection?.address.city || "");
+			setState(googleComponents?.state || selection?.address.state || "");
+			setPostalCode(
+				googleComponents?.postalCode || selection?.address.postalCode || "",
+			);
+
+			if (focusLine2Field) {
+				focusLine2();
+			}
+		},
+		[focusLine2, line1],
+	);
+
+	const buildCollapsedAddressDisplay = useCallback(
+		({
+			line1Value,
+			line2Value,
+			cityValue,
+			stateValue,
+			postalCodeValue,
+		}: {
+			line1Value: string;
+			line2Value: string;
+			cityValue: string;
+			stateValue: string;
+			postalCodeValue: string;
+		}) => {
+			const addressLine = [line1Value.trim(), line2Value.trim()]
+				.filter(Boolean)
+				.join(" ");
+			const localityLine = [
+				cityValue.trim(),
+				[stateValue.trim(), postalCodeValue.trim()].filter(Boolean).join(" "),
+			]
+				.filter(Boolean)
+				.join(", ");
+
+			return [addressLine, localityLine].filter(Boolean).join(", ");
+		},
+		[],
+	);
+
 	const handleInputChange = useCallback((value: string) => {
 		setLine1(value);
+		setExpandedLine1(value);
+		setLine2("");
+		setGoogleAddressComponents(undefined);
 		setSelectedSelection(undefined);
+		setCity("");
+		setState("");
+		setPostalCode("");
 	}, []);
 
 	const handleSelect = useCallback(
@@ -47,14 +125,12 @@ export function EnergyOnlyAddressEntryFlow({
 			if (!resolved?.selection) return;
 
 			setSelectedSelection(resolved.selection);
-			setLine1(
+			setGoogleAddressComponents(resolved.googleAddressComponents);
+			setExpandedLine1(
 				resolved.googleAddressComponents?.line1 ||
 					resolved.selection.address.line1,
 			);
-			setLine2(
-				(currentLine2) =>
-					resolved.googleAddressComponents?.line2 || currentLine2,
-			);
+			setLine2(resolved.googleAddressComponents?.line2 || "");
 			setCity(
 				resolved.googleAddressComponents?.city ||
 					resolved.selection.address.city ||
@@ -70,14 +146,59 @@ export function EnergyOnlyAddressEntryFlow({
 					resolved.selection.address.postalCode ||
 					"",
 			);
-			// focus on line2 after selection
-			// so user can decide if they want to add line2 and focus away from the autocomplete dropdown
-			requestAnimationFrame(() => {
-				line2Ref.current?.focus();
-			});
+
+			if (isUnitExpanded) {
+				populateExpandedFields({
+					selection: resolved.selection,
+					googleComponents: resolved.googleAddressComponents,
+					focusLine2Field: true,
+				});
+				return;
+			}
+
+			setLine1(
+				[result.mainText ?? "", result.secondaryText ?? ""]
+					.filter(Boolean)
+					.join(", "),
+			);
 		},
-		[resolveSelection],
+		[isUnitExpanded, populateExpandedFields, resolveSelection],
 	);
+
+	const handleApartmentToggle = useCallback(() => {
+		if (isUnitExpanded) {
+			setIsUnitExpanded(false);
+			setLine1(
+				buildCollapsedAddressDisplay({
+					line1Value: expandedLine1,
+					line2Value: line2,
+					cityValue: city,
+					stateValue: state,
+					postalCodeValue: postalCode,
+				}) || line1.trim(),
+			);
+			return;
+		}
+
+		setIsUnitExpanded(true);
+		populateExpandedFields({
+			selection: selectedSelection,
+			googleComponents: googleAddressComponents,
+			focusLine2Field: Boolean(selectedSelection),
+		});
+	}, [
+		buildCollapsedAddressDisplay,
+		city,
+		expandedLine1,
+		googleAddressComponents,
+		isUnitExpanded,
+		line1,
+		line2,
+		populateExpandedFields,
+		postalCode,
+		selectedSelection,
+		state,
+	]);
 
 	const handleContinue = useCallback(() => {
 		if (!selectedSelection) {
@@ -85,10 +206,19 @@ export function EnergyOnlyAddressEntryFlow({
 			return;
 		}
 
-		// format the address payload, combining line1, line2, city, state, and postal code
-		// format like "300 East Riverside Drive unit 345, Austin, TX 78704, US"
+		if (!isUnitExpanded) {
+			onSubmitSelection({
+				selection: selectedSelection,
+				confirmAddress: true,
+			});
+			return;
+		}
+
+		const line1Value = [expandedLine1.trim(), line2.trim()]
+			.filter(Boolean)
+			.join(" ");
 		const formattedAddress = [
-			[line1.trim(), line2.trim()].filter(Boolean).join(" "),
+			line1Value,
 			city.trim(),
 			[state.trim(), postalCode.trim()].filter(Boolean).join(" "),
 			selectedSelection.address.country,
@@ -98,7 +228,7 @@ export function EnergyOnlyAddressEntryFlow({
 		const selection = {
 			formattedAddress,
 			address: {
-				line1: [line1.trim(), line2.trim()].filter(Boolean).join(" "),
+				line1: line1Value,
 				city: city.trim(),
 				state: state.trim(),
 				postalCode: postalCode.trim(),
@@ -114,7 +244,8 @@ export function EnergyOnlyAddressEntryFlow({
 		});
 	}, [
 		city,
-		line1,
+		expandedLine1,
+		isUnitExpanded,
 		line2,
 		onSubmitSelection,
 		postalCode,
@@ -136,41 +267,63 @@ export function EnergyOnlyAddressEntryFlow({
 				showCtaButton={false}
 				portalRoot={portalRoot}
 			/>
-			<input
-				ref={line2Ref}
-				type="text"
-				value={line2}
-				onChange={(event) => setLine2(event.target.value)}
-				placeholder="Apt, Suite, Unit (optional)"
-				autoComplete="address-line2"
-				className={styles.energyFormInput}
-			/>
-			<div className={styles.energyOnlyGrid}>
-				<input
-					type="text"
-					value={city}
-					onChange={(event) => setCity(event.target.value)}
-					placeholder="City"
-					autoComplete="address-level2"
-					className={styles.energyFormInput}
-				/>
-				<input
-					type="text"
-					value={state}
-					onChange={(event) => setState(event.target.value)}
-					placeholder="State"
-					autoComplete="address-level1"
-					className={styles.energyFormInput}
-				/>
-				<input
-					type="text"
-					value={postalCode}
-					onChange={(event) => setPostalCode(event.target.value)}
-					placeholder="ZIP"
-					autoComplete="postal-code"
-					className={styles.energyFormInput}
-				/>
-			</div>
+			<button
+				type="button"
+				className={cx(
+					styles.energyOnlyDisclosureButton,
+					isUnitExpanded && styles.energyOnlyDisclosureButtonExpanded,
+				)}
+				onClick={handleApartmentToggle}
+				aria-expanded={isUnitExpanded}
+			>
+				<span className={styles.energyOnlyDisclosureIcon} aria-hidden="true">
+					{isUnitExpanded ? "-" : "+"}
+				</span>
+				<span>
+					{isUnitExpanded
+						? "Hide apartment or unit number"
+						: "Add apartment or unit number"}
+				</span>
+			</button>
+			{isUnitExpanded && (
+				<div className={styles.energyOnlyExpandedFields}>
+					<input
+						ref={line2Ref}
+						type="text"
+						value={line2}
+						onChange={(event) => setLine2(event.target.value)}
+						placeholder="Apartment or unit number"
+						autoComplete="address-line2"
+						className={styles.energyFormInput}
+					/>
+					<div className={styles.energyOnlyGrid}>
+						<input
+							type="text"
+							value={city}
+							onChange={(event) => setCity(event.target.value)}
+							placeholder="City"
+							autoComplete="address-level2"
+							className={styles.energyFormInput}
+						/>
+						<input
+							type="text"
+							value={state}
+							onChange={(event) => setState(event.target.value)}
+							placeholder="State"
+							autoComplete="address-level1"
+							className={styles.energyFormInput}
+						/>
+						<input
+							type="text"
+							value={postalCode}
+							onChange={(event) => setPostalCode(event.target.value)}
+							placeholder="ZIP"
+							autoComplete="postal-code"
+							className={styles.energyFormInput}
+						/>
+					</div>
+				</div>
+			)}
 			<button
 				type="button"
 				className={styles.energyOnlyContinueButton}
