@@ -341,6 +341,10 @@ button.input {
 		padding: 24px;
 	}
 	.energyOnlyGrid {
-		grid-template-columns: 1fr;
+		grid-template-columns: minmax(0, 1.2fr) minmax(72px, 0.7fr) minmax(84px, 0.9fr);
+		gap: 8px;
+	}
+	.energyOnlyGrid .energyFormInput {
+		padding: 12px;
 	}
 }
