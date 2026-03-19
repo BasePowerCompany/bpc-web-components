@@ -138,6 +138,21 @@ export function EnergyOnlyAddressEntryFlow({
 		} satisfies AddressResult;
 	}, [city, expandedLine1, line2, postalCode, selectedSelection, state]);
 
+	const buildGoogleAddressComponentsFromExpandedFields = useCallback(() => {
+		if (!selectedSelection) return undefined;
+
+		return {
+			line1: expandedLine1.trim(),
+			line2: line2.trim(),
+			city: city.trim(),
+			state: state.trim(),
+			postalCode: postalCode.trim(),
+			country: selectedSelection.address.country,
+			latitude: selectedSelection.address.latitude,
+			longitude: selectedSelection.address.longitude,
+		} satisfies ParsedGoogleAddressComponents;
+	}, [city, expandedLine1, line2, postalCode, selectedSelection, state]);
+
 	const buildLine1ValueFromExpandedFields = useCallback(() => {
 		const addressLine = [expandedLine1.trim(), line2.trim()]
 			.filter(Boolean)
@@ -157,10 +172,15 @@ export function EnergyOnlyAddressEntryFlow({
 	const handleApartmentToggle = useCallback(() => {
 		if (isUnitExpanded) {
 			const updatedSelection = buildSelectionFromExpandedFields();
+			const updatedGoogleAddressComponents =
+				buildGoogleAddressComponentsFromExpandedFields();
 			setIsUnitExpanded(false);
 			setLine1(buildLine1ValueFromExpandedFields() || line1.trim());
 			if (updatedSelection) {
 				setSelectedSelection(updatedSelection);
+			}
+			if (updatedGoogleAddressComponents) {
+				setGoogleAddressComponents(updatedGoogleAddressComponents);
 			}
 			return;
 		}
@@ -174,6 +194,7 @@ export function EnergyOnlyAddressEntryFlow({
 		line1,
 		googleAddressComponents,
 		isUnitExpanded,
+		buildGoogleAddressComponentsFromExpandedFields,
 		buildSelectionFromExpandedFields,
 		populateExpandedFields,
 		selectedSelection,

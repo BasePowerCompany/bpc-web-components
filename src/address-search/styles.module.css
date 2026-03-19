@@ -32,6 +32,10 @@
 
 button.input {
 	cursor: text;
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .inputContainer:focus-within {
@@ -46,6 +50,7 @@ button.input {
 	border: 1px solid transparent;
 	border-radius: 8px;
 	overflow: hidden;
+	min-height: 64px;
 }
 
 .activated .inputContainer {
@@ -325,6 +330,9 @@ button.input {
 	.input {
 		padding: 12px 8px 12px 40px;
 		line-height: 24px;
+	}
+	.inputContainer {
+		min-height: 48px;
 	}
 	.mapPin {
 		left: 12px;
