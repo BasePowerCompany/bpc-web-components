@@ -224,7 +224,7 @@ button.input {
 	border: none;
 	background: none;
 	color: var(--NEW-Greyscale-Grey-80, #54524f);
-	font-family: "PP Neue Montreal";
+	font-family: "PP Neue Montreal", sans-serif;
 	font-size: 14px;
 	font-style: normal;
 	font-weight: 500;
@@ -349,7 +349,10 @@ button.input {
 		padding: 24px;
 	}
 	.energyOnlyGrid {
-		grid-template-columns: minmax(0, 1.2fr) minmax(72px, 0.7fr) minmax(84px, 0.9fr);
+		grid-template-columns:
+			minmax(0, 1.2fr)
+			minmax(72px, 0.7fr)
+			minmax(84px, 0.9fr);
 		gap: 8px;
 	}
 	.energyOnlyGrid .energyFormInput {
