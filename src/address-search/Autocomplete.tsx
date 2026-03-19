@@ -277,7 +277,7 @@ export function Autocomplete({
 			left: rect.left + window.scrollX,
 			right: rect.right + window.scrollX,
 			bottom: rect.bottom + window.scrollY,
-			width: rect.width,
+			width: Math.min(rect.width, window.innerWidth - rect.left),
 			height: rect.height,
 		});
 	}, []);
@@ -321,7 +321,7 @@ export function Autocomplete({
 					left: newLeft,
 					right: rect.right + window.scrollX,
 					bottom: rect.bottom + window.scrollY,
-					width: rect.width,
+					width: Math.min(rect.width, window.innerWidth - rect.left),
 					height: rect.height,
 				});
 			}
