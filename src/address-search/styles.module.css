@@ -25,6 +25,9 @@
 	outline: none;
 	font-family: inherit;
 	text-align: left;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .input.placeholder,
@@ -35,9 +38,6 @@
 button.input {
 	cursor: text;
 	display: block;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
 }
 
 .inputContainer:focus-within {
