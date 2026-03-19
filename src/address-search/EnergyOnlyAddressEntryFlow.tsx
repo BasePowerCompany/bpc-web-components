@@ -51,15 +51,14 @@ export function EnergyOnlyAddressEntryFlow({
 		});
 	}, []);
 
+	// populate the expanded fields with the google components or selection (defensive about what data google returns)
 	const populateExpandedFields = useCallback(
 		({
 			selection,
 			googleComponents,
-			focusLine2Field = false,
 		}: {
 			selection?: AddressResult;
 			googleComponents?: ParsedGoogleAddressComponents;
-			focusLine2Field?: boolean;
 		}) => {
 			const nextExpandedLine1 =
 				googleComponents?.line1 || selection?.address.line1 || line1;
@@ -71,49 +70,16 @@ export function EnergyOnlyAddressEntryFlow({
 			setPostalCode(
 				googleComponents?.postalCode || selection?.address.postalCode || "",
 			);
-
-			if (focusLine2Field) {
-				focusLine2();
-			}
 		},
-		[focusLine2, line1],
-	);
-
-	const buildCollapsedAddressDisplay = useCallback(
-		({
-			line1Value,
-			line2Value,
-			cityValue,
-			stateValue,
-			postalCodeValue,
-		}: {
-			line1Value: string;
-			line2Value: string;
-			cityValue: string;
-			stateValue: string;
-			postalCodeValue: string;
-		}) => {
-			const addressLine = [line1Value.trim(), line2Value.trim()]
-				.filter(Boolean)
-				.join(" ");
-			const localityLine = [
-				cityValue.trim(),
-				[stateValue.trim(), postalCodeValue.trim()].filter(Boolean).join(" "),
-			]
-				.filter(Boolean)
-				.join(", ");
-
-			return [addressLine, localityLine].filter(Boolean).join(", ");
-		},
-		[],
+		[line1],
 	);
 
 	const handleInputChange = useCallback((value: string) => {
 		setLine1(value);
+		setSelectedSelection(undefined);
 		setExpandedLine1(value);
 		setLine2("");
 		setGoogleAddressComponents(undefined);
-		setSelectedSelection(undefined);
 		setCity("");
 		setState("");
 		setPostalCode("");
@@ -121,62 +87,81 @@ export function EnergyOnlyAddressEntryFlow({
 
 	const handleSelect = useCallback(
 		async ({ result }: { result: Result }) => {
-			const resolved = await resolveSelection({ result });
-			if (!resolved?.selection) return;
-
-			setSelectedSelection(resolved.selection);
-			setGoogleAddressComponents(resolved.googleAddressComponents);
-			setExpandedLine1(
-				resolved.googleAddressComponents?.line1 ||
-					resolved.selection.address.line1,
-			);
-			setLine2(resolved.googleAddressComponents?.line2 || "");
-			setCity(
-				resolved.googleAddressComponents?.city ||
-					resolved.selection.address.city ||
-					"",
-			);
-			setState(
-				resolved.googleAddressComponents?.state ||
-					resolved.selection.address.state ||
-					"",
-			);
-			setPostalCode(
-				resolved.googleAddressComponents?.postalCode ||
-					resolved.selection.address.postalCode ||
-					"",
-			);
-
-			if (isUnitExpanded) {
-				populateExpandedFields({
-					selection: resolved.selection,
-					googleComponents: resolved.googleAddressComponents,
-					focusLine2Field: true,
-				});
-				return;
-			}
-
 			setLine1(
 				[result.mainText ?? "", result.secondaryText ?? ""]
 					.filter(Boolean)
 					.join(", "),
 			);
+			const resolved = await resolveSelection({ result });
+			if (!resolved?.selection) return;
+			setSelectedSelection(resolved.selection);
+			setGoogleAddressComponents(resolved.googleAddressComponents);
+
+			if (isUnitExpanded) {
+				populateExpandedFields({
+					selection: resolved.selection,
+					googleComponents: resolved.googleAddressComponents,
+				});
+				focusLine2();
+				return;
+			}
 		},
-		[isUnitExpanded, populateExpandedFields, resolveSelection],
+		[focusLine2, isUnitExpanded, populateExpandedFields, resolveSelection],
 	);
+
+	const buildSelectionFromExpandedFields = useCallback(() => {
+		if (!selectedSelection) return undefined;
+
+		const normalizedLine1 = [expandedLine1.trim(), line2.trim()]
+			.filter(Boolean)
+			.join(" ");
+		const formattedAddress = [
+			normalizedLine1,
+			city.trim(),
+			[state.trim(), postalCode.trim()].filter(Boolean).join(" "),
+			selectedSelection.address.country,
+		]
+			.filter(Boolean)
+			.join(", ");
+
+		return {
+			formattedAddress,
+			address: {
+				line1: normalizedLine1,
+				city: city.trim(),
+				state: state.trim(),
+				postalCode: postalCode.trim(),
+				country: selectedSelection.address.country,
+				latitude: selectedSelection.address.latitude,
+				longitude: selectedSelection.address.longitude,
+			},
+		} satisfies AddressResult;
+	}, [city, expandedLine1, line2, postalCode, selectedSelection, state]);
+
+	const buildLine1ValueFromExpandedFields = useCallback(() => {
+		const addressLine = [expandedLine1.trim(), line2.trim()]
+			.filter(Boolean)
+			.join(" ");
+		const localityLine = [
+			city.trim(),
+			[state.trim(), postalCode.trim()].filter(Boolean).join(" "),
+		]
+			.filter(Boolean)
+			.join(", ");
+		const collapsedLine1 = [addressLine, localityLine]
+			.filter(Boolean)
+			.join(", ");
+		return collapsedLine1;
+	}, [expandedLine1, line2, city, state, postalCode]);
 
 	const handleApartmentToggle = useCallback(() => {
 		if (isUnitExpanded) {
+			const updatedSelection = buildSelectionFromExpandedFields();
 			setIsUnitExpanded(false);
-			setLine1(
-				buildCollapsedAddressDisplay({
-					line1Value: expandedLine1,
-					line2Value: line2,
-					cityValue: city,
-					stateValue: state,
-					postalCodeValue: postalCode,
-				}) || line1.trim(),
-			);
+			setLine1(buildLine1ValueFromExpandedFields() || line1.trim());
+			if (updatedSelection) {
+				setSelectedSelection(updatedSelection);
+			}
 			return;
 		}
 
@@ -184,20 +169,15 @@ export function EnergyOnlyAddressEntryFlow({
 		populateExpandedFields({
 			selection: selectedSelection,
 			googleComponents: googleAddressComponents,
-			focusLine2Field: Boolean(selectedSelection),
 		});
 	}, [
-		buildCollapsedAddressDisplay,
-		city,
-		expandedLine1,
+		line1,
 		googleAddressComponents,
 		isUnitExpanded,
-		line1,
-		line2,
+		buildSelectionFromExpandedFields,
 		populateExpandedFields,
-		postalCode,
 		selectedSelection,
-		state,
+		buildLine1ValueFromExpandedFields,
 	]);
 
 	const handleContinue = useCallback(() => {
@@ -214,43 +194,18 @@ export function EnergyOnlyAddressEntryFlow({
 			return;
 		}
 
-		const line1Value = [expandedLine1.trim(), line2.trim()]
-			.filter(Boolean)
-			.join(" ");
-		const formattedAddress = [
-			line1Value,
-			city.trim(),
-			[state.trim(), postalCode.trim()].filter(Boolean).join(" "),
-			selectedSelection.address.country,
-		]
-			.filter(Boolean)
-			.join(", ");
-		const selection = {
-			formattedAddress,
-			address: {
-				line1: line1Value,
-				city: city.trim(),
-				state: state.trim(),
-				postalCode: postalCode.trim(),
-				country: selectedSelection.address.country,
-				latitude: selectedSelection.address.latitude,
-				longitude: selectedSelection.address.longitude,
-			},
-		};
+		const selection = buildSelectionFromExpandedFields();
+		if (!selection) return;
 
 		onSubmitSelection({
 			selection,
 			confirmAddress: true,
 		});
 	}, [
-		city,
-		expandedLine1,
+		buildSelectionFromExpandedFields,
 		isUnitExpanded,
-		line2,
 		onSubmitSelection,
-		postalCode,
 		selectedSelection,
-		state,
 	]);
 
 	return (
