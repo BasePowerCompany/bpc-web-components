@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
 	AddressResult,
 	ParsedGoogleAddressComponents,
@@ -43,7 +43,12 @@ export function EnergyOnlyAddressEntryFlow({
 	// when energy-only has not selected a suggestion yet.
 	const line1Ref = useRef<HTMLInputElement>(null);
 	const line2Ref = useRef<HTMLInputElement>(null);
+	const isUnitExpandedRef = useRef(isUnitExpanded);
 	const { results, resolveSelection } = useAddressAutocomplete(line1);
+
+	useEffect(() => {
+		isUnitExpandedRef.current = isUnitExpanded;
+	}, [isUnitExpanded]);
 
 	const focusLine2 = useCallback(() => {
 		requestAnimationFrame(() => {
@@ -97,7 +102,7 @@ export function EnergyOnlyAddressEntryFlow({
 			setSelectedSelection(resolved.selection);
 			setGoogleAddressComponents(resolved.googleAddressComponents);
 
-			if (isUnitExpanded) {
+			if (isUnitExpandedRef.current) {
 				populateExpandedFields({
 					selection: resolved.selection,
 					googleComponents: resolved.googleAddressComponents,
@@ -106,7 +111,7 @@ export function EnergyOnlyAddressEntryFlow({
 				return;
 			}
 		},
-		[focusLine2, isUnitExpanded, populateExpandedFields, resolveSelection],
+		[focusLine2, populateExpandedFields, resolveSelection],
 	);
 
 	const buildSelectionFromExpandedFields = useCallback(() => {
