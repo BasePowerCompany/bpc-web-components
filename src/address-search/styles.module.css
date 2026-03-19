@@ -32,6 +32,10 @@
 
 button.input {
 	cursor: text;
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .inputContainer:focus-within {
@@ -46,6 +50,7 @@ button.input {
 	border: 1px solid transparent;
 	border-radius: 8px;
 	overflow: hidden;
+	min-height: 64px;
 }
 
 .activated .inputContainer {
@@ -210,6 +215,56 @@ button.input {
 	margin-top: 12px;
 }
 
+.energyOnlyDisclosureButton {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	align-self: flex-start;
+	padding: 0;
+	border: none;
+	background: none;
+	color: var(--NEW-Greyscale-Grey-80, #54524f);
+	font-family: "PP Neue Montreal", sans-serif;
+	font-size: 14px;
+	font-style: normal;
+	font-weight: 500;
+	line-height: 140%;
+	letter-spacing: 0.2px;
+	cursor: pointer;
+}
+
+.energyOnlyDisclosureButton:hover {
+	color: var(--NEW-Greyscale-Grey-80, #54524f);
+}
+
+.energyOnlyDisclosureButtonExpanded {
+	color: var(--NEW-Greyscale-Grey-80, #54524f);
+}
+
+.energyOnlyDisclosureIcon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	border: 1px solid var(--NEW-Greyscale-Grey-80, #54524f);
+	border-radius: 999px;
+	color: var(--NEW-Greyscale-Grey-80, #54524f);
+	font-family: inherit;
+	font-size: 14px;
+	font-style: inherit;
+	font-weight: inherit;
+	line-height: 1;
+	letter-spacing: inherit;
+	flex-shrink: 0;
+}
+
+.energyOnlyExpandedFields {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
 .energyOnlyGrid {
 	display: grid;
 	grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr) minmax(0, 1fr);
@@ -276,6 +331,9 @@ button.input {
 		padding: 12px 8px 12px 40px;
 		line-height: 24px;
 	}
+	.inputContainer {
+		min-height: 48px;
+	}
 	.mapPin {
 		left: 12px;
 	}
@@ -291,6 +349,13 @@ button.input {
 		padding: 24px;
 	}
 	.energyOnlyGrid {
-		grid-template-columns: 1fr;
+		grid-template-columns:
+			minmax(0, 1.2fr)
+			minmax(72px, 0.7fr)
+			minmax(84px, 0.9fr);
+		gap: 8px;
+	}
+	.energyOnlyGrid .energyFormInput {
+		padding: 12px;
 	}
 }
