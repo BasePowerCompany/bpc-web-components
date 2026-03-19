@@ -10,6 +10,8 @@
 
 .autocomplete {
 	position: relative;
+	width: 100%;
+	min-width: 0;
 }
 
 .input {
@@ -51,6 +53,7 @@ button.input {
 	border-radius: 8px;
 	overflow: hidden;
 	min-height: 64px;
+	min-width: 0;
 }
 
 .activated .inputContainer {
@@ -213,6 +216,8 @@ button.input {
 	flex-direction: column;
 	gap: 12px;
 	margin-top: 12px;
+	width: 100%;
+	min-width: 0;
 }
 
 .energyOnlyDisclosureButton {
