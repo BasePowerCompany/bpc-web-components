@@ -235,7 +235,7 @@ export function EnergyOnlyAddressEntryFlow({
 	]);
 
 	return (
-		<>
+		<div className={styles.energyOnlyForm}>
 			<Autocomplete
 				zIndex={zIndex}
 				inputRef={line1Ref}
@@ -248,72 +248,70 @@ export function EnergyOnlyAddressEntryFlow({
 				showCtaButton={false}
 				portalRoot={portalRoot}
 			/>
-			<div className={styles.energyOnlyForm}>
-				<button
-					type="button"
-					className={cx(
-						styles.energyOnlyDisclosureButton,
-						isUnitExpanded && styles.energyOnlyDisclosureButtonExpanded,
-					)}
-					onClick={handleApartmentToggle}
-					aria-expanded={isUnitExpanded}
-				>
-					<span className={styles.energyOnlyDisclosureIcon} aria-hidden="true">
-						{isUnitExpanded ? "-" : "+"}
-					</span>
-					<span>
-						{isUnitExpanded
-							? "Hide apartment or unit number"
-							: "Add apartment or unit number"}
-					</span>
-				</button>
-				{isUnitExpanded && (
-					<div className={styles.energyOnlyExpandedFields}>
+			<button
+				type="button"
+				className={cx(
+					styles.energyOnlyDisclosureButton,
+					isUnitExpanded && styles.energyOnlyDisclosureButtonExpanded,
+				)}
+				onClick={handleApartmentToggle}
+				aria-expanded={isUnitExpanded}
+			>
+				<span className={styles.energyOnlyDisclosureIcon} aria-hidden="true">
+					{isUnitExpanded ? "-" : "+"}
+				</span>
+				<span>
+					{isUnitExpanded
+						? "Hide apartment or unit number"
+						: "Add apartment or unit number"}
+				</span>
+			</button>
+			{isUnitExpanded && (
+				<div className={styles.energyOnlyExpandedFields}>
+					<input
+						ref={line2Ref}
+						type="text"
+						value={line2}
+						onChange={(event) => setLine2(event.target.value)}
+						placeholder="Apartment or unit number"
+						autoComplete="address-line2"
+						className={styles.energyFormInput}
+					/>
+					<div className={styles.energyOnlyGrid}>
 						<input
-							ref={line2Ref}
 							type="text"
-							value={line2}
-							onChange={(event) => setLine2(event.target.value)}
-							placeholder="Apartment or unit number"
-							autoComplete="address-line2"
+							value={city}
+							onChange={(event) => setCity(event.target.value)}
+							placeholder="City"
+							autoComplete="address-level2"
 							className={styles.energyFormInput}
 						/>
-						<div className={styles.energyOnlyGrid}>
-							<input
-								type="text"
-								value={city}
-								onChange={(event) => setCity(event.target.value)}
-								placeholder="City"
-								autoComplete="address-level2"
-								className={styles.energyFormInput}
-							/>
-							<input
-								type="text"
-								value={state}
-								onChange={(event) => setState(event.target.value)}
-								placeholder="State"
-								autoComplete="address-level1"
-								className={styles.energyFormInput}
-							/>
-							<input
-								type="text"
-								value={postalCode}
-								onChange={(event) => setPostalCode(event.target.value)}
-								placeholder="ZIP"
-								autoComplete="postal-code"
-								className={styles.energyFormInput}
-							/>
-						</div>
+						<input
+							type="text"
+							value={state}
+							onChange={(event) => setState(event.target.value)}
+							placeholder="State"
+							autoComplete="address-level1"
+							className={styles.energyFormInput}
+						/>
+						<input
+							type="text"
+							value={postalCode}
+							onChange={(event) => setPostalCode(event.target.value)}
+							placeholder="ZIP"
+							autoComplete="postal-code"
+							className={styles.energyFormInput}
+						/>
 					</div>
-				)}
-				<button
-					type="button"
-					className={styles.energyOnlyContinueButton}
-					onClick={handleContinue}
-				>
-					{cta || "Continue"}
-				</button>
-			</div>
-		</>
+				</div>
+			)}
+			<button
+				type="button"
+				className={styles.energyOnlyContinueButton}
+				onClick={handleContinue}
+			>
+				{cta || "Continue"}
+			</button>
+		</div>
 	);
 }
