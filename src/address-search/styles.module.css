@@ -1,7 +1,11 @@
 :host {
 	--grey-20: #d8d7d5;
 	--grey-90: #999;
+	display: block;
 	font: inherit;
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
 }
 
 :host * {
