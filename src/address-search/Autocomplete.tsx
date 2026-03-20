@@ -272,12 +272,13 @@ export function Autocomplete({
 		const element = inputContainerRef.current;
 		if (!element) return;
 		const rect = element.getBoundingClientRect();
+		const width = Math.min(rect.width, window.innerWidth - rect.left);
 		setOverlayPosition({
-			top: rect.top + window.scrollY,
-			left: rect.left + window.scrollX,
-			right: rect.right + window.scrollX,
-			bottom: rect.bottom + window.scrollY,
-			width: rect.width,
+			top: rect.top,
+			left: rect.left,
+			right: rect.right,
+			bottom: rect.bottom,
+			width,
 			height: rect.height,
 		});
 	}, []);
@@ -307,8 +308,8 @@ export function Autocomplete({
 
 		const updatePositionWithRaf = () => {
 			const rect = element.getBoundingClientRect();
-			const newTop = rect.top + window.scrollY;
-			const newLeft = rect.left + window.scrollX;
+			const newTop = rect.top;
+			const newLeft = rect.left;
 
 			if (
 				Math.abs(newTop - lastTop) > 0.5 ||
@@ -319,9 +320,9 @@ export function Autocomplete({
 				setOverlayPosition({
 					top: newTop,
 					left: newLeft,
-					right: rect.right + window.scrollX,
-					bottom: rect.bottom + window.scrollY,
-					width: rect.width,
+					right: rect.right,
+					bottom: rect.bottom,
+					width: Math.min(rect.width, window.innerWidth - rect.left),
 					height: rect.height,
 				});
 			}

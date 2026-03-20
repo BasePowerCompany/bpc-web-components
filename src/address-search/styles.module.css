@@ -1,7 +1,15 @@
 :host {
 	--grey-20: #d8d7d5;
 	--grey-90: #999;
+	display: block;
 	font: inherit;
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+}
+
+:host(bpc-address-search) {
+	overflow: hidden;
 }
 
 :host * {
@@ -10,6 +18,10 @@
 
 .autocomplete {
 	position: relative;
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+	overflow: hidden;
 }
 
 .input {
@@ -23,6 +35,9 @@
 	outline: none;
 	font-family: inherit;
 	text-align: left;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .input.placeholder,
@@ -33,9 +48,9 @@
 button.input {
 	cursor: text;
 	display: block;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
 }
 
 .inputContainer:focus-within {
@@ -45,12 +60,17 @@ button.input {
 }
 
 .inputContainer {
-	position: relative;
+	position: absolute;
+	inset: 0;
 	background-color: white;
 	border: 1px solid transparent;
 	border-radius: 8px;
+	width: 100%;
+	max-width: 100%;
 	overflow: hidden;
 	min-height: 64px;
+	min-width: 0;
+	pointer-events: none;
 }
 
 .activated .inputContainer {
@@ -58,10 +78,7 @@ button.input {
 }
 
 .inputPositioner {
-	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
+	position: fixed;
 }
 
 .mapPin {
@@ -213,6 +230,9 @@ button.input {
 	flex-direction: column;
 	gap: 12px;
 	margin-top: 12px;
+	width: 100%;
+	min-width: 0;
+	overflow: hidden;
 }
 
 .energyOnlyDisclosureButton {
@@ -308,6 +328,7 @@ button.input {
 	padding: 16px 32px;
 	box-shadow: inset 0 0 0 1px #0b0e0f0d;
 	width: 100%;
+	min-width: 0;
 }
 
 .energyOnlyContinueButton:hover {
