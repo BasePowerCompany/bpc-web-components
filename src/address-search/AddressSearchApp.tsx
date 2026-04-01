@@ -179,7 +179,6 @@ export function AddressSearchApp({
 			googleAddressComponents: ParsedGoogleAddressComponents;
 			validationResult: AddressValidationResult;
 		}) => {
-			console.log("handleRequiresAddressConfirm", data);
 			setAddressConfirmData(data);
 		},
 		[],
@@ -201,7 +200,6 @@ export function AddressSearchApp({
 	);
 
 	const handleAddressConfirmClose = useCallback(() => {
-		console.log("handleAddressConfirmClose");
 		setAddressConfirmData(undefined);
 	}, []);
 
