@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
 	type AddressValidationResult,
 	validateAddress,
@@ -35,7 +35,7 @@ export function BatteryAddressSearchFlow({
 	onRequiresAddressConfirm,
 }: BatteryAddressSearchFlowProps) {
 	const [inputValue, setInputValue] = useState("");
-	const [lastConfirmData, setLastConfirmData] = useState<{
+	const lastConfirmDataRef = useRef<{
 		selection: AddressResult;
 		googleAddressComponents: ParsedGoogleAddressComponents;
 		validationResult: AddressValidationResult;
@@ -57,8 +57,8 @@ export function BatteryAddressSearchFlow({
 			// resolveSelection clears its cache after resolving, so re-selecting
 			// the same suggestion returns undefined. Fall back to stored data.
 			if (!resolved?.selection) {
-				if (lastConfirmData) {
-					onRequiresAddressConfirm(lastConfirmData);
+				if (lastConfirmDataRef.current) {
+					onRequiresAddressConfirm(lastConfirmDataRef.current);
 				}
 				return;
 			}
@@ -72,28 +72,23 @@ export function BatteryAddressSearchFlow({
 					googleAddressComponents: resolved.googleAddressComponents,
 					validationResult,
 				};
-				setLastConfirmData(confirmData);
+				lastConfirmDataRef.current = confirmData;
 				onRequiresAddressConfirm(confirmData);
 				return;
 			}
 
-			setLastConfirmData(null);
+			lastConfirmDataRef.current = null;
 			onSubmitSelection({
 				selection: resolved.selection,
 				confirmAddress: true,
 			});
 		},
-		[
-			lastConfirmData,
-			onRequiresAddressConfirm,
-			onSubmitSelection,
-			resolveSelection,
-		],
+		[onRequiresAddressConfirm, onSubmitSelection, resolveSelection],
 	);
 
 	const handleInputChange = useCallback((value: string) => {
 		setInputValue(value);
-		setLastConfirmData(null);
+		lastConfirmDataRef.current = null;
 	}, []);
 
 	return (
