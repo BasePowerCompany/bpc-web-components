@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
+import type { AddressValidationResult } from "@/address-search/addressValidation";
 import { fetchHydration } from "@/address-search/fetch";
 import { AddressConfirmModal } from "@/address-search/modal/AddressConfirmModal";
 import { SelectionModal } from "@/address-search/modal/SelectionModal";
@@ -62,6 +63,7 @@ export function AddressSearchApp({
 		| {
 				selection: AddressResult;
 				googleAddressComponents: ParsedGoogleAddressComponents;
+				validationResult: AddressValidationResult;
 		  }
 		| undefined
 	>();
@@ -129,6 +131,7 @@ export function AddressSearchApp({
 						// Show splash screen before redirecting
 						setMultipleAddressResults(undefined);
 						setMultipleUtilityResult(undefined);
+						setAddressConfirmData(undefined);
 						setEnergySplashRedirectUrl(result.data.redirectUrl);
 						return;
 					}
@@ -174,21 +177,28 @@ export function AddressSearchApp({
 		(data: {
 			selection: AddressResult;
 			googleAddressComponents: ParsedGoogleAddressComponents;
+			validationResult: AddressValidationResult;
 		}) => {
+			console.log("handleRequiresAddressConfirm", data);
 			setAddressConfirmData(data);
 		},
 		[],
 	);
 
+	const [addressConfirmLoading, setAddressConfirmLoading] = useState(false);
+
 	const handleAddressConfirmContinue = useCallback(
-		(result: AddressResult) => {
+		async (result: AddressResult) => {
+			setAddressConfirmLoading(true);
+			await handleSelect({ selection: result, confirmAddress: true });
 			setAddressConfirmData(undefined);
-			handleSelect({ selection: result, confirmAddress: true });
+			setAddressConfirmLoading(false);
 		},
 		[handleSelect],
 	);
 
 	const handleAddressConfirmClose = useCallback(() => {
+		console.log("handleAddressConfirmClose");
 		setAddressConfirmData(undefined);
 	}, []);
 
@@ -231,6 +241,10 @@ export function AddressSearchApp({
 					<AddressConfirmModal
 						selection={addressConfirmData.selection}
 						googleAddressComponents={addressConfirmData.googleAddressComponents}
+						requiresSubpremise={
+							addressConfirmData.validationResult.requiresSubpremise
+						}
+						loading={addressConfirmLoading}
 						onContinue={handleAddressConfirmContinue}
 						onClose={handleAddressConfirmClose}
 					/>,
