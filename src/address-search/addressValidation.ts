@@ -1,3 +1,5 @@
+import { getGoogleMapsApiKey } from "@/utils/googleMaps";
+
 export type AddressValidationResult = {
 	requiresSubpremise: boolean;
 };
@@ -6,8 +8,8 @@ const SAFE_DEFAULT: AddressValidationResult = { requiresSubpremise: false };
 
 export async function validateAddress(
 	addressLine: string,
-	apiKey: string,
 ): Promise<AddressValidationResult> {
+	const apiKey = getGoogleMapsApiKey();
 	if (!addressLine.trim() || !apiKey) {
 		return SAFE_DEFAULT;
 	}

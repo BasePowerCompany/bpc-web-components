@@ -10,7 +10,6 @@ import styles from "./styles.module.css";
 import { useAddressAutocomplete } from "./useAddressAutocomplete";
 
 type EnergyOnlyAddressEntryFlowProps = {
-	publicApiKey: string;
 	placeholder?: string;
 	cta?: string;
 	portalRoot: ShadowRoot;
@@ -22,7 +21,6 @@ type EnergyOnlyAddressEntryFlowProps = {
 };
 
 export function EnergyOnlyAddressEntryFlow({
-	publicApiKey,
 	placeholder,
 	cta,
 	portalRoot,
@@ -107,15 +105,17 @@ export function EnergyOnlyAddressEntryFlow({
 			setRequiresSubpremise(false);
 			setLine2Error(false);
 
+			// validate address + fetch all the details in parallel
 			const [resolved, validationResult] = await Promise.all([
 				resolveSelection({ result }),
-				validateAddress(fullText, publicApiKey),
+				validateAddress(fullText),
 			]);
 
 			if (!resolved?.selection) return;
 			setSelectedSelection(resolved.selection);
 			setGoogleAddressComponents(resolved.googleAddressComponents);
 
+			// handle apartment / multi-unit address validation
 			const needsSubpremise = validationResult.requiresSubpremise;
 			setRequiresSubpremise(needsSubpremise);
 
@@ -138,7 +138,7 @@ export function EnergyOnlyAddressEntryFlow({
 				return;
 			}
 		},
-		[focusLine2, populateExpandedFields, publicApiKey, resolveSelection],
+		[focusLine2, populateExpandedFields, resolveSelection],
 	);
 
 	const buildSelectionFromExpandedFields = useCallback(() => {
