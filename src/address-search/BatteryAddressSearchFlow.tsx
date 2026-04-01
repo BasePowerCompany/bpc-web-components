@@ -35,6 +35,11 @@ export function BatteryAddressSearchFlow({
 	onRequiresAddressConfirm,
 }: BatteryAddressSearchFlowProps) {
 	const [inputValue, setInputValue] = useState("");
+	const [lastConfirmData, setLastConfirmData] = useState<{
+		selection: AddressResult;
+		googleAddressComponents: ParsedGoogleAddressComponents;
+		validationResult: AddressValidationResult;
+	} | null>(null);
 	const { results, resolveSelection } = useAddressAutocomplete(inputValue);
 
 	const handleSelect = useCallback(
@@ -49,33 +54,53 @@ export function BatteryAddressSearchFlow({
 				validateAddress(fullText),
 			]);
 
-			if (!resolved?.selection) return;
+			// resolveSelection clears its cache after resolving, so re-selecting
+			// the same suggestion returns undefined. Fall back to stored data.
+			if (!resolved?.selection) {
+				if (lastConfirmData) {
+					onRequiresAddressConfirm(lastConfirmData);
+				}
+				return;
+			}
 
 			if (
 				validationResult.requiresSubpremise &&
 				resolved.googleAddressComponents
 			) {
-				onRequiresAddressConfirm({
+				const confirmData = {
 					selection: resolved.selection,
 					googleAddressComponents: resolved.googleAddressComponents,
 					validationResult,
-				});
+				};
+				setLastConfirmData(confirmData);
+				onRequiresAddressConfirm(confirmData);
 				return;
 			}
 
+			setLastConfirmData(null);
 			onSubmitSelection({
 				selection: resolved.selection,
 				confirmAddress: true,
 			});
 		},
-		[onRequiresAddressConfirm, onSubmitSelection, resolveSelection],
+		[
+			lastConfirmData,
+			onRequiresAddressConfirm,
+			onSubmitSelection,
+			resolveSelection,
+		],
 	);
+
+	const handleInputChange = useCallback((value: string) => {
+		setInputValue(value);
+		setLastConfirmData(null);
+	}, []);
 
 	return (
 		<Autocomplete
 			zIndex={zIndex}
 			value={inputValue}
-			onChange={setInputValue}
+			onChange={handleInputChange}
 			results={results}
 			onSelect={handleSelect}
 			placeholder={placeholder || "Enter your home address"}
