@@ -12,6 +12,7 @@ import { BatteryAddressSearchFlow } from "./BatteryAddressSearchFlow";
 import { EnergyOnlyAddressEntryFlow } from "./EnergyOnlyAddressEntryFlow";
 
 export type AddressSearchAppProps = {
+	publicApiKey: string;
 	placeholder?: string;
 	cta?: string;
 	isEnergyOnly: boolean;
@@ -29,6 +30,7 @@ export type AddressSearchAppProps = {
 };
 
 export function AddressSearchApp({
+	publicApiKey,
 	placeholder,
 	cta,
 	isEnergyOnly,
@@ -179,6 +181,7 @@ export function AddressSearchApp({
 		<>
 			{isEnergyOnly ? (
 				<EnergyOnlyAddressEntryFlow
+					publicApiKey={publicApiKey}
 					placeholder={placeholder}
 					cta={cta}
 					zIndex={zIndex}
