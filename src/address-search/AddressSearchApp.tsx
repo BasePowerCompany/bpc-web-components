@@ -1,9 +1,12 @@
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
+import type { AddressValidationResult } from "@/address-search/addressValidation";
 import { fetchHydration } from "@/address-search/fetch";
+import { AddressConfirmModal } from "@/address-search/modal/AddressConfirmModal";
 import { SelectionModal } from "@/address-search/modal/SelectionModal";
 import type {
 	AddressResult,
+	ParsedGoogleAddressComponents,
 	RedirectMultipleAddress,
 	RedirectStrategyMultipleUtility,
 } from "@/address-search/types";
@@ -55,6 +58,14 @@ export function AddressSearchApp({
 	>();
 	const [energySplashRedirectUrl, setEnergySplashRedirectUrl] = useState<
 		string | undefined
+	>();
+	const [addressConfirmData, setAddressConfirmData] = useState<
+		| {
+				selection: AddressResult;
+				googleAddressComponents: ParsedGoogleAddressComponents;
+				validationResult: AddressValidationResult;
+		  }
+		| undefined
 	>();
 
 	const handleSelect = useCallback(
@@ -120,6 +131,7 @@ export function AddressSearchApp({
 						// Show splash screen before redirecting
 						setMultipleAddressResults(undefined);
 						setMultipleUtilityResult(undefined);
+						setAddressConfirmData(undefined);
 						setEnergySplashRedirectUrl(result.data.redirectUrl);
 						return;
 					}
@@ -161,6 +173,36 @@ export function AddressSearchApp({
 		[handleSelect],
 	);
 
+	const handleRequiresAddressConfirm = useCallback(
+		(data: {
+			selection: AddressResult;
+			googleAddressComponents: ParsedGoogleAddressComponents;
+			validationResult: AddressValidationResult;
+		}) => {
+			setAddressConfirmData(data);
+		},
+		[],
+	);
+
+	const [addressConfirmLoading, setAddressConfirmLoading] = useState(false);
+
+	const handleAddressConfirmContinue = useCallback(
+		async (result: AddressResult) => {
+			setAddressConfirmLoading(true);
+			try {
+				await handleSelect({ selection: result, confirmAddress: true });
+			} finally {
+				setAddressConfirmData(undefined);
+				setAddressConfirmLoading(false);
+			}
+		},
+		[handleSelect],
+	);
+
+	const handleAddressConfirmClose = useCallback(() => {
+		setAddressConfirmData(undefined);
+	}, []);
+
 	const handleBack = useCallback(() => {
 		setMultipleUtilityResult(undefined);
 		setMultipleAddressResults(undefined);
@@ -184,6 +226,7 @@ export function AddressSearchApp({
 					zIndex={zIndex}
 					portalRoot={portalRoot}
 					onSubmitSelection={handleSelect}
+					onRequiresAddressConfirm={handleRequiresAddressConfirm}
 				/>
 			) : (
 				<BatteryAddressSearchFlow
@@ -194,6 +237,20 @@ export function AddressSearchApp({
 					onSubmitSelection={handleSelect}
 				/>
 			)}
+			{addressConfirmData &&
+				createPortal(
+					<AddressConfirmModal
+						selection={addressConfirmData.selection}
+						googleAddressComponents={addressConfirmData.googleAddressComponents}
+						requiresSubpremise={
+							addressConfirmData.validationResult.requiresSubpremise
+						}
+						loading={addressConfirmLoading}
+						onContinue={handleAddressConfirmContinue}
+						onClose={handleAddressConfirmClose}
+					/>,
+					portalRoot,
+				)}
 			{shouldShowModal &&
 				createPortal(
 					<SelectionModal
