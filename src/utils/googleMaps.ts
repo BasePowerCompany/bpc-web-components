@@ -3,11 +3,18 @@
 // This is a modified version of the bootstrap function from the google maps API documentation
 // https://developers.google.com/maps/documentation/javascript/libraries
 
+let _apiKey: string = "";
+
+export function getGoogleMapsApiKey(): string {
+	return _apiKey;
+}
+
 export const bootstrap = (params: {
 	key: string;
 	v: string;
 	libraries?: string[];
 }) => {
+	_apiKey = params.key;
 	window.google = window.google || {};
 	window.google.maps = window.google.maps || {};
 

@@ -294,6 +294,26 @@ button.input {
 	cursor: not-allowed;
 }
 
+.energyFormInputError {
+	border-color: #dc2626;
+	outline: 2px solid #fecaca;
+	outline-offset: 0;
+}
+
+.energyFormInputError:focus {
+	border-color: #dc2626;
+	outline: 2px solid #fecaca;
+	outline-offset: 0;
+}
+
+.energyFormInputErrorText {
+	color: #dc2626;
+	font-size: 13px;
+	line-height: 1.4;
+	margin-top: -4px;
+	padding-left: 4px;
+}
+
 .energyOnlyContinueButton {
 	font-size: 16px;
 	font-family: inherit;
