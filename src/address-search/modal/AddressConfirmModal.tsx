@@ -1,4 +1,4 @@
-import { useCallback, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type {
 	AddressResult,
 	ParsedGoogleAddressComponents,
@@ -68,9 +68,9 @@ export function AddressConfirmModal({
 	}, []);
 
 	// Auto-focus line2 on mount
-	useState(() => {
+	useEffect(() => {
 		focusLine2();
-	});
+	}, [focusLine2]);
 
 	const handleContinue = useCallback(() => {
 		if (requiresSubpremise && !line2.trim()) {
