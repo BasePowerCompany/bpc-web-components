@@ -520,3 +520,175 @@
 		gap: 4px;
 	}
 }
+
+/* Address Confirm Modal */
+.addressConfirmBackdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 10001;
+	background-color: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.addressConfirmCard {
+	position: relative;
+	background: white;
+	border-radius: 16px;
+	padding: 32px;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16);
+	max-width: 480px;
+	width: 90%;
+}
+
+.addressConfirmCloseIcon {
+	position: absolute;
+	top: 12px;
+	right: 12px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border: none;
+	background: none;
+	cursor: pointer;
+	color: #666;
+	padding: 0;
+	border-radius: 50%;
+}
+
+.addressConfirmCloseIcon:hover {
+	background-color: #f0f0f0;
+}
+
+.addressConfirmTitle {
+	font-size: 24px;
+	font-weight: 600;
+	color: #0b0e0f;
+	margin: 0 0 24px 0;
+	line-height: 1.2;
+}
+
+.addressConfirmForm {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.addressConfirmInput {
+	width: 100%;
+	margin: 0;
+	padding: 12px 16px;
+	font-size: 16px;
+	line-height: 24px;
+	border: 1px solid #e0e0e0;
+	border-radius: 8px;
+	outline: none;
+	font-family: inherit;
+	background-color: white;
+	box-sizing: border-box;
+}
+
+.addressConfirmInput::placeholder {
+	color: #999;
+}
+
+.addressConfirmInput:focus {
+	border-color: #084d41;
+	outline: 2px solid #d0f585;
+	outline-offset: 0;
+}
+
+.addressConfirmInputError {
+	border-color: #dc2626;
+	outline: 2px solid #fecaca;
+	outline-offset: 0;
+}
+
+.addressConfirmInputError:focus {
+	border-color: #dc2626;
+	outline: 2px solid #fecaca;
+	outline-offset: 0;
+}
+
+.addressConfirmErrorText {
+	color: #dc2626;
+	font-size: 13px;
+	line-height: 1.4;
+	margin-top: -4px;
+	padding-left: 4px;
+}
+
+.addressConfirmGrid {
+	display: grid;
+	grid-template-columns: 1.4fr 0.8fr 1fr;
+	gap: 12px;
+}
+
+.addressConfirmActions {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin-top: 12px;
+}
+
+.addressConfirmContinueButton {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	width: 100%;
+	padding: 16px 32px;
+	font-size: 16px;
+	font-family: inherit;
+	font-weight: 600;
+	color: #084d41;
+	background-color: #d0f585;
+	border: none;
+	border-radius: 12px;
+	cursor: pointer;
+	transition: background-color 0.2s ease-in-out;
+	box-shadow: inset 0 0 0 1px #0b0e0f0d;
+}
+
+.addressConfirmContinueButton:hover {
+	background-color: #ecfad0;
+}
+
+.addressConfirmCloseButton {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	padding: 12px 32px;
+	font-size: 16px;
+	font-family: inherit;
+	font-weight: 500;
+	color: #666;
+	background: none;
+	border: 1px solid #e0e0e0;
+	border-radius: 12px;
+	cursor: pointer;
+	transition: background-color 0.2s ease-in-out;
+}
+
+.addressConfirmCloseButton:hover {
+	background-color: #f5f5f5;
+}
+
+@media screen and (max-width: 540px) {
+	.addressConfirmGrid {
+		grid-template-columns: minmax(0, 1.2fr) minmax(72px, 0.7fr) minmax(84px, 0.9fr);
+		gap: 8px;
+	}
+
+	.addressConfirmCard {
+		padding: 24px;
+	}
+
+	.addressConfirmTitle {
+		font-size: 20px;
+	}
+}

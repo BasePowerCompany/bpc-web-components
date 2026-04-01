@@ -1,9 +1,11 @@
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import { fetchHydration } from "@/address-search/fetch";
+import { AddressConfirmModal } from "@/address-search/modal/AddressConfirmModal";
 import { SelectionModal } from "@/address-search/modal/SelectionModal";
 import type {
 	AddressResult,
+	ParsedGoogleAddressComponents,
 	RedirectMultipleAddress,
 	RedirectStrategyMultipleUtility,
 } from "@/address-search/types";
@@ -55,6 +57,13 @@ export function AddressSearchApp({
 	>();
 	const [energySplashRedirectUrl, setEnergySplashRedirectUrl] = useState<
 		string | undefined
+	>();
+	const [addressConfirmData, setAddressConfirmData] = useState<
+		| {
+				selection: AddressResult;
+				googleAddressComponents: ParsedGoogleAddressComponents;
+		  }
+		| undefined
 	>();
 
 	const handleSelect = useCallback(
@@ -161,6 +170,28 @@ export function AddressSearchApp({
 		[handleSelect],
 	);
 
+	const handleRequiresAddressConfirm = useCallback(
+		(data: {
+			selection: AddressResult;
+			googleAddressComponents: ParsedGoogleAddressComponents;
+		}) => {
+			setAddressConfirmData(data);
+		},
+		[],
+	);
+
+	const handleAddressConfirmContinue = useCallback(
+		(result: AddressResult) => {
+			setAddressConfirmData(undefined);
+			handleSelect({ selection: result, confirmAddress: true });
+		},
+		[handleSelect],
+	);
+
+	const handleAddressConfirmClose = useCallback(() => {
+		setAddressConfirmData(undefined);
+	}, []);
+
 	const handleBack = useCallback(() => {
 		setMultipleUtilityResult(undefined);
 		setMultipleAddressResults(undefined);
@@ -184,6 +215,7 @@ export function AddressSearchApp({
 					zIndex={zIndex}
 					portalRoot={portalRoot}
 					onSubmitSelection={handleSelect}
+					onRequiresAddressConfirm={handleRequiresAddressConfirm}
 				/>
 			) : (
 				<BatteryAddressSearchFlow
@@ -194,6 +226,16 @@ export function AddressSearchApp({
 					onSubmitSelection={handleSelect}
 				/>
 			)}
+			{addressConfirmData &&
+				createPortal(
+					<AddressConfirmModal
+						selection={addressConfirmData.selection}
+						googleAddressComponents={addressConfirmData.googleAddressComponents}
+						onContinue={handleAddressConfirmContinue}
+						onClose={handleAddressConfirmClose}
+					/>,
+					portalRoot,
+				)}
 			{shouldShowModal &&
 				createPortal(
 					<SelectionModal

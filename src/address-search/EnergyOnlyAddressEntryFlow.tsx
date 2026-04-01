@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { validateAddress } from "@/address-search/addressValidation";
 import type {
 	AddressResult,
@@ -18,6 +18,10 @@ type EnergyOnlyAddressEntryFlowProps = {
 		selection: AddressResult | undefined;
 		confirmAddress: boolean;
 	}) => void;
+	onRequiresAddressConfirm: (data: {
+		selection: AddressResult;
+		googleAddressComponents: ParsedGoogleAddressComponents;
+	}) => void;
 };
 
 export function EnergyOnlyAddressEntryFlow({
@@ -26,6 +30,7 @@ export function EnergyOnlyAddressEntryFlow({
 	portalRoot,
 	zIndex,
 	onSubmitSelection,
+	onRequiresAddressConfirm,
 }: EnergyOnlyAddressEntryFlowProps) {
 	const [line1, setLine1] = useState("");
 	const [expandedLine1, setExpandedLine1] = useState("");
@@ -40,9 +45,6 @@ export function EnergyOnlyAddressEntryFlow({
 	const [selectedSelection, setSelectedSelection] = useState<
 		AddressResult | undefined
 	>();
-	const [requiresSubpremise, setRequiresSubpremise] = useState(false);
-	const [line2Error, setLine2Error] = useState(false);
-	const line2ErrorId = useId();
 	// Share the actual Autocomplete input element so Continue can focus line_1
 	// when energy-only has not selected a suggestion yet.
 	const line1Ref = useRef<HTMLInputElement>(null);
@@ -92,8 +94,6 @@ export function EnergyOnlyAddressEntryFlow({
 		setCity("");
 		setState("");
 		setPostalCode("");
-		setRequiresSubpremise(false);
-		setLine2Error(false);
 	}, []);
 
 	const handleSelect = useCallback(
@@ -102,8 +102,6 @@ export function EnergyOnlyAddressEntryFlow({
 				.filter(Boolean)
 				.join(", ");
 			setLine1(fullText);
-			setRequiresSubpremise(false);
-			setLine2Error(false);
 
 			// validate address + fetch all the details in parallel
 			const [resolved, validationResult] = await Promise.all([
@@ -115,17 +113,15 @@ export function EnergyOnlyAddressEntryFlow({
 			setSelectedSelection(resolved.selection);
 			setGoogleAddressComponents(resolved.googleAddressComponents);
 
-			// handle apartment / multi-unit address validation
-			const needsSubpremise = validationResult.requiresSubpremise;
-			setRequiresSubpremise(needsSubpremise);
-
-			if (needsSubpremise && !isUnitExpandedRef.current) {
-				setIsUnitExpanded(true);
-				populateExpandedFields({
+			// If address needs apartment/unit number, delegate to modal via parent
+			if (
+				validationResult.requiresSubpremise &&
+				resolved.googleAddressComponents
+			) {
+				onRequiresAddressConfirm({
 					selection: resolved.selection,
-					googleComponents: resolved.googleAddressComponents,
+					googleAddressComponents: resolved.googleAddressComponents,
 				});
-				focusLine2();
 				return;
 			}
 
@@ -138,7 +134,12 @@ export function EnergyOnlyAddressEntryFlow({
 				return;
 			}
 		},
-		[focusLine2, populateExpandedFields, resolveSelection],
+		[
+			focusLine2,
+			onRequiresAddressConfirm,
+			populateExpandedFields,
+			resolveSelection,
+		],
 	);
 
 	const buildSelectionFromExpandedFields = useCallback(() => {
@@ -203,11 +204,6 @@ export function EnergyOnlyAddressEntryFlow({
 
 	const handleApartmentToggle = useCallback(() => {
 		if (isUnitExpanded) {
-			if (requiresSubpremise && !line2.trim()) {
-				setLine2Error(true);
-				focusLine2();
-				return;
-			}
 			const updatedSelection = buildSelectionFromExpandedFields();
 			const updatedGoogleAddressComponents =
 				buildGoogleAddressComponentsFromExpandedFields();
@@ -229,11 +225,8 @@ export function EnergyOnlyAddressEntryFlow({
 		});
 	}, [
 		line1,
-		line2,
-		focusLine2,
 		googleAddressComponents,
 		isUnitExpanded,
-		requiresSubpremise,
 		buildGoogleAddressComponentsFromExpandedFields,
 		buildSelectionFromExpandedFields,
 		populateExpandedFields,
@@ -246,21 +239,6 @@ export function EnergyOnlyAddressEntryFlow({
 			line1Ref.current?.focus();
 			return;
 		}
-
-		if (requiresSubpremise && !line2.trim()) {
-			if (!isUnitExpanded) {
-				setIsUnitExpanded(true);
-				populateExpandedFields({
-					selection: selectedSelection,
-					googleComponents: googleAddressComponents,
-				});
-			}
-			setLine2Error(true);
-			focusLine2();
-			return;
-		}
-
-		setLine2Error(false);
 
 		if (!isUnitExpanded) {
 			onSubmitSelection({
@@ -279,13 +257,8 @@ export function EnergyOnlyAddressEntryFlow({
 		});
 	}, [
 		buildSelectionFromExpandedFields,
-		focusLine2,
-		googleAddressComponents,
 		isUnitExpanded,
-		line2,
 		onSubmitSelection,
-		populateExpandedFields,
-		requiresSubpremise,
 		selectedSelection,
 	]);
 
@@ -327,24 +300,11 @@ export function EnergyOnlyAddressEntryFlow({
 						ref={line2Ref}
 						type="text"
 						value={line2}
-						onChange={(event) => {
-							setLine2(event.target.value);
-							if (line2Error) setLine2Error(false);
-						}}
+						onChange={(event) => setLine2(event.target.value)}
 						placeholder="Apartment or unit number"
 						autoComplete="address-line2"
-						className={cx(
-							styles.energyFormInput,
-							line2Error && styles.energyFormInputError,
-						)}
-						aria-invalid={line2Error}
-						aria-describedby={line2Error ? line2ErrorId : undefined}
+						className={styles.energyFormInput}
 					/>
-					{line2Error && (
-						<span id={line2ErrorId} className={styles.energyFormInputErrorText}>
-							Please enter your apartment or unit number
-						</span>
-					)}
 					<div className={styles.energyOnlyGrid}>
 						<input
 							type="text"
