@@ -190,9 +190,12 @@ export function AddressSearchApp({
 	const handleAddressConfirmContinue = useCallback(
 		async (result: AddressResult) => {
 			setAddressConfirmLoading(true);
-			await handleSelect({ selection: result, confirmAddress: true });
-			setAddressConfirmData(undefined);
-			setAddressConfirmLoading(false);
+			try {
+				await handleSelect({ selection: result, confirmAddress: true });
+			} finally {
+				setAddressConfirmData(undefined);
+				setAddressConfirmLoading(false);
+			}
 		},
 		[handleSelect],
 	);
