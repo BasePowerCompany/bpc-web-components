@@ -36,22 +36,24 @@ export function EnergyOnlyAddressEntryFlow({
 	onRequiresAddressConfirm,
 }: EnergyOnlyAddressEntryFlowProps) {
 	const [line1, setLine1] = useState("");
-	const [googleAddressComponents, setGoogleAddressComponents] = useState<
-		ParsedGoogleAddressComponents | undefined
-	>();
 	const [selectedSelection, setSelectedSelection] = useState<
 		AddressResult | undefined
 	>();
-	const [lastValidationResult, setLastValidationResult] =
-		useState<AddressValidationResult | null>(null);
+	// Stores the last address confirmation data to power the address confirmation modal.
+	// resolveSelection clears its internal cache after each resolve,
+	// so subsequent selects of the same item return
+	// undefined — this ref lets us fall back to the previously resolved data.
+	const lastConfirmDataRef = useRef<{
+		selection: AddressResult;
+		googleAddressComponents: ParsedGoogleAddressComponents;
+		validationResult: AddressValidationResult;
+	} | null>(null);
 	const line1Ref = useRef<HTMLInputElement>(null);
 	const { results, resolveSelection } = useAddressAutocomplete(line1);
 
 	const handleInputChange = useCallback((value: string) => {
 		setLine1(value);
 		setSelectedSelection(undefined);
-		setGoogleAddressComponents(undefined);
-		setLastValidationResult(null);
 	}, []);
 
 	const handleSelect = useCallback(
@@ -67,23 +69,33 @@ export function EnergyOnlyAddressEntryFlow({
 				validateAddress(fullText),
 			]);
 
-			if (!resolved?.selection) return;
+			// resolveSelection clears its cache after resolving, so re-selecting
+			// the same suggestion returns undefined. Fall back to stored data.
+			if (!resolved?.selection) {
+				if (lastConfirmDataRef.current) {
+					onRequiresAddressConfirm(lastConfirmDataRef.current);
+				}
+				return;
+			}
+
 			setSelectedSelection(resolved.selection);
-			setGoogleAddressComponents(resolved.googleAddressComponents);
-			setLastValidationResult(validationResult);
 
 			// If address needs apartment/unit number, delegate to modal via parent
 			if (
 				validationResult.requiresSubpremise &&
 				resolved.googleAddressComponents
 			) {
-				onRequiresAddressConfirm({
+				const confirmData = {
 					selection: resolved.selection,
 					googleAddressComponents: resolved.googleAddressComponents,
 					validationResult,
-				});
+				};
+				lastConfirmDataRef.current = confirmData;
+				onRequiresAddressConfirm(confirmData);
 				return;
 			}
+
+			lastConfirmDataRef.current = null;
 		},
 		[onRequiresAddressConfirm, resolveSelection],
 	);
@@ -95,12 +107,8 @@ export function EnergyOnlyAddressEntryFlow({
 		}
 
 		// Re-open modal if the address still requires confirmation
-		if (lastValidationResult?.requiresSubpremise && googleAddressComponents) {
-			onRequiresAddressConfirm({
-				selection: selectedSelection,
-				googleAddressComponents,
-				validationResult: lastValidationResult,
-			});
+		if (lastConfirmDataRef.current) {
+			onRequiresAddressConfirm(lastConfirmDataRef.current);
 			return;
 		}
 
@@ -108,13 +116,7 @@ export function EnergyOnlyAddressEntryFlow({
 			selection: selectedSelection,
 			confirmAddress: true,
 		});
-	}, [
-		googleAddressComponents,
-		lastValidationResult,
-		onRequiresAddressConfirm,
-		onSubmitSelection,
-		selectedSelection,
-	]);
+	}, [onRequiresAddressConfirm, onSubmitSelection, selectedSelection]);
 
 	return (
 		<div className={styles.energyOnlyForm}>

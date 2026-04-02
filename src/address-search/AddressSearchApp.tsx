@@ -235,6 +235,7 @@ export function AddressSearchApp({
 					zIndex={zIndex}
 					portalRoot={portalRoot}
 					onSubmitSelection={handleSelect}
+					onRequiresAddressConfirm={handleRequiresAddressConfirm}
 				/>
 			)}
 			{addressConfirmData &&
