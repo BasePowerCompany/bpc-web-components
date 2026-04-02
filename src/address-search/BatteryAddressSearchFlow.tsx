@@ -48,7 +48,6 @@ export function BatteryAddressSearchFlow({
 
 	const handleSelect = useCallback(
 		async ({ result }: { result: Result }) => {
-			console.log("handleSelect result", result);
 			const fullText = [result.mainText ?? "", result.secondaryText ?? ""]
 				.filter(Boolean)
 				.join(", ");
@@ -58,17 +57,11 @@ export function BatteryAddressSearchFlow({
 				resolveSelection({ result }),
 				validateAddress(fullText),
 			]);
-			console.log("handleSelect resolved", resolved);
-			console.log("handleSelect validationResult", validationResult);
 
 			// resolveSelection clears its cache after resolving, so re-selecting
 			// the same suggestion returns undefined. Fall back to stored data.
 			if (!resolved?.selection) {
 				if (lastConfirmDataRef.current) {
-					console.log(
-						"handleSelect lastConfirmDataRef",
-						lastConfirmDataRef.current,
-					);
 					onRequiresAddressConfirm(lastConfirmDataRef.current);
 				}
 				return;
@@ -78,10 +71,6 @@ export function BatteryAddressSearchFlow({
 				validationResult.requiresSubpremise &&
 				resolved.googleAddressComponents
 			) {
-				console.log(
-					"handleSelect requires subpremise",
-					resolved.googleAddressComponents,
-				);
 				const confirmData = {
 					selection: resolved.selection,
 					googleAddressComponents: resolved.googleAddressComponents,
