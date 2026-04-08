@@ -1,3 +1,4 @@
+import type { ValidatedAddress } from "@/address-search/addressValidation";
 import type {
 	AddressResult,
 	ParsedGoogleAddressComponents,
@@ -82,6 +83,51 @@ export function parseAddress(
 	return {
 		formattedAddress: place.formattedAddress,
 		address,
+	};
+}
+
+/**
+ * Produces a new AddressResult where the street/city/state/ZIP/country come
+ * from the Address Validation API response. Places lat/lng is preserved
+ * because validation's coordinates are re-geocoded from text and may drift
+ * from the specific place the user selected.
+ */
+export function mergeValidatedSelection(
+	selection: AddressResult,
+	validated: ValidatedAddress,
+): AddressResult {
+	return {
+		formattedAddress: validated.formattedAddress,
+		address: {
+			line1: validated.line1 || selection.address.line1,
+			city: validated.city || selection.address.city,
+			state: validated.state || selection.address.state,
+			postalCode: validated.postalCode || selection.address.postalCode,
+			country: validated.country || selection.address.country,
+			latitude: selection.address.latitude,
+			longitude: selection.address.longitude,
+			externalId: selection.address.externalId,
+		},
+	};
+}
+
+/**
+ * Produces a new ParsedGoogleAddressComponents with the validated fields
+ * merged in. `line2` (subpremise) is intentionally left untouched because
+ * it is user-driven via the confirmation modal and is not part of the
+ * validation response when the user has not yet entered one.
+ */
+export function mergeValidatedGoogleComponents(
+	components: ParsedGoogleAddressComponents,
+	validated: ValidatedAddress,
+): ParsedGoogleAddressComponents {
+	return {
+		...components,
+		line1: validated.line1 || components.line1,
+		city: validated.city || components.city,
+		state: validated.state || components.state,
+		postalCode: validated.postalCode || components.postalCode,
+		country: validated.country || components.country,
 	};
 }
 

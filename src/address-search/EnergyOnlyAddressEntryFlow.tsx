@@ -7,6 +7,10 @@ import type {
 	AddressResult,
 	ParsedGoogleAddressComponents,
 } from "@/address-search/types";
+import {
+	mergeValidatedGoogleComponents,
+	mergeValidatedSelection,
+} from "@/address-search/utils";
 import { Autocomplete, type Result } from "./Autocomplete";
 import styles from "./styles.module.css";
 import { useAddressAutocomplete } from "./useAddressAutocomplete";
@@ -78,16 +82,34 @@ export function EnergyOnlyAddressEntryFlow({
 				return;
 			}
 
-			setSelectedSelection(resolved.selection);
+			// Treat the Address Validation API response as canonical whenever it
+			// returned a postalAddress. This keeps the frontend consistent with
+			// the backend, which runs its own USPS-backed validation pass.
+			let finalSelection = resolved.selection;
+			let finalGoogleComponents = resolved.googleAddressComponents;
+			if (validationResult.validatedAddress) {
+				finalSelection = mergeValidatedSelection(
+					resolved.selection,
+					validationResult.validatedAddress,
+				);
+				if (finalGoogleComponents) {
+					finalGoogleComponents = mergeValidatedGoogleComponents(
+						finalGoogleComponents,
+						validationResult.validatedAddress,
+					);
+				}
+			}
+
+			// Reflect the canonicalized address in the visible input so that what
+			// the user sees matches what will be submitted.
+			setLine1(finalSelection.formattedAddress);
+			setSelectedSelection(finalSelection);
 
 			// If address needs apartment/unit number, delegate to modal via parent
-			if (
-				validationResult.requiresSubpremise &&
-				resolved.googleAddressComponents
-			) {
+			if (validationResult.requiresSubpremise && finalGoogleComponents) {
 				const confirmData = {
-					selection: resolved.selection,
-					googleAddressComponents: resolved.googleAddressComponents,
+					selection: finalSelection,
+					googleAddressComponents: finalGoogleComponents,
 					validationResult,
 				};
 				lastConfirmDataRef.current = confirmData;
