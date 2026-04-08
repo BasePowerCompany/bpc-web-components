@@ -51,18 +51,29 @@ export function useAddressAutocomplete(inputValue: string) {
 				return prev;
 			}
 
+			const autocompleteRequest = {
+				input: searchQuery,
+				sessionToken: curToken,
+				language: "en",
+				includedPrimaryTypes: ["street_address"],
+			};
+			console.log(
+				"[bpc-web-components] Places autocomplete request:",
+				autocompleteRequest,
+			);
 			return {
 				...prev,
 				[searchQuery]:
 					// Shared input: both battery and energy-only ask for the same
 					// street-address suggestions, but each flow decides how to use
 					// the selected result afterward.
-					places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
-						input: searchQuery,
-						sessionToken: curToken,
-						language: "en",
-						includedPrimaryTypes: ["street_address"],
-					}).then(({ suggestions }) => {
+					places.AutocompleteSuggestion.fetchAutocompleteSuggestions(
+						autocompleteRequest,
+					).then(({ suggestions }) => {
+						console.log(
+							"[bpc-web-components] Places autocomplete response:",
+							{ input: searchQuery, suggestions },
+						);
 						suggestions.forEach((suggestion) => {
 							if (!suggestion.placePrediction?.placeId) return;
 							placesRef.current[suggestion.placePrediction.placeId] =
@@ -98,6 +109,13 @@ export function useAddressAutocomplete(inputValue: string) {
 
 			const resolved = await place.fetchFields({
 				fields: ["location", "formattedAddress", "addressComponents"],
+			});
+			console.log("[bpc-web-components] Place fetchFields response:", {
+				placeId: result.id,
+				place: resolved.place,
+				formattedAddress: resolved.place?.formattedAddress,
+				addressComponents: resolved.place?.addressComponents,
+				location: resolved.place?.location,
 			});
 
 			// Return both shapes from the same place:
