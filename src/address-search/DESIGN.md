@@ -53,14 +53,16 @@ Energy-only owns the energy-only pre-submit UX.
 
 Responsibilities:
 
-- render the shared autocomplete UI for `line_1`
-- keep `line_2`, city, state, and ZIP behind a progressive disclosure toggle
-- manage `line_2`, city, state, and ZIP form state when disclosed
-- apply energy-only interaction rules before submission
-- submit only when the user explicitly clicks `Continue`
+- render the shared autocomplete UI
+- treat autocomplete selection as the final address choice
+- submit immediately after selection, unless the address requires a
+  subpremise — in which case delegate to `AddressConfirmModal` via
+  `onRequiresAddressConfirm`
 
-This is the only place where the multi-field energy-only form behavior should
-live.
+Energy-only currently mirrors battery's pre-submit UX. If energy-only
+needs additional fields (e.g. a progressive-disclosure unit/apartment form)
+in the future, that behavior should be added here without changing
+`BatteryAddressSearchFlow.tsx` or `AddressSearchApp.tsx`.
 
 ## Shared UI Layer
 
@@ -178,15 +180,13 @@ This is intentionally centralized because both flows submit the same
 1. User types into `Autocomplete`
 2. `useAddressAutocomplete` returns suggestions
 3. User selects a suggestion
-4. Energy-only resolves it into:
-   - `AddressResult`
-   - `ParsedGoogleAddressComponents`
-5. Collapsed mode keeps the selected autocomplete value in `line_1`
-6. If the user expands apartment / unit entry, energy-only uses the parsed Google
-   components to prefill `line_1`, `line_2`, city, state, and ZIP
-7. User edits the disclosed fields as needed
-8. Energy-only converts the active form state back into `AddressResult`
-9. `AddressSearchApp` handles shared post-submit behavior
+4. Energy-only resolves it into `AddressResult` and
+   `ParsedGoogleAddressComponents`
+5. If the address requires a subpremise, energy-only delegates to
+   `AddressConfirmModal` via `onRequiresAddressConfirm`; otherwise it submits
+   immediately
+6. `AddressSearchApp` handles shared post-submit behavior, including the
+   energy-only splash redirect
 
 ## Invariants
 

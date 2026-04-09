@@ -8,7 +8,6 @@ import type {
 	ParsedGoogleAddressComponents,
 } from "@/address-search/types";
 import { Autocomplete, type Result } from "./Autocomplete";
-import styles from "./styles.module.css";
 import { useAddressAutocomplete } from "./useAddressAutocomplete";
 
 type EnergyOnlyAddressEntryFlowProps = {
@@ -35,10 +34,7 @@ export function EnergyOnlyAddressEntryFlow({
 	onSubmitSelection,
 	onRequiresAddressConfirm,
 }: EnergyOnlyAddressEntryFlowProps) {
-	const [line1, setLine1] = useState("");
-	const [selectedSelection, setSelectedSelection] = useState<
-		AddressResult | undefined
-	>();
+	const [inputValue, setInputValue] = useState("");
 	// Stores the last address confirmation data to power the address confirmation modal.
 	// resolveSelection clears its internal cache after each resolve,
 	// so subsequent selects of the same item return
@@ -48,22 +44,15 @@ export function EnergyOnlyAddressEntryFlow({
 		googleAddressComponents: ParsedGoogleAddressComponents;
 		validationResult: AddressValidationResult;
 	} | null>(null);
-	const line1Ref = useRef<HTMLInputElement>(null);
-	const { results, resolveSelection } = useAddressAutocomplete(line1);
-
-	const handleInputChange = useCallback((value: string) => {
-		setLine1(value);
-		setSelectedSelection(undefined);
-	}, []);
+	const { results, resolveSelection } = useAddressAutocomplete(inputValue);
 
 	const handleSelect = useCallback(
 		async ({ result }: { result: Result }) => {
 			const fullText = [result.mainText ?? "", result.secondaryText ?? ""]
 				.filter(Boolean)
 				.join(", ");
-			setLine1(fullText);
+			setInputValue(fullText);
 
-			// validate address + fetch all the details in parallel
 			const [resolved, validationResult] = await Promise.all([
 				resolveSelection({ result }),
 				validateAddress(fullText),
@@ -78,9 +67,6 @@ export function EnergyOnlyAddressEntryFlow({
 				return;
 			}
 
-			setSelectedSelection(resolved.selection);
-
-			// If address needs apartment/unit number, delegate to modal via parent
 			if (
 				validationResult.requiresSubpremise &&
 				resolved.googleAddressComponents
@@ -96,49 +82,28 @@ export function EnergyOnlyAddressEntryFlow({
 			}
 
 			lastConfirmDataRef.current = null;
+			onSubmitSelection({
+				selection: resolved.selection,
+				confirmAddress: true,
+			});
 		},
-		[onRequiresAddressConfirm, resolveSelection],
+		[onRequiresAddressConfirm, onSubmitSelection, resolveSelection],
 	);
 
-	const handleContinue = useCallback(() => {
-		if (!selectedSelection) {
-			line1Ref.current?.focus();
-			return;
-		}
-
-		// Re-open modal if the address still requires confirmation
-		if (lastConfirmDataRef.current) {
-			onRequiresAddressConfirm(lastConfirmDataRef.current);
-			return;
-		}
-
-		onSubmitSelection({
-			selection: selectedSelection,
-			confirmAddress: true,
-		});
-	}, [onRequiresAddressConfirm, onSubmitSelection, selectedSelection]);
+	const handleInputChange = useCallback((value: string) => {
+		setInputValue(value);
+	}, []);
 
 	return (
-		<div className={styles.energyOnlyForm}>
-			<Autocomplete
-				zIndex={zIndex}
-				inputRef={line1Ref}
-				value={line1}
-				onChange={handleInputChange}
-				results={results}
-				onSelect={handleSelect}
-				placeholder={placeholder || "Street address"}
-				cta={cta}
-				showCtaButton={false}
-				portalRoot={portalRoot}
-			/>
-			<button
-				type="button"
-				className={styles.energyOnlyContinueButton}
-				onClick={handleContinue}
-			>
-				{cta || "Continue"}
-			</button>
-		</div>
+		<Autocomplete
+			zIndex={zIndex}
+			value={inputValue}
+			onChange={handleInputChange}
+			results={results}
+			onSelect={handleSelect}
+			placeholder={placeholder || "Street address"}
+			cta={cta}
+			portalRoot={portalRoot}
+		/>
 	);
 }
