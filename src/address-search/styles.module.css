@@ -208,13 +208,6 @@ button.input {
 	overflow: auto;
 }
 
-.energyOnlyForm {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-	margin-top: 12px;
-}
-
 .energyOnlyDisclosureButton {
 	display: inline-flex;
 	align-items: center;
@@ -312,32 +305,6 @@ button.input {
 	line-height: 1.4;
 	margin-top: -4px;
 	padding-left: 4px;
-}
-
-.energyOnlyContinueButton {
-	font-size: 16px;
-	font-family: inherit;
-	background: none;
-	border: none;
-	cursor: pointer;
-	color: #084d41;
-	font-weight: 600;
-	border-radius: 12px;
-	transition: background-color 0.2s ease-in-out;
-	background-color: #d0f585;
-	padding: 16px 32px;
-	box-shadow: inset 0 0 0 1px #0b0e0f0d;
-	width: 100%;
-}
-
-.energyOnlyContinueButton:hover {
-	background-color: #ecfad0;
-}
-
-.energyOnlyContinueButton:disabled {
-	cursor: not-allowed;
-	background-color: #e8e6e3;
-	color: #7f7d7a;
 }
 
 @media screen and (max-width: 540px) {
