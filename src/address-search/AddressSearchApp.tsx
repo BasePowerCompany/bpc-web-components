@@ -11,8 +11,7 @@ import type {
 	RedirectStrategyMultipleUtility,
 } from "@/address-search/types";
 import { posthogCapture } from "@/address-search/utils";
-import { BatteryAddressSearchFlow } from "./BatteryAddressSearchFlow";
-import { EnergyOnlyAddressEntryFlow } from "./EnergyOnlyAddressEntryFlow";
+import { AddressSearchFlow } from "./AddressSearchFlow";
 
 export type AddressSearchAppProps = {
 	placeholder?: string;
@@ -223,31 +222,22 @@ export function AddressSearchApp({
 			multipleUtilityResult != null ||
 			energySplashRedirectUrl != null);
 
+	const resolvedPlaceholder =
+		placeholder ||
+		(isEnergyOnly ? "Street address" : "Enter your home address");
+
 	return (
 		<>
-			{isEnergyOnly ? (
-				<EnergyOnlyAddressEntryFlow
-					placeholder={placeholder}
-					cta={cta}
-					zIndex={zIndex}
-					portalRoot={portalRoot}
-					inputValue={inputValue}
-					onInputValueChange={setInputValue}
-					onSubmitSelection={handleSelect}
-					onRequiresAddressConfirm={handleRequiresAddressConfirm}
-				/>
-			) : (
-				<BatteryAddressSearchFlow
-					placeholder={placeholder}
-					cta={cta}
-					zIndex={zIndex}
-					portalRoot={portalRoot}
-					inputValue={inputValue}
-					onInputValueChange={setInputValue}
-					onSubmitSelection={handleSelect}
-					onRequiresAddressConfirm={handleRequiresAddressConfirm}
-				/>
-			)}
+			<AddressSearchFlow
+				placeholder={resolvedPlaceholder}
+				cta={cta}
+				zIndex={zIndex}
+				portalRoot={portalRoot}
+				inputValue={inputValue}
+				onInputValueChange={setInputValue}
+				onSubmitSelection={handleSelect}
+				onRequiresAddressConfirm={handleRequiresAddressConfirm}
+			/>
 			{addressConfirmData &&
 				createPortal(
 					<AddressConfirmModal

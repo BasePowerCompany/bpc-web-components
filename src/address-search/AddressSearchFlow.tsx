@@ -11,8 +11,8 @@ import { posthogCapture } from "@/address-search/utils";
 import { Autocomplete, type Result } from "./Autocomplete";
 import { useAddressAutocomplete } from "./useAddressAutocomplete";
 
-type EnergyOnlyAddressEntryFlowProps = {
-	placeholder?: string;
+type AddressSearchFlowProps = {
+	placeholder: string;
 	cta?: string;
 	portalRoot: ShadowRoot;
 	zIndex: number;
@@ -29,7 +29,12 @@ type EnergyOnlyAddressEntryFlowProps = {
 	}) => void;
 };
 
-export function EnergyOnlyAddressEntryFlow({
+/**
+ * Shared address entry + resolve + validate flow. Used by both the battery
+ * and energy-only variants — the only variant-specific bit is the default
+ * placeholder, which the parent supplies.
+ */
+export function AddressSearchFlow({
 	placeholder,
 	cta,
 	portalRoot,
@@ -38,7 +43,7 @@ export function EnergyOnlyAddressEntryFlow({
 	onInputValueChange,
 	onSubmitSelection,
 	onRequiresAddressConfirm,
-}: EnergyOnlyAddressEntryFlowProps) {
+}: AddressSearchFlowProps) {
 	const [validating, setValidating] = useState(false);
 	// Stores the last address confirmation data to power the address confirmation modal.
 	// resolveSelection clears its internal cache after each resolve,
@@ -53,10 +58,6 @@ export function EnergyOnlyAddressEntryFlow({
 
 	const handleSelect = useCallback(
 		async ({ result }: { result: Result }) => {
-			console.log({
-				event: "handleSelect",
-				result,
-			});
 			const fullText = [result.mainText ?? "", result.secondaryText ?? ""]
 				.filter(Boolean)
 				.join(", ");
@@ -73,8 +74,6 @@ export function EnergyOnlyAddressEntryFlow({
 			} finally {
 				setValidating(false);
 			}
-			console.log("Google Resolve API");
-			console.log({ resolved, validationResult });
 
 			// resolveSelection clears its cache after resolving, so re-selecting
 			// the same suggestion returns undefined. Fall back to stored data.
@@ -154,7 +153,7 @@ export function EnergyOnlyAddressEntryFlow({
 			onChange={handleInputChange}
 			results={results}
 			onSelect={handleSelect}
-			placeholder={placeholder || "Street address"}
+			placeholder={placeholder}
 			cta={cta}
 			portalRoot={portalRoot}
 			loading={validating}

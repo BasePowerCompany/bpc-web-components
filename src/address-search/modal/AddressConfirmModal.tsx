@@ -7,7 +7,6 @@ import {
 	useState,
 } from "react";
 import type {
-	AddressValidationKind,
 	AddressValidationResult,
 	UnconfirmedFieldType,
 } from "@/address-search/addressValidation";
@@ -18,6 +17,7 @@ import type {
 } from "@/address-search/types";
 import { posthogCapture } from "@/address-search/utils";
 import { cx } from "@/utils/cx";
+import { copyFor } from "./AddressConfirmModal.copy";
 import styles from "./styles.module.css";
 
 export type AddressConfirmModalProps = {
@@ -28,139 +28,6 @@ export type AddressConfirmModalProps = {
 	onContinue: (result: AddressResult) => void;
 	onClose: () => void;
 };
-
-type Copy = {
-	title: string;
-	/** Optional banner shown above the form. */
-	banner?: {
-		/** visual severity — drives color */
-		tone: "warn" | "error";
-		/** short one-liner */
-		text: string;
-	};
-	line2Placeholder: string;
-	continueLabel: string;
-	/** Secondary CTA (e.g. "This is a single-family home") */
-	secondaryAction?: {
-		label: string;
-		/** If true, submitting this action clears line_2. */
-		clearsLine2: boolean;
-	};
-};
-
-/**
- * Maps Google component types to user-facing labels used in the
- * confirm_components banner. Order matters — we list components in the order
- * they appear in the form so the sentence reads naturally.
- */
-const COMPONENT_LABELS: Record<string, string> = {
-	route: "street name",
-	locality: "city",
-	sublocality: "city",
-	administrative_area_level_1: "state",
-	postal_code: "ZIP code",
-};
-
-const COMPONENT_ORDER = [
-	"route",
-	"locality",
-	"sublocality",
-	"administrative_area_level_1",
-	"postal_code",
-];
-
-function labelsForComponents(types: string[]): string[] {
-	const seen = new Set<string>();
-	const labels: string[] = [];
-	for (const t of COMPONENT_ORDER) {
-		if (types.includes(t)) {
-			const label = COMPONENT_LABELS[t];
-			if (label && !seen.has(label)) {
-				seen.add(label);
-				labels.push(label);
-			}
-		}
-	}
-	return labels;
-}
-
-function joinLabels(labels: string[]): string {
-	if (labels.length === 0) return "the highlighted fields";
-	if (labels.length === 1) return `the ${labels[0]}`;
-	if (labels.length === 2) return `the ${labels[0]} and ${labels[1]}`;
-	return `the ${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
-}
-
-function copyFor(
-	kind: AddressValidationKind,
-	unconfirmedComponentTypes: string[],
-): Copy {
-	switch (kind) {
-		case "missing_subpremise":
-			return {
-				title: "Confirm your unit number",
-				banner: {
-					tone: "warn",
-					text: "We detected this may be a multi-unit or apartment building. Please add your unit number, or let us know if it's a single-family home.",
-				},
-				line2Placeholder: "Apartment or unit number",
-				continueLabel: "Continue",
-				secondaryAction: {
-					label: "This is a single-family home",
-					clearsLine2: true,
-				},
-			};
-		case "confirm_subpremise":
-			return {
-				title: "Confirm your unit or meter detail",
-				banner: {
-					tone: "warn",
-					text: "We couldn't verify this with USPS — that's okay for separate meters like apartments, guest houses, barns, or trailers. Please confirm it's correct.",
-				},
-				line2Placeholder:
-					"Apartment, unit, or structure (e.g., guest house, barn)",
-				continueLabel: "Confirm",
-			};
-		case "confirm_street_number":
-			return {
-				title: "Confirm your address",
-				banner: {
-					tone: "warn",
-					text: "We couldn't verify this address with USPS — this is common for new builds and rural addresses. Please confirm it's correct.",
-				},
-				line2Placeholder: "Apartment, unit, or structure (optional)",
-				continueLabel: "Confirm",
-			};
-		case "confirm_components": {
-			const phrase = joinLabels(labelsForComponents(unconfirmedComponentTypes));
-			return {
-				title: "Confirm your address",
-				banner: {
-					tone: "warn",
-					text: `We couldn't verify ${phrase}. Please double-check or edit.`,
-				},
-				line2Placeholder: "Apartment, unit, or structure (optional)",
-				continueLabel: "Confirm",
-			};
-		}
-		case "block":
-			return {
-				title: "We couldn't find this address",
-				banner: {
-					tone: "error",
-					text: "Please edit the address and try again.",
-				},
-				line2Placeholder: "Apartment, unit, or structure (optional)",
-				continueLabel: "Continue",
-			};
-		default:
-			return {
-				title: "Confirm your address",
-				line2Placeholder: "Apartment, unit, or structure (optional)",
-				continueLabel: "Continue",
-			};
-	}
-}
 
 function useFieldHighlight(
 	validationResult: AddressValidationResult,
@@ -185,8 +52,6 @@ export function AddressConfirmModal({
 		[kind, validationResult.unconfirmedComponentTypes],
 	);
 	const isFieldHighlighted = useFieldHighlight(validationResult);
-	console.log("googleAddressComponents", googleAddressComponents);
-	console.log("selection", selection);
 	const [line1, setLine1] = useState(
 		googleAddressComponents.line1 || selection.address.line1,
 	);
