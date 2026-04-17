@@ -67,6 +67,9 @@ export function AddressSearchApp({
 		  }
 		| undefined
 	>();
+	// Lifted from the flow so modal edits can sync back into the autocomplete
+	// input after the user clicks Confirm.
+	const [inputValue, setInputValue] = useState("");
 
 	const handleSelect = useCallback(
 		async (detail: {
@@ -189,6 +192,9 @@ export function AddressSearchApp({
 	const handleAddressConfirmContinue = useCallback(
 		async (result: AddressResult) => {
 			setAddressConfirmLoading(true);
+			// Sync the autocomplete input with whatever the user edited in the
+			// modal so there's no stale address visible while hydration runs.
+			setInputValue(result.formattedAddress);
 			try {
 				await handleSelect({ selection: result, confirmAddress: true });
 			} finally {
@@ -225,6 +231,8 @@ export function AddressSearchApp({
 					cta={cta}
 					zIndex={zIndex}
 					portalRoot={portalRoot}
+					inputValue={inputValue}
+					onInputValueChange={setInputValue}
 					onSubmitSelection={handleSelect}
 					onRequiresAddressConfirm={handleRequiresAddressConfirm}
 				/>
@@ -234,6 +242,8 @@ export function AddressSearchApp({
 					cta={cta}
 					zIndex={zIndex}
 					portalRoot={portalRoot}
+					inputValue={inputValue}
+					onInputValueChange={setInputValue}
 					onSubmitSelection={handleSelect}
 					onRequiresAddressConfirm={handleRequiresAddressConfirm}
 				/>

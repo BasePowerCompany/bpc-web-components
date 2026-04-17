@@ -5,6 +5,14 @@ export function fetchHydration(
 	confirmAddress: boolean = false,
 	isEnergyOnly: boolean = false,
 ): Promise<HydrationResult> {
+	const payload = {
+		selection,
+		confirm_address: confirmAddress,
+		is_energy_only: isEnergyOnly,
+	};
+
+	console.log("[address-router] request", payload);
+
 	return fetch(
 		`${import.meta.env.VITE_BPC_DASHBOARD_WEB_HOST}/api/address-router`,
 		{
@@ -12,15 +20,16 @@ export function fetchHydration(
 			headers: {
 				"Content-Type": "application/json",
 			},
-			body: JSON.stringify({
-				selection,
-				confirm_address: confirmAddress,
-				is_energy_only: isEnergyOnly,
-			}),
+			body: JSON.stringify(payload),
 		},
 	)
 		.then((res) => res.json() as Promise<HydrationResult>)
+		.then((result) => {
+			console.log("[address-router] response", result);
+			return result;
+		})
 		.catch((error) => {
+			console.log("[address-router] error", error);
 			return {
 				success: false,
 				error: error instanceof Error ? error.message : "Unknown error",

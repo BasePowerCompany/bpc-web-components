@@ -16,6 +16,8 @@ type EnergyOnlyAddressEntryFlowProps = {
 	cta?: string;
 	portalRoot: ShadowRoot;
 	zIndex: number;
+	inputValue: string;
+	onInputValueChange: (value: string) => void;
 	onSubmitSelection: (detail: {
 		selection: AddressResult | undefined;
 		confirmAddress: boolean;
@@ -32,10 +34,11 @@ export function EnergyOnlyAddressEntryFlow({
 	cta,
 	portalRoot,
 	zIndex,
+	inputValue,
+	onInputValueChange,
 	onSubmitSelection,
 	onRequiresAddressConfirm,
 }: EnergyOnlyAddressEntryFlowProps) {
-	const [inputValue, setInputValue] = useState("");
 	const [validating, setValidating] = useState(false);
 	// Stores the last address confirmation data to power the address confirmation modal.
 	// resolveSelection clears its internal cache after each resolve,
@@ -57,7 +60,7 @@ export function EnergyOnlyAddressEntryFlow({
 			const fullText = [result.mainText ?? "", result.secondaryText ?? ""]
 				.filter(Boolean)
 				.join(", ");
-			setInputValue(fullText);
+			onInputValueChange(fullText);
 			setValidating(true);
 
 			let resolved: Awaited<ReturnType<typeof resolveSelection>>;
@@ -129,12 +132,20 @@ export function EnergyOnlyAddressEntryFlow({
 				confirmAddress: true,
 			});
 		},
-		[onRequiresAddressConfirm, onSubmitSelection, resolveSelection],
+		[
+			onInputValueChange,
+			onRequiresAddressConfirm,
+			onSubmitSelection,
+			resolveSelection,
+		],
 	);
 
-	const handleInputChange = useCallback((value: string) => {
-		setInputValue(value);
-	}, []);
+	const handleInputChange = useCallback(
+		(value: string) => {
+			onInputValueChange(value);
+		},
+		[onInputValueChange],
+	);
 
 	return (
 		<Autocomplete
