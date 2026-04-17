@@ -1,29 +1,191 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import type {
+	AddressValidationKind,
+	AddressValidationResult,
+	UnconfirmedFieldType,
+} from "@/address-search/addressValidation";
 import { CloseIcon } from "@/address-search/icons/CloseIcon";
 import type {
 	AddressResult,
 	ParsedGoogleAddressComponents,
 } from "@/address-search/types";
+import { posthogCapture } from "@/address-search/utils";
 import { cx } from "@/utils/cx";
 import styles from "./styles.module.css";
 
 export type AddressConfirmModalProps = {
 	selection: AddressResult;
 	googleAddressComponents: ParsedGoogleAddressComponents;
-	requiresSubpremise: boolean;
+	validationResult: AddressValidationResult;
 	loading: boolean;
 	onContinue: (result: AddressResult) => void;
 	onClose: () => void;
 };
 
+type Copy = {
+	title: string;
+	/** Optional banner shown above the form. */
+	banner?: {
+		/** visual severity — drives color */
+		tone: "warn" | "error";
+		/** short one-liner */
+		text: string;
+	};
+	line2Placeholder: string;
+	continueLabel: string;
+	/** Secondary CTA (e.g. "This is a single-family home") */
+	secondaryAction?: {
+		label: string;
+		/** If true, submitting this action clears line_2. */
+		clearsLine2: boolean;
+	};
+};
+
+/**
+ * Maps Google component types to user-facing labels used in the
+ * confirm_components banner. Order matters — we list components in the order
+ * they appear in the form so the sentence reads naturally.
+ */
+const COMPONENT_LABELS: Record<string, string> = {
+	route: "street name",
+	locality: "city",
+	sublocality: "city",
+	administrative_area_level_1: "state",
+	postal_code: "ZIP code",
+};
+
+const COMPONENT_ORDER = [
+	"route",
+	"locality",
+	"sublocality",
+	"administrative_area_level_1",
+	"postal_code",
+];
+
+function labelsForComponents(types: string[]): string[] {
+	const seen = new Set<string>();
+	const labels: string[] = [];
+	for (const t of COMPONENT_ORDER) {
+		if (types.includes(t)) {
+			const label = COMPONENT_LABELS[t];
+			if (label && !seen.has(label)) {
+				seen.add(label);
+				labels.push(label);
+			}
+		}
+	}
+	return labels;
+}
+
+function joinLabels(labels: string[]): string {
+	if (labels.length === 0) return "the highlighted fields";
+	if (labels.length === 1) return `the ${labels[0]}`;
+	if (labels.length === 2) return `the ${labels[0]} and ${labels[1]}`;
+	return `the ${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
+}
+
+function copyFor(
+	kind: AddressValidationKind,
+	unconfirmedComponentTypes: string[],
+): Copy {
+	switch (kind) {
+		case "missing_subpremise":
+			return {
+				title: "Confirm your unit number",
+				banner: {
+					tone: "warn",
+					text: "We detected this may be a multi-unit or apartment building. Please add your unit number, or let us know if it's a single-family home.",
+				},
+				line2Placeholder: "Apartment or unit number",
+				continueLabel: "Continue",
+				secondaryAction: {
+					label: "This is a single-family home",
+					clearsLine2: true,
+				},
+			};
+		case "confirm_subpremise":
+			return {
+				title: "Confirm your unit or meter detail",
+				banner: {
+					tone: "warn",
+					text: "We couldn't verify this with USPS — that's okay for separate meters like apartments, guest houses, barns, or trailers. Please confirm it's correct.",
+				},
+				line2Placeholder:
+					"Apartment, unit, or structure (e.g., guest house, barn)",
+				continueLabel: "Confirm",
+			};
+		case "confirm_street_number":
+			return {
+				title: "Confirm your address",
+				banner: {
+					tone: "warn",
+					text: "We couldn't verify this address with USPS — this is common for new builds and rural addresses. Please confirm it's correct.",
+				},
+				line2Placeholder: "Apartment, unit, or structure (optional)",
+				continueLabel: "Confirm",
+			};
+		case "confirm_components": {
+			const phrase = joinLabels(labelsForComponents(unconfirmedComponentTypes));
+			return {
+				title: "Confirm your address",
+				banner: {
+					tone: "warn",
+					text: `We couldn't verify ${phrase}. Please double-check or edit.`,
+				},
+				line2Placeholder: "Apartment, unit, or structure (optional)",
+				continueLabel: "Confirm",
+			};
+		}
+		case "block":
+			return {
+				title: "We couldn't find this address",
+				banner: {
+					tone: "error",
+					text: "Please edit the address and try again.",
+				},
+				line2Placeholder: "Apartment, unit, or structure (optional)",
+				continueLabel: "Continue",
+			};
+		default:
+			return {
+				title: "Confirm your address",
+				line2Placeholder: "Apartment, unit, or structure (optional)",
+				continueLabel: "Continue",
+			};
+	}
+}
+
+function useFieldHighlight(
+	validationResult: AddressValidationResult,
+): (field: UnconfirmedFieldType) => boolean {
+	return useMemo(() => {
+		const set = new Set(validationResult.unconfirmedFields);
+		return (field: UnconfirmedFieldType) => set.has(field);
+	}, [validationResult.unconfirmedFields]);
+}
+
 export function AddressConfirmModal({
 	selection,
 	googleAddressComponents,
-	requiresSubpremise,
+	validationResult,
 	loading,
 	onContinue,
 	onClose,
 }: AddressConfirmModalProps) {
+	const { kind } = validationResult;
+	const copy = useMemo(
+		() => copyFor(kind, validationResult.unconfirmedComponentTypes),
+		[kind, validationResult.unconfirmedComponentTypes],
+	);
+	const isFieldHighlighted = useFieldHighlight(validationResult);
+
 	const [line1, setLine1] = useState(
 		googleAddressComponents.line1 || selection.address.line1,
 	);
@@ -37,61 +199,172 @@ export function AddressConfirmModal({
 	const [postalCode, setPostalCode] = useState(
 		googleAddressComponents.postalCode || selection.address.postalCode,
 	);
+
 	const line2Ref = useRef<HTMLInputElement>(null);
-	const showLine2WarningId = useId();
-	const showLine2Warning = requiresSubpremise && !line2.trim();
+	const line1Ref = useRef<HTMLInputElement>(null);
+	const line2WarningId = useId();
 
-	const focusLine2 = useCallback(() => {
-		requestAnimationFrame(() => {
-			line2Ref.current?.focus();
-		});
-	}, []);
+	const line2IsRequired = kind === "missing_subpremise";
+	const line2Missing = line2IsRequired && !line2.trim();
 
-	// Auto-focus line2 on mount
+	// Track whether we've already captured the "shown" event for this modal
+	// mount so it fires once per validation, not every re-render.
+	const hasLoggedShown = useRef(false);
+	const shownAtRef = useRef<number>(0);
 	useEffect(() => {
-		focusLine2();
-	}, [focusLine2]);
+		if (hasLoggedShown.current) return;
+		hasLoggedShown.current = true;
+		shownAtRef.current = performance.now();
+		posthogCapture("address_validation_result", {
+			kind: validationResult.kind,
+			possibleNextAction: validationResult.possibleNextAction,
+			unconfirmedComponentTypes: validationResult.unconfirmedComponentTypes,
+			missingComponentTypes: validationResult.missingComponentTypes,
+			hasUnconfirmedComponents: validationResult.hasUnconfirmedComponents,
+			hasInferredComponents: validationResult.hasInferredComponents,
+			hasReplacedComponents: validationResult.hasReplacedComponents,
+			dpvConfirmation: validationResult.dpvConfirmation,
+			dpvFootnote: validationResult.dpvFootnote,
+			inputFormattedAddress: selection.formattedAddress,
+			googleFormattedAddress: validationResult.googleFormattedAddress,
+		});
+	}, [validationResult, selection.formattedAddress]);
+
+	const elapsedInModalMs = useCallback(
+		() =>
+			shownAtRef.current
+				? Math.round(performance.now() - shownAtRef.current)
+				: 0,
+		[],
+	);
+
+	// Focus the most useful field on mount based on the kind:
+	// - subpremise cases → line_2
+	// - street_number / component cases → line_1
+	useEffect(() => {
+		const target =
+			kind === "missing_subpremise" || kind === "confirm_subpremise"
+				? line2Ref.current
+				: line1Ref.current;
+		requestAnimationFrame(() => {
+			target?.focus();
+			target?.select?.();
+		});
+	}, [kind]);
+
+	const buildResult = useCallback(
+		(opts: { omitLine2: boolean }): AddressResult => {
+			const effectiveLine2 = opts.omitLine2 ? "" : line2.trim();
+			const normalizedLine1 = [line1.trim(), effectiveLine2]
+				.filter(Boolean)
+				.join(" ");
+			const formattedAddress = [
+				normalizedLine1,
+				city.trim(),
+				[state.trim(), postalCode.trim()].filter(Boolean).join(" "),
+				selection.address.country,
+			]
+				.filter(Boolean)
+				.join(", ");
+			return {
+				formattedAddress,
+				address: {
+					line1: normalizedLine1,
+					city: city.trim(),
+					state: state.trim(),
+					postalCode: postalCode.trim(),
+					country: selection.address.country,
+					latitude: selection.address.latitude,
+					longitude: selection.address.longitude,
+				},
+			};
+		},
+		[
+			city,
+			line1,
+			line2,
+			postalCode,
+			selection.address.country,
+			selection.address.latitude,
+			selection.address.longitude,
+			state,
+		],
+	);
+
+	const submit = useCallback(
+		(userAction: "confirmed_as_is" | "confirmed_sfh" | "edited") => {
+			const omitLine2 = userAction === "confirmed_sfh";
+			const result = buildResult({ omitLine2 });
+			posthogCapture("address_validation_override", {
+				kind: validationResult.kind,
+				user_action: userAction,
+				inputFormattedAddress: selection.formattedAddress,
+				submittedFormattedAddress: result.formattedAddress,
+				editedLine1: line1.trim() !== googleAddressComponents.line1,
+				editedLine2:
+					!omitLine2 && line2.trim() !== googleAddressComponents.line2,
+				editedCity: city.trim() !== googleAddressComponents.city,
+				editedState: state.trim() !== googleAddressComponents.state,
+				editedPostalCode:
+					postalCode.trim() !== googleAddressComponents.postalCode,
+				time_in_modal_ms: elapsedInModalMs(),
+			});
+			onContinue(result);
+		},
+		[
+			buildResult,
+			city,
+			elapsedInModalMs,
+			googleAddressComponents,
+			line1,
+			line2,
+			onContinue,
+			postalCode,
+			selection.formattedAddress,
+			state,
+			validationResult.kind,
+		],
+	);
 
 	const handleContinue = useCallback(() => {
-		if (requiresSubpremise && !line2.trim()) {
-			focusLine2();
+		if (line2Missing) {
+			requestAnimationFrame(() => line2Ref.current?.focus());
 			return;
 		}
-
-		const normalizedLine1 = [line1.trim(), line2.trim()]
-			.filter(Boolean)
-			.join(" ");
-		const formattedAddress = [
-			normalizedLine1,
-			city.trim(),
-			[state.trim(), postalCode.trim()].filter(Boolean).join(" "),
-			selection.address.country,
-		]
-			.filter(Boolean)
-			.join(", ");
-
-		onContinue({
-			formattedAddress,
-			address: {
-				line1: normalizedLine1,
-				city: city.trim(),
-				state: state.trim(),
-				postalCode: postalCode.trim(),
-				country: selection.address.country,
-				latitude: selection.address.latitude,
-				longitude: selection.address.longitude,
-			},
-		});
+		const edited =
+			line1.trim() !== googleAddressComponents.line1 ||
+			line2.trim() !== googleAddressComponents.line2 ||
+			city.trim() !== googleAddressComponents.city ||
+			state.trim() !== googleAddressComponents.state ||
+			postalCode.trim() !== googleAddressComponents.postalCode;
+		submit(edited ? "edited" : "confirmed_as_is");
 	}, [
 		city,
-		focusLine2,
+		googleAddressComponents,
 		line1,
 		line2,
-		onContinue,
+		line2Missing,
 		postalCode,
-		requiresSubpremise,
-		selection,
 		state,
+		submit,
+	]);
+
+	const handleSingleFamilyHome = useCallback(() => {
+		submit("confirmed_sfh");
+	}, [submit]);
+
+	const handleClose = useCallback(() => {
+		posthogCapture("address_validation_dismiss", {
+			kind: validationResult.kind,
+			inputFormattedAddress: selection.formattedAddress,
+			time_in_modal_ms: elapsedInModalMs(),
+		});
+		onClose();
+	}, [
+		elapsedInModalMs,
+		onClose,
+		selection.formattedAddress,
+		validationResult.kind,
 	]);
 
 	return (
@@ -99,10 +372,10 @@ export function AddressConfirmModal({
 		<div
 			className={styles.addressConfirmBackdrop}
 			onClick={(e) => {
-				if (e.target === e.currentTarget) onClose();
+				if (e.target === e.currentTarget) handleClose();
 			}}
 			onKeyDown={(e) => {
-				if (e.key === "Escape") onClose();
+				if (e.key === "Escape") handleClose();
 			}}
 		>
 			<div
@@ -113,41 +386,64 @@ export function AddressConfirmModal({
 				<button
 					type="button"
 					className={styles.addressConfirmCloseIcon}
-					onClick={onClose}
+					onClick={handleClose}
 					aria-label="Close"
 				>
 					<CloseIcon />
 				</button>
 
-				<h2 className={styles.addressConfirmTitle}>Confirm your address</h2>
+				<h2 className={styles.addressConfirmTitle}>{copy.title}</h2>
+
+				{copy.banner && (
+					<div
+						className={cx(
+							styles.addressConfirmBanner,
+							copy.banner.tone === "error"
+								? styles.addressConfirmBannerError
+								: styles.addressConfirmBannerWarn,
+						)}
+						role={copy.banner.tone === "error" ? "alert" : "status"}
+					>
+						{copy.banner.text}
+					</div>
+				)}
 
 				<div className={styles.addressConfirmForm}>
 					<input
+						ref={line1Ref}
 						type="text"
 						value={line1}
 						onChange={(e) => setLine1(e.target.value)}
 						placeholder="Street address"
-						className={styles.addressConfirmInput}
+						className={cx(
+							styles.addressConfirmInput,
+							isFieldHighlighted("line1") && styles.addressConfirmInputWarn,
+						)}
+						aria-invalid={isFieldHighlighted("line1") || undefined}
 					/>
 					<input
 						ref={line2Ref}
 						type="text"
 						value={line2}
 						onChange={(e) => setLine2(e.target.value)}
-						placeholder="Apartment or unit number"
+						placeholder={copy.line2Placeholder}
 						className={cx(
 							styles.addressConfirmInput,
-							showLine2Warning && styles.addressConfirmInputError,
+							line2Missing && styles.addressConfirmInputError,
+							!line2Missing &&
+								isFieldHighlighted("line2") &&
+								styles.addressConfirmInputWarn,
 						)}
-						aria-invalid={showLine2Warning}
-						aria-describedby={showLine2Warning ? showLine2WarningId : undefined}
+						aria-invalid={line2Missing || undefined}
+						aria-describedby={line2Missing ? line2WarningId : undefined}
 					/>
-					{showLine2Warning && (
+					{line2Missing && (
 						<span
-							id={showLine2WarningId}
+							id={line2WarningId}
 							className={styles.addressConfirmErrorText}
 						>
-							Please enter your apartment or unit number
+							Please enter your unit number, or choose &ldquo;single-family
+							home&rdquo; below
 						</span>
 					)}
 					<div className={styles.addressConfirmGrid}>
@@ -156,21 +452,34 @@ export function AddressConfirmModal({
 							value={city}
 							onChange={(e) => setCity(e.target.value)}
 							placeholder="City"
-							className={styles.addressConfirmInput}
+							className={cx(
+								styles.addressConfirmInput,
+								isFieldHighlighted("city") && styles.addressConfirmInputWarn,
+							)}
+							aria-invalid={isFieldHighlighted("city") || undefined}
 						/>
 						<input
 							type="text"
 							value={state}
 							onChange={(e) => setState(e.target.value)}
 							placeholder="State"
-							className={styles.addressConfirmInput}
+							className={cx(
+								styles.addressConfirmInput,
+								isFieldHighlighted("state") && styles.addressConfirmInputWarn,
+							)}
+							aria-invalid={isFieldHighlighted("state") || undefined}
 						/>
 						<input
 							type="text"
 							value={postalCode}
 							onChange={(e) => setPostalCode(e.target.value)}
 							placeholder="ZIP"
-							className={styles.addressConfirmInput}
+							className={cx(
+								styles.addressConfirmInput,
+								isFieldHighlighted("postalCode") &&
+									styles.addressConfirmInputWarn,
+							)}
+							aria-invalid={isFieldHighlighted("postalCode") || undefined}
 						/>
 					</div>
 
@@ -184,13 +493,23 @@ export function AddressConfirmModal({
 							{loading ? (
 								<span className={styles.addressConfirmSpinner} />
 							) : (
-								"Continue"
+								copy.continueLabel
 							)}
 						</button>
+						{copy.secondaryAction && (
+							<button
+								type="button"
+								className={styles.addressConfirmSecondaryButton}
+								onClick={handleSingleFamilyHome}
+								disabled={loading}
+							>
+								{copy.secondaryAction.label}
+							</button>
+						)}
 						<button
 							type="button"
 							className={styles.addressConfirmCloseButton}
-							onClick={onClose}
+							onClick={handleClose}
 							disabled={loading}
 						>
 							Close

@@ -40,6 +40,8 @@ interface AutocompleteProps {
 	results: Result[];
 	onSelect?: ({ result }: { result: Result }) => void;
 	portalRoot: ShadowRoot;
+	/** Shows a spinner in the input while async work is in flight. */
+	loading?: boolean;
 }
 
 interface ComboBoxOverlayProps {
@@ -57,6 +59,7 @@ interface ComboBoxOverlayProps {
 	isActivated: boolean;
 	cta?: string;
 	showCtaButton: boolean;
+	loading: boolean;
 }
 
 export function ComboBoxOverlay({
@@ -74,6 +77,7 @@ export function ComboBoxOverlay({
 	isActivated,
 	cta,
 	showCtaButton,
+	loading,
 }: ComboBoxOverlayProps) {
 	const resultsRef = useRef<HTMLDivElement>(null);
 	const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
@@ -234,7 +238,13 @@ export function ComboBoxOverlay({
 						aria-autocomplete="list"
 					/>
 					<MapPin className={styles.mapPin} />
-					{!!cta && showCtaButton && !isActivated && (
+					{loading && (
+						<output
+							className={styles.loadingSpinner}
+							aria-label="Checking address"
+						/>
+					)}
+					{!!cta && showCtaButton && !isActivated && !loading && (
 						<CtaButton title={cta} onClick={open} />
 					)}
 				</div>
@@ -255,6 +265,7 @@ export function Autocomplete({
 	results,
 	onSelect,
 	portalRoot,
+	loading = false,
 }: AutocompleteProps) {
 	const inputContainerRef = useRef<HTMLDivElement>(null);
 	const internalInputRef = useRef<HTMLInputElement>(null);
@@ -378,6 +389,7 @@ export function Autocomplete({
 					isActivated={isActivated}
 					cta={cta}
 					showCtaButton={showCtaButton}
+					loading={loading}
 				/>
 			</div>
 

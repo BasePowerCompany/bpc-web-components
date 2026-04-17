@@ -243,9 +243,7 @@ export function AddressSearchApp({
 					<AddressConfirmModal
 						selection={addressConfirmData.selection}
 						googleAddressComponents={addressConfirmData.googleAddressComponents}
-						requiresSubpremise={
-							addressConfirmData.validationResult.requiresSubpremise
-						}
+						validationResult={addressConfirmData.validationResult}
 						loading={addressConfirmLoading}
 						onContinue={handleAddressConfirmContinue}
 						onClose={handleAddressConfirmClose}

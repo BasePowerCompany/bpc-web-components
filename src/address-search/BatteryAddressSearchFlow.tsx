@@ -7,6 +7,7 @@ import type {
 	AddressResult,
 	ParsedGoogleAddressComponents,
 } from "@/address-search/types";
+import { posthogCapture } from "@/address-search/utils";
 import { Autocomplete, type Result } from "./Autocomplete";
 import { useAddressAutocomplete } from "./useAddressAutocomplete";
 
@@ -35,6 +36,7 @@ export function BatteryAddressSearchFlow({
 	onRequiresAddressConfirm,
 }: BatteryAddressSearchFlowProps) {
 	const [inputValue, setInputValue] = useState("");
+	const [validating, setValidating] = useState(false);
 	// Stores the last address confirmation data to power the address confirmation modal
 	// resolveSelection clears its internal cache after each resolve,
 	// so subsequent selects of the same item return
@@ -52,11 +54,20 @@ export function BatteryAddressSearchFlow({
 				.filter(Boolean)
 				.join(", ");
 			setInputValue(fullText);
+			setValidating(true);
+			const selectedAt = performance.now();
 
-			const [resolved, validationResult] = await Promise.all([
-				resolveSelection({ result }),
-				validateAddress(fullText),
-			]);
+			let resolved: Awaited<ReturnType<typeof resolveSelection>>;
+			let validationResult: AddressValidationResult;
+			try {
+				[resolved, validationResult] = await Promise.all([
+					resolveSelection({ result }),
+					validateAddress(fullText),
+				]);
+			} finally {
+				setValidating(false);
+			}
+			const validatedInMs = Math.round(performance.now() - selectedAt);
 
 			// resolveSelection clears its cache after resolving, so re-selecting
 			// the same suggestion returns undefined. Fall back to stored data.
@@ -68,7 +79,7 @@ export function BatteryAddressSearchFlow({
 			}
 
 			if (
-				validationResult.requiresSubpremise &&
+				validationResult.kind !== "accept" &&
 				resolved.googleAddressComponents
 			) {
 				const confirmData = {
@@ -82,6 +93,16 @@ export function BatteryAddressSearchFlow({
 			}
 
 			lastConfirmDataRef.current = null;
+			posthogCapture("address_validation_result", {
+				kind: validationResult.kind,
+				possibleNextAction: validationResult.possibleNextAction,
+				dpvConfirmation: validationResult.dpvConfirmation,
+				dpvFootnote: validationResult.dpvFootnote,
+				inputFormattedAddress: fullText,
+				googleFormattedAddress: validationResult.googleFormattedAddress,
+				confirmation_path: "silent",
+				time_to_validated_ms: validatedInMs,
+			});
 			onSubmitSelection({
 				selection: resolved.selection,
 				confirmAddress: true,
@@ -104,6 +125,7 @@ export function BatteryAddressSearchFlow({
 			placeholder={placeholder || "Enter your home address"}
 			cta={cta}
 			portalRoot={portalRoot}
+			loading={validating}
 		/>
 	);
 }
