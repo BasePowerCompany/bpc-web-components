@@ -18,12 +18,14 @@ export function parseGoogleAddressComponents(
 		{} as Record<string, google.maps.places.AddressComponent>,
 	);
 
+	// Only use true locality-type components. `administrative_area_level_2`
+	// is the US county, which is virtually never the user-facing city —
+	// Places omits `locality` for CDPs (e.g. "Cypress, TX"), which would
+	// otherwise leak "Harris County" into the city field. When locality is
+	// missing here, the flow falls back to Validation API's locality.
 	const city =
-		[
-			addr.locality?.longText,
-			addr.sublocality?.longText,
-			addr.administrative_area_level_2?.longText,
-		].filter(Boolean)[0] || "";
+		[addr.locality?.longText, addr.sublocality?.longText].filter(Boolean)[0] ||
+		"";
 
 	return {
 		line1: [addr.street_number?.longText, addr.route?.longText]
@@ -62,12 +64,14 @@ export function parseAddress(
 		.filter(Boolean)
 		.join(" ");
 
+	// Only use true locality-type components. `administrative_area_level_2`
+	// is the US county, which is virtually never the user-facing city —
+	// Places omits `locality` for CDPs (e.g. "Cypress, TX"), which would
+	// otherwise leak "Harris County" into the city field. When locality is
+	// missing here, the flow falls back to Validation API's locality.
 	const city =
-		[
-			addr.locality?.longText,
-			addr.sublocality?.longText,
-			addr.administrative_area_level_2?.longText,
-		].filter(Boolean)[0] || "";
+		[addr.locality?.longText, addr.sublocality?.longText].filter(Boolean)[0] ||
+		"";
 
 	const address = {
 		line1,

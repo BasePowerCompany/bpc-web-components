@@ -82,6 +82,24 @@ export function EnergyOnlyAddressEntryFlow({
 				return;
 			}
 
+			// Places Autocomplete omits `locality` for CDPs like Cypress, TX.
+			// Backfill city from the Validation API (which correctly returns it)
+			// so users don't see an empty or county-derived city.
+			if (
+				!resolved.selection.address.city &&
+				validationResult.validatedLocality
+			) {
+				resolved.selection.address.city = validationResult.validatedLocality;
+			}
+			if (
+				resolved.googleAddressComponents &&
+				!resolved.googleAddressComponents.city &&
+				validationResult.validatedLocality
+			) {
+				resolved.googleAddressComponents.city =
+					validationResult.validatedLocality;
+			}
+
 			if (
 				validationResult.kind !== "accept" &&
 				resolved.googleAddressComponents

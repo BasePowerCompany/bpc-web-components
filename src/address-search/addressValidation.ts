@@ -51,6 +51,10 @@ export type AddressValidationResult = {
 	dpvFootnote: string | null;
 	/** Google's standardized formatted address — useful for logging / display */
 	googleFormattedAddress: string | null;
+	/** Locality as Google validated it. Populated even for CDPs (e.g. "Cypress, TX")
+	 *  where Places Autocomplete omits the locality component — use this to
+	 *  backfill the city field when parseGoogleAddressComponents returns empty. */
+	validatedLocality: string | null;
 	/** Convenience flag: true when a subpremise prompt should be shown */
 	requiresSubpremise: boolean;
 };
@@ -68,6 +72,7 @@ const SAFE_DEFAULT: AddressValidationResult = {
 	dpvConfirmation: null,
 	dpvFootnote: null,
 	googleFormattedAddress: null,
+	validatedLocality: null,
 	requiresSubpremise: false,
 };
 
@@ -208,6 +213,18 @@ export async function validateAddress(
 			),
 		);
 
+		// Prefer the Google-validated locality, falling back to USPS's
+		// standardized city. Validation returns `locality` even for CDPs
+		// like "Cypress, TX" where Places Autocomplete does not.
+		const localityComponent = (address.addressComponents ?? []).find(
+			// biome-ignore lint/suspicious/noExplicitAny: Google API response
+			(c: any) => c?.componentType === "locality",
+		);
+		const validatedLocality: string | null =
+			localityComponent?.componentName?.text ??
+			usps.standardizedAddress?.city ??
+			null;
+
 		return {
 			kind,
 			unconfirmedComponentTypes,
@@ -221,6 +238,7 @@ export async function validateAddress(
 			dpvConfirmation,
 			dpvFootnote: usps.dpvFootnote ?? null,
 			googleFormattedAddress: address.formattedAddress ?? null,
+			validatedLocality,
 			requiresSubpremise: kind === "missing_subpremise",
 		};
 	} catch {
