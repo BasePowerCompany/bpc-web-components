@@ -185,7 +185,8 @@ export function AddressConfirmModal({
 		[kind, validationResult.unconfirmedComponentTypes],
 	);
 	const isFieldHighlighted = useFieldHighlight(validationResult);
-
+	console.log("googleAddressComponents", googleAddressComponents);
+	console.log("selection", selection);
 	const [line1, setLine1] = useState(
 		googleAddressComponents.line1 || selection.address.line1,
 	);
@@ -210,11 +211,9 @@ export function AddressConfirmModal({
 	// Track whether we've already captured the "shown" event for this modal
 	// mount so it fires once per validation, not every re-render.
 	const hasLoggedShown = useRef(false);
-	const shownAtRef = useRef<number>(0);
 	useEffect(() => {
 		if (hasLoggedShown.current) return;
 		hasLoggedShown.current = true;
-		shownAtRef.current = performance.now();
 		posthogCapture("address_validation_result", {
 			kind: validationResult.kind,
 			possibleNextAction: validationResult.possibleNextAction,
@@ -229,14 +228,6 @@ export function AddressConfirmModal({
 			googleFormattedAddress: validationResult.googleFormattedAddress,
 		});
 	}, [validationResult, selection.formattedAddress]);
-
-	const elapsedInModalMs = useCallback(
-		() =>
-			shownAtRef.current
-				? Math.round(performance.now() - shownAtRef.current)
-				: 0,
-		[],
-	);
 
 	// Focus the most useful field on mount based on the kind:
 	// - subpremise cases → line_2
@@ -307,14 +298,12 @@ export function AddressConfirmModal({
 				editedState: state.trim() !== googleAddressComponents.state,
 				editedPostalCode:
 					postalCode.trim() !== googleAddressComponents.postalCode,
-				time_in_modal_ms: elapsedInModalMs(),
 			});
 			onContinue(result);
 		},
 		[
 			buildResult,
 			city,
-			elapsedInModalMs,
 			googleAddressComponents,
 			line1,
 			line2,
@@ -357,15 +346,9 @@ export function AddressConfirmModal({
 		posthogCapture("address_validation_dismiss", {
 			kind: validationResult.kind,
 			inputFormattedAddress: selection.formattedAddress,
-			time_in_modal_ms: elapsedInModalMs(),
 		});
 		onClose();
-	}, [
-		elapsedInModalMs,
-		onClose,
-		selection.formattedAddress,
-		validationResult.kind,
-	]);
+	}, [onClose, selection.formattedAddress, validationResult.kind]);
 
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: Backdrop click-to-dismiss is a standard modal pattern

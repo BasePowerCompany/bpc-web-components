@@ -55,7 +55,6 @@ export function BatteryAddressSearchFlow({
 				.join(", ");
 			setInputValue(fullText);
 			setValidating(true);
-			const selectedAt = performance.now();
 
 			let resolved: Awaited<ReturnType<typeof resolveSelection>>;
 			let validationResult: AddressValidationResult;
@@ -67,7 +66,6 @@ export function BatteryAddressSearchFlow({
 			} finally {
 				setValidating(false);
 			}
-			const validatedInMs = Math.round(performance.now() - selectedAt);
 
 			// resolveSelection clears its cache after resolving, so re-selecting
 			// the same suggestion returns undefined. Fall back to stored data.
@@ -101,7 +99,6 @@ export function BatteryAddressSearchFlow({
 				inputFormattedAddress: fullText,
 				googleFormattedAddress: validationResult.googleFormattedAddress,
 				confirmation_path: "silent",
-				time_to_validated_ms: validatedInMs,
 			});
 			onSubmitSelection({
 				selection: resolved.selection,

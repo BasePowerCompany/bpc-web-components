@@ -76,13 +76,14 @@ Emit a PostHog event at every fork:
 - `address_validation_override` — user clicked Confirm / Edit / SFH
 - `address_validation_dismiss` — user closed the modal
 
-Each event includes the raw validation signals (`dpvConfirmation`, `unconfirmedComponentTypes`, `possibleNextAction`) plus what the user did.
+Each event includes the raw validation signals (`dpvConfirmation`, `unconfirmedComponentTypes`, `possibleNextAction`) plus what the user did. PostHog stamps every event with a timestamp, so latency between steps can be derived at query time — don't duplicate it as client-side fields.
 
 **Key metrics to monitor:**
 - Silent-submit rate (should rise after DPV=Y short-circuit)
 - Modal shown rate, by kind
 - Override rate per kind (if ~100%, the warning is noise — delete or soften)
 - Dismiss-without-submit rate (abandonment signal)
+- Time between `result` and `override` per kind (derived from event timestamps)
 
 **Why:** We can't tune what we can't measure. A warning that's always overridden is friction without value.
 

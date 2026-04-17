@@ -50,12 +50,15 @@ export function EnergyOnlyAddressEntryFlow({
 
 	const handleSelect = useCallback(
 		async ({ result }: { result: Result }) => {
+			console.log({
+				event: "handleSelect",
+				result,
+			});
 			const fullText = [result.mainText ?? "", result.secondaryText ?? ""]
 				.filter(Boolean)
 				.join(", ");
 			setInputValue(fullText);
 			setValidating(true);
-			const selectedAt = performance.now();
 
 			let resolved: Awaited<ReturnType<typeof resolveSelection>>;
 			let validationResult: AddressValidationResult;
@@ -67,7 +70,8 @@ export function EnergyOnlyAddressEntryFlow({
 			} finally {
 				setValidating(false);
 			}
-			const validatedInMs = Math.round(performance.now() - selectedAt);
+			console.log("Google Resolve API");
+			console.log({ resolved, validationResult });
 
 			// resolveSelection clears its cache after resolving, so re-selecting
 			// the same suggestion returns undefined. Fall back to stored data.
@@ -101,7 +105,6 @@ export function EnergyOnlyAddressEntryFlow({
 				inputFormattedAddress: fullText,
 				googleFormattedAddress: validationResult.googleFormattedAddress,
 				confirmation_path: "silent",
-				time_to_validated_ms: validatedInMs,
 			});
 			onSubmitSelection({
 				selection: resolved.selection,
