@@ -55,8 +55,6 @@ export type AddressValidationResult = {
 	 *  where Places Autocomplete omits the locality component — use this to
 	 *  backfill the city field when parseGoogleAddressComponents returns empty. */
 	validatedLocality: string | null;
-	/** Convenience flag: true when a subpremise prompt should be shown */
-	requiresSubpremise: boolean;
 };
 
 const SAFE_DEFAULT: AddressValidationResult = {
@@ -73,7 +71,6 @@ const SAFE_DEFAULT: AddressValidationResult = {
 	dpvFootnote: null,
 	googleFormattedAddress: null,
 	validatedLocality: null,
-	requiresSubpremise: false,
 };
 
 const COMPONENT_TO_FIELD: Record<string, UnconfirmedFieldType> = {
@@ -152,13 +149,86 @@ function classify(params: {
 	return "accept";
 }
 
-export async function validateAddress(
+/**
+ * Convert a raw Validation API response body into our UI-friendly result.
+ * Exported for unit testing — no network dependency.
+ */
+// biome-ignore lint/suspicious/noExplicitAny: Google API response
+export function interpretValidation(raw: any): AddressValidationResult {
+	const result = raw?.result ?? {};
+	const verdict = result.verdict ?? {};
+	const address = result.address ?? {};
+	const usps = result.uspsData ?? {};
+
+	const possibleNextAction: string = verdict.possibleNextAction ?? "ACCEPT";
+	const addressComplete: boolean = verdict.addressComplete ?? true;
+	const unconfirmedComponentTypes: string[] =
+		address.unconfirmedComponentTypes ?? [];
+	const missingComponentTypes: string[] = address.missingComponentTypes ?? [];
+	const unresolvedTokens: string[] = address.unresolvedTokens ?? [];
+	const dpvConfirmation: string | null = usps.dpvConfirmation ?? null;
+
+	const kind = classify({
+		possibleNextAction,
+		addressComplete,
+		unconfirmedComponentTypes,
+		missingComponentTypes,
+		unresolvedTokens,
+		dpvConfirmation,
+	});
+
+	const unconfirmedFields = Array.from(
+		new Set(
+			[
+				...unconfirmedComponentTypes,
+				...missingComponentTypes.filter((t) => t === "subpremise"),
+			]
+				.map(toField)
+				.filter((f): f is UnconfirmedFieldType => Boolean(f)),
+		),
+	);
+
+	// Prefer the Google-validated locality, falling back to USPS's
+	// standardized city. Validation returns `locality` even for CDPs
+	// like "Cypress, TX" where Places Autocomplete does not.
+	const localityComponent = (address.addressComponents ?? []).find(
+		// biome-ignore lint/suspicious/noExplicitAny: Google API response
+		(c: any) => c?.componentType === "locality",
+	);
+	const validatedLocality: string | null =
+		localityComponent?.componentName?.text ??
+		usps.standardizedAddress?.city ??
+		null;
+
+	return {
+		kind,
+		unconfirmedComponentTypes,
+		missingComponentTypes,
+		unconfirmedFields,
+		possibleNextAction,
+		addressComplete,
+		hasUnconfirmedComponents: verdict.hasUnconfirmedComponents ?? false,
+		hasInferredComponents: verdict.hasInferredComponents ?? false,
+		hasReplacedComponents: verdict.hasReplacedComponents ?? false,
+		dpvConfirmation,
+		dpvFootnote: usps.dpvFootnote ?? null,
+		googleFormattedAddress: address.formattedAddress ?? null,
+		validatedLocality,
+	};
+}
+
+/**
+ * Call the Google Address Validation API. Returns the raw response body on
+ * success or `null` on any failure (network error, non-2xx, missing key).
+ * Separated from `interpretValidation` so the classifier can be tested
+ * without mocking fetch.
+ */
+async function fetchValidation(
 	addressLine: string,
-): Promise<AddressValidationResult> {
+	// biome-ignore lint/suspicious/noExplicitAny: Google API response
+): Promise<any | null> {
 	const apiKey = getGoogleMapsApiKey();
-	if (!addressLine.trim() || !apiKey) {
-		return SAFE_DEFAULT;
-	}
+	if (!addressLine.trim() || !apiKey) return null;
 
 	try {
 		const response = await fetch(
@@ -167,81 +237,21 @@ export async function validateAddress(
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-					address: {
-						regionCode: "US",
-						addressLines: [addressLine],
-					},
+					address: { regionCode: "US", addressLines: [addressLine] },
 				}),
 			},
 		);
-
-		if (!response.ok) {
-			return SAFE_DEFAULT;
-		}
-
-		const data = await response.json();
-		const result = data?.result ?? {};
-		const verdict = result.verdict ?? {};
-		const address = result.address ?? {};
-		const usps = result.uspsData ?? {};
-
-		const possibleNextAction: string = verdict.possibleNextAction ?? "ACCEPT";
-		const addressComplete: boolean = verdict.addressComplete ?? true;
-		const unconfirmedComponentTypes: string[] =
-			address.unconfirmedComponentTypes ?? [];
-		const missingComponentTypes: string[] = address.missingComponentTypes ?? [];
-		const unresolvedTokens: string[] = address.unresolvedTokens ?? [];
-		const dpvConfirmation: string | null = usps.dpvConfirmation ?? null;
-
-		const kind = classify({
-			possibleNextAction,
-			addressComplete,
-			unconfirmedComponentTypes,
-			missingComponentTypes,
-			unresolvedTokens,
-			dpvConfirmation,
-		});
-
-		const unconfirmedFields = Array.from(
-			new Set(
-				[
-					...unconfirmedComponentTypes,
-					...missingComponentTypes.filter((t) => t === "subpremise"),
-				]
-					.map(toField)
-					.filter((f): f is UnconfirmedFieldType => Boolean(f)),
-			),
-		);
-
-		// Prefer the Google-validated locality, falling back to USPS's
-		// standardized city. Validation returns `locality` even for CDPs
-		// like "Cypress, TX" where Places Autocomplete does not.
-		const localityComponent = (address.addressComponents ?? []).find(
-			// biome-ignore lint/suspicious/noExplicitAny: Google API response
-			(c: any) => c?.componentType === "locality",
-		);
-		const validatedLocality: string | null =
-			localityComponent?.componentName?.text ??
-			usps.standardizedAddress?.city ??
-			null;
-
-		return {
-			kind,
-			unconfirmedComponentTypes,
-			missingComponentTypes,
-			unconfirmedFields,
-			possibleNextAction,
-			addressComplete,
-			hasUnconfirmedComponents: verdict.hasUnconfirmedComponents ?? false,
-			hasInferredComponents: verdict.hasInferredComponents ?? false,
-			hasReplacedComponents: verdict.hasReplacedComponents ?? false,
-			dpvConfirmation,
-			dpvFootnote: usps.dpvFootnote ?? null,
-			googleFormattedAddress: address.formattedAddress ?? null,
-			validatedLocality,
-			requiresSubpremise: kind === "missing_subpremise",
-		};
+		if (!response.ok) return null;
+		return await response.json();
 	} catch {
-		return SAFE_DEFAULT;
+		return null;
 	}
+}
+
+export async function validateAddress(
+	addressLine: string,
+): Promise<AddressValidationResult> {
+	const raw = await fetchValidation(addressLine);
+	if (!raw) return SAFE_DEFAULT;
+	return interpretValidation(raw);
 }

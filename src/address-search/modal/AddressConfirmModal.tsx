@@ -18,6 +18,7 @@ import type {
 import { posthogCapture } from "@/address-search/utils";
 import { cx } from "@/utils/cx";
 import { copyFor } from "./AddressConfirmModal.copy";
+import { ConfirmField } from "./ConfirmField";
 import styles from "./styles.module.css";
 
 export type AddressConfirmModalProps = {
@@ -36,6 +37,34 @@ function useFieldHighlight(
 		const set = new Set(validationResult.unconfirmedFields);
 		return (field: UnconfirmedFieldType) => set.has(field);
 	}, [validationResult.unconfirmedFields]);
+}
+
+type FormValues = {
+	line1: string;
+	line2: string;
+	city: string;
+	state: string;
+	postalCode: string;
+};
+
+/**
+ * Names of the form fields the user changed vs what Google gave us.
+ * line2 is skipped when the user chose the single-family-home escape.
+ */
+function diffFields(
+	current: FormValues,
+	original: ParsedGoogleAddressComponents,
+	opts: { omitLine2: boolean },
+): UnconfirmedFieldType[] {
+	const edited: UnconfirmedFieldType[] = [];
+	if (current.line1.trim() !== original.line1) edited.push("line1");
+	if (!opts.omitLine2 && current.line2.trim() !== original.line2)
+		edited.push("line2");
+	if (current.city.trim() !== original.city) edited.push("city");
+	if (current.state.trim() !== original.state) edited.push("state");
+	if (current.postalCode.trim() !== original.postalCode)
+		edited.push("postalCode");
+	return edited;
 }
 
 export function AddressConfirmModal({
@@ -151,18 +180,17 @@ export function AddressConfirmModal({
 		(userAction: "confirmed_as_is" | "confirmed_sfh" | "edited") => {
 			const omitLine2 = userAction === "confirmed_sfh";
 			const result = buildResult({ omitLine2 });
+			const editedFields = diffFields(
+				{ line1, line2, city, state, postalCode },
+				googleAddressComponents,
+				{ omitLine2 },
+			);
 			posthogCapture("address_validation_override", {
 				kind: validationResult.kind,
 				user_action: userAction,
 				inputFormattedAddress: selection.formattedAddress,
 				submittedFormattedAddress: result.formattedAddress,
-				editedLine1: line1.trim() !== googleAddressComponents.line1,
-				editedLine2:
-					!omitLine2 && line2.trim() !== googleAddressComponents.line2,
-				editedCity: city.trim() !== googleAddressComponents.city,
-				editedState: state.trim() !== googleAddressComponents.state,
-				editedPostalCode:
-					postalCode.trim() !== googleAddressComponents.postalCode,
+				editedFields,
 			});
 			onContinue(result);
 		},
@@ -186,11 +214,11 @@ export function AddressConfirmModal({
 			return;
 		}
 		const edited =
-			line1.trim() !== googleAddressComponents.line1 ||
-			line2.trim() !== googleAddressComponents.line2 ||
-			city.trim() !== googleAddressComponents.city ||
-			state.trim() !== googleAddressComponents.state ||
-			postalCode.trim() !== googleAddressComponents.postalCode;
+			diffFields(
+				{ line1, line2, city, state, postalCode },
+				googleAddressComponents,
+				{ omitLine2: false },
+			).length > 0;
 		submit(edited ? "edited" : "confirmed_as_is");
 	}, [
 		city,
@@ -257,77 +285,41 @@ export function AddressConfirmModal({
 				)}
 
 				<div className={styles.addressConfirmForm}>
-					<input
+					<ConfirmField
 						ref={line1Ref}
-						type="text"
 						value={line1}
-						onChange={(e) => setLine1(e.target.value)}
+						onChange={setLine1}
 						placeholder="Street address"
-						className={cx(
-							styles.addressConfirmInput,
-							isFieldHighlighted("line1") && styles.addressConfirmInputWarn,
-						)}
-						aria-invalid={isFieldHighlighted("line1") || undefined}
+						highlighted={isFieldHighlighted("line1")}
 					/>
-					<input
+					<ConfirmField
 						ref={line2Ref}
-						type="text"
 						value={line2}
-						onChange={(e) => setLine2(e.target.value)}
+						onChange={setLine2}
 						placeholder={copy.line2Placeholder}
-						className={cx(
-							styles.addressConfirmInput,
-							line2Missing && styles.addressConfirmInputError,
-							!line2Missing &&
-								isFieldHighlighted("line2") &&
-								styles.addressConfirmInputWarn,
-						)}
-						aria-invalid={line2Missing || undefined}
-						aria-describedby={line2Missing ? line2WarningId : undefined}
+						highlighted={isFieldHighlighted("line2")}
+						error={line2Missing}
+						errorText={`Please enter your unit number, or choose \u201Csingle-family home\u201D below`}
+						errorId={line2WarningId}
 					/>
-					{line2Missing && (
-						<span
-							id={line2WarningId}
-							className={styles.addressConfirmErrorText}
-						>
-							Please enter your unit number, or choose &ldquo;single-family
-							home&rdquo; below
-						</span>
-					)}
 					<div className={styles.addressConfirmGrid}>
-						<input
-							type="text"
+						<ConfirmField
 							value={city}
-							onChange={(e) => setCity(e.target.value)}
+							onChange={setCity}
 							placeholder="City"
-							className={cx(
-								styles.addressConfirmInput,
-								isFieldHighlighted("city") && styles.addressConfirmInputWarn,
-							)}
-							aria-invalid={isFieldHighlighted("city") || undefined}
+							highlighted={isFieldHighlighted("city")}
 						/>
-						<input
-							type="text"
+						<ConfirmField
 							value={state}
-							onChange={(e) => setState(e.target.value)}
+							onChange={setState}
 							placeholder="State"
-							className={cx(
-								styles.addressConfirmInput,
-								isFieldHighlighted("state") && styles.addressConfirmInputWarn,
-							)}
-							aria-invalid={isFieldHighlighted("state") || undefined}
+							highlighted={isFieldHighlighted("state")}
 						/>
-						<input
-							type="text"
+						<ConfirmField
 							value={postalCode}
-							onChange={(e) => setPostalCode(e.target.value)}
+							onChange={setPostalCode}
 							placeholder="ZIP"
-							className={cx(
-								styles.addressConfirmInput,
-								isFieldHighlighted("postalCode") &&
-									styles.addressConfirmInputWarn,
-							)}
-							aria-invalid={isFieldHighlighted("postalCode") || undefined}
+							highlighted={isFieldHighlighted("postalCode")}
 						/>
 					</div>
 
