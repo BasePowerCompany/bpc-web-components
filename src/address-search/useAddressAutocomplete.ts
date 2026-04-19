@@ -11,6 +11,13 @@ export type ResolvedPlace = {
 	place: google.maps.places.Place;
 };
 
+/**
+ * Debounce window before we issue a Places Autocomplete request. Typing
+ * "938 Ramblewood" without debouncing fires a request per keystroke — 200ms
+ * is the sweet spot between snappy suggestions and API-quota efficiency.
+ */
+const AUTOCOMPLETE_DEBOUNCE_MS = 200;
+
 export function useAddressAutocomplete(inputValue: string) {
 	const places = useMapsLibrary("places");
 	const token = useRef<google.maps.places.AutocompleteSessionToken | null>(
@@ -19,7 +26,18 @@ export function useAddressAutocomplete(inputValue: string) {
 	const placesRef = useRef<
 		Record<string, google.maps.places.AutocompleteSuggestion | undefined>
 	>({});
-	const searchQuery = inputValue.trim();
+	const trimmed = inputValue.trim();
+	const [searchQuery, setSearchQuery] = useState(trimmed);
+	// Debounce the query that drives the fetch — input state updates
+	// immediately (for the controlled input), the fetch lags by the debounce.
+	useEffect(() => {
+		if (trimmed === searchQuery) return;
+		const handle = setTimeout(
+			() => setSearchQuery(trimmed),
+			AUTOCOMPLETE_DEBOUNCE_MS,
+		);
+		return () => clearTimeout(handle);
+	}, [trimmed, searchQuery]);
 	const [cache, setCache] = useState<
 		Record<
 			string,
