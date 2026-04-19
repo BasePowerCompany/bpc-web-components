@@ -1,20 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-	AddressResult,
-	ParsedGoogleAddressComponents,
-} from "@/address-search/types";
-import {
-	parseAddress,
-	parseGoogleAddressComponents,
-} from "@/address-search/utils";
 import { useMapsLibrary } from "@/utils/useMapsLibrary";
 import type { Result } from "./Autocomplete";
 
-export type ResolvedAddressSelection = {
-	selection: AddressResult | undefined;
-	googleAddressComponents: ParsedGoogleAddressComponents | undefined;
+export type ResolvedPlace = {
+	/** The fully-fetched Google Place. Parse with `parseAddress` /
+	 *  `parseGoogleAddressComponents` at the call site — deferring parse lets
+	 *  callers supply a `cityFallback` after other async work completes. */
+	place: google.maps.places.Place;
 };
 
 export function useAddressAutocomplete(inputValue: string) {
@@ -89,7 +83,11 @@ export function useAddressAutocomplete(inputValue: string) {
 	}, [cache, searchQuery]);
 
 	const resolveSelection = useCallback(
-		async ({ result }: { result: Result }) => {
+		async ({
+			result,
+		}: {
+			result: Result;
+		}): Promise<ResolvedPlace | undefined> => {
 			const suggestion = placesRef.current[result.id];
 			if (!suggestion) return undefined;
 
@@ -100,24 +98,13 @@ export function useAddressAutocomplete(inputValue: string) {
 				fields: ["location", "formattedAddress", "addressComponents"],
 			});
 
-			// Return both shapes from the same place:
-			// - `selection` is the submit payload shared by both flows
-			// - `googleAddressComponents` is the parsed Google-derived shape used by energy-only
-			const selection = parseAddress(resolved.place);
-			const googleAddressComponents = parseGoogleAddressComponents(
-				resolved.place,
-			);
-
 			// Once a suggestion is resolved to a place, the current autocomplete
 			// session is complete and the next edit should start a new one.
 			setCache({});
 			placesRef.current = {};
 			token.current = null;
 
-			return {
-				selection,
-				googleAddressComponents,
-			} satisfies ResolvedAddressSelection;
+			return { place: resolved.place };
 		},
 		[],
 	);

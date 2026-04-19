@@ -7,7 +7,11 @@ import type {
 	AddressResult,
 	ParsedGoogleAddressComponents,
 } from "@/address-search/types";
-import { posthogCapture } from "@/address-search/utils";
+import {
+	parseAddress,
+	parseGoogleAddressComponents,
+	posthogCapture,
+} from "@/address-search/utils";
 import { Autocomplete, type Result } from "./Autocomplete";
 import { useAddressAutocomplete } from "./useAddressAutocomplete";
 
@@ -77,38 +81,31 @@ export function AddressSearchFlow({
 
 			// resolveSelection clears its cache after resolving, so re-selecting
 			// the same suggestion returns undefined. Fall back to stored data.
-			if (!resolved?.selection) {
+			if (!resolved?.place) {
 				if (lastConfirmDataRef.current) {
 					onRequiresAddressConfirm(lastConfirmDataRef.current);
 				}
 				return;
 			}
 
-			// Places Autocomplete omits `locality` for CDPs like Cypress, TX.
-			// Backfill city from the Validation API (which correctly returns it)
-			// so users don't see an empty or county-derived city.
-			if (
-				!resolved.selection.address.city &&
-				validationResult.validatedLocality
-			) {
-				resolved.selection.address.city = validationResult.validatedLocality;
-			}
-			if (
-				resolved.googleAddressComponents &&
-				!resolved.googleAddressComponents.city &&
-				validationResult.validatedLocality
-			) {
-				resolved.googleAddressComponents.city =
-					validationResult.validatedLocality;
-			}
+			// Parse with Validation API's locality as a fallback — Places omits
+			// `locality` for CDPs like Cypress, TX, and we don't want to leak
+			// a county name into the city field. See utils.ts `resolveCity`.
+			const parseOptions = {
+				cityFallback: validationResult.validatedLocality,
+			};
+			const selection = parseAddress(resolved.place, parseOptions);
+			const googleAddressComponents = parseGoogleAddressComponents(
+				resolved.place,
+				parseOptions,
+			);
 
-			if (
-				validationResult.kind !== "accept" &&
-				resolved.googleAddressComponents
-			) {
+			if (!selection) return;
+
+			if (validationResult.kind !== "accept" && googleAddressComponents) {
 				const confirmData = {
-					selection: resolved.selection,
-					googleAddressComponents: resolved.googleAddressComponents,
+					selection,
+					googleAddressComponents,
 					validationResult,
 				};
 				lastConfirmDataRef.current = confirmData;
@@ -126,10 +123,7 @@ export function AddressSearchFlow({
 				googleFormattedAddress: validationResult.googleFormattedAddress,
 				confirmation_path: "silent",
 			});
-			onSubmitSelection({
-				selection: resolved.selection,
-				confirmAddress: true,
-			});
+			onSubmitSelection({ selection, confirmAddress: true });
 		},
 		[
 			onInputValueChange,
