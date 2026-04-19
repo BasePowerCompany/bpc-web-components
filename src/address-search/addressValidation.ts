@@ -14,7 +14,11 @@ import { getGoogleMapsApiKey } from "@/utils/googleMaps";
  * - `confirm_components` — other components (locality, route, postal_code) are
  *                          unconfirmed or were inferred/replaced. UX: highlight
  *                          the specific fields in the modal; let user confirm.
- * - `block`              — verdict is FIX / unresolvable. UX: don't submit.
+ * - `block`              — verdict is FIX / unresolvable. UX: red-tone banner
+ *                          and edit-first framing, but the user can still
+ *                          override (per principle #3 — override is always one
+ *                          click away). Backend treats the submission as
+ *                          confirmAddress=true and shouldn't re-open the gate.
  */
 export type AddressValidationKind =
 	| "accept"
@@ -141,8 +145,11 @@ function classify(params: {
 	}
 
 	// Any other unconfirmed component (locality, route, postal_code) →
-	// highlight the specific field in the modal.
-	if (unconfirmedComponentTypes.length > 0) {
+	// highlight the specific field in the modal. Only fire the modal when at
+	// least one unconfirmed type maps to a visible form field — otherwise the
+	// banner says "the highlighted fields" but nothing is highlighted (e.g.
+	// `point_of_interest` and `country` aren't form fields).
+	if (unconfirmedComponentTypes.some((t) => COMPONENT_TO_FIELD[t])) {
 		return "confirm_components";
 	}
 

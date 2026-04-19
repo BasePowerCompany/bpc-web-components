@@ -48,21 +48,24 @@ type FormValues = {
 };
 
 /**
- * Names of the form fields the user changed vs what Google gave us.
- * line2 is skipped when the user chose the single-family-home escape.
+ * Names of the form fields the user actually changed. Compare against the
+ * field's initial value at modal mount — NOT against `googleAddressComponents`
+ * directly, because the form pre-fills with a fallback (selection.address.X)
+ * when Google's component is empty. line2 is skipped when the user chose the
+ * single-family-home escape (their unit input is intentionally discarded).
  */
 function diffFields(
 	current: FormValues,
-	original: ParsedGoogleAddressComponents,
+	initial: FormValues,
 	opts: { omitLine2: boolean },
 ): UnconfirmedFieldType[] {
 	const edited: UnconfirmedFieldType[] = [];
-	if (current.line1.trim() !== original.line1) edited.push("line1");
-	if (!opts.omitLine2 && current.line2.trim() !== original.line2)
+	if (current.line1.trim() !== initial.line1) edited.push("line1");
+	if (!opts.omitLine2 && current.line2.trim() !== initial.line2)
 		edited.push("line2");
-	if (current.city.trim() !== original.city) edited.push("city");
-	if (current.state.trim() !== original.state) edited.push("state");
-	if (current.postalCode.trim() !== original.postalCode)
+	if (current.city.trim() !== initial.city) edited.push("city");
+	if (current.state.trim() !== initial.state) edited.push("state");
+	if (current.postalCode.trim() !== initial.postalCode)
 		edited.push("postalCode");
 	return edited;
 }
@@ -95,6 +98,17 @@ export function AddressConfirmModal({
 		googleAddressComponents.postalCode || selection.address.postalCode,
 	);
 
+	// Snapshot of initial form values used for edit detection. Uses the same
+	// fallback chain as the useState initializers above so diffFields doesn't
+	// flag a "edited" when the user actually confirmed as-is.
+	const initialFormValuesRef = useRef<FormValues>({
+		line1,
+		line2,
+		city,
+		state,
+		postalCode,
+	});
+
 	const line2Ref = useRef<HTMLInputElement>(null);
 	const line1Ref = useRef<HTMLInputElement>(null);
 	const line2WarningId = useId();
@@ -120,6 +134,7 @@ export function AddressConfirmModal({
 			dpvFootnote: validationResult.dpvFootnote,
 			inputFormattedAddress: selection.formattedAddress,
 			googleFormattedAddress: validationResult.googleFormattedAddress,
+			confirmation_path: "modal",
 		});
 	}, [validationResult, selection.formattedAddress]);
 
@@ -182,7 +197,7 @@ export function AddressConfirmModal({
 			const result = buildResult({ omitLine2 });
 			const editedFields = diffFields(
 				{ line1, line2, city, state, postalCode },
-				googleAddressComponents,
+				initialFormValuesRef.current,
 				{ omitLine2 },
 			);
 			posthogCapture("address_validation_override", {
@@ -197,7 +212,6 @@ export function AddressConfirmModal({
 		[
 			buildResult,
 			city,
-			googleAddressComponents,
 			line1,
 			line2,
 			onContinue,
@@ -216,20 +230,11 @@ export function AddressConfirmModal({
 		const edited =
 			diffFields(
 				{ line1, line2, city, state, postalCode },
-				googleAddressComponents,
+				initialFormValuesRef.current,
 				{ omitLine2: false },
 			).length > 0;
 		submit(edited ? "edited" : "confirmed_as_is");
-	}, [
-		city,
-		googleAddressComponents,
-		line1,
-		line2,
-		line2Missing,
-		postalCode,
-		state,
-		submit,
-	]);
+	}, [city, line1, line2, line2Missing, postalCode, state, submit]);
 
 	const handleSingleFamilyHome = useCallback(() => {
 		submit("confirmed_sfh");
