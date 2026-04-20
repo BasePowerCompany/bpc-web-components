@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import {
 	type AddressValidationResult,
 	validateAddress,
@@ -49,15 +49,6 @@ export function AddressSearchFlow({
 	onRequiresAddressConfirm,
 }: AddressSearchFlowProps) {
 	const [validating, setValidating] = useState(false);
-	// Stores the last address confirmation data to power the address confirmation modal.
-	// resolveSelection clears its internal cache after each resolve,
-	// so subsequent selects of the same item return
-	// undefined — this ref lets us fall back to the previously resolved data.
-	const lastConfirmDataRef = useRef<{
-		selection: AddressResult;
-		googleAddressComponents: ParsedGoogleAddressComponents;
-		validationResult: AddressValidationResult;
-	} | null>(null);
 	const { results, resolveSelection } = useAddressAutocomplete(inputValue);
 
 	const handleSelect = useCallback(
@@ -79,14 +70,7 @@ export function AddressSearchFlow({
 				setValidating(false);
 			}
 
-			// resolveSelection clears its cache after resolving, so re-selecting
-			// the same suggestion returns undefined. Fall back to stored data.
-			if (!resolved?.place) {
-				if (lastConfirmDataRef.current) {
-					onRequiresAddressConfirm(lastConfirmDataRef.current);
-				}
-				return;
-			}
+			if (!resolved?.place) return;
 
 			// Parse with Validation API's locality as a fallback — Places omits
 			// `locality` for CDPs like Cypress, TX, and we don't want to leak
@@ -103,17 +87,14 @@ export function AddressSearchFlow({
 			if (!selection) return;
 
 			if (validationResult.kind !== "accept" && googleAddressComponents) {
-				const confirmData = {
+				onRequiresAddressConfirm({
 					selection,
 					googleAddressComponents,
 					validationResult,
-				};
-				lastConfirmDataRef.current = confirmData;
-				onRequiresAddressConfirm(confirmData);
+				});
 				return;
 			}
 
-			lastConfirmDataRef.current = null;
 			posthogCapture("address_validation_result", {
 				kind: validationResult.kind,
 				possibleNextAction: validationResult.possibleNextAction,
