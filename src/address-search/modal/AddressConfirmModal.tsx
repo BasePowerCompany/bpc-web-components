@@ -1,29 +1,89 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import type {
+	AddressValidationResult,
+	UnconfirmedFieldType,
+} from "@/address-search/addressValidation";
 import { CloseIcon } from "@/address-search/icons/CloseIcon";
 import type {
 	AddressResult,
 	ParsedGoogleAddressComponents,
 } from "@/address-search/types";
+import { posthogCapture } from "@/address-search/utils";
 import { cx } from "@/utils/cx";
+import { copyFor } from "./AddressConfirmModal.copy";
+import { ConfirmField } from "./ConfirmField";
 import styles from "./styles.module.css";
 
 export type AddressConfirmModalProps = {
 	selection: AddressResult;
 	googleAddressComponents: ParsedGoogleAddressComponents;
-	requiresSubpremise: boolean;
+	validationResult: AddressValidationResult;
 	loading: boolean;
 	onContinue: (result: AddressResult) => void;
 	onClose: () => void;
 };
 
+function useFieldHighlight(
+	validationResult: AddressValidationResult,
+): (field: UnconfirmedFieldType) => boolean {
+	return useMemo(() => {
+		const set = new Set(validationResult.unconfirmedFields);
+		return (field: UnconfirmedFieldType) => set.has(field);
+	}, [validationResult.unconfirmedFields]);
+}
+
+type FormValues = {
+	line1: string;
+	line2: string;
+	city: string;
+	state: string;
+	postalCode: string;
+};
+
+/**
+ * Names of the form fields the user actually changed. Compare against the
+ * field's initial value at modal mount — NOT against `googleAddressComponents`
+ * directly, because the form pre-fills with a fallback (selection.address.X)
+ * when Google's component is empty. line2 is skipped when the user chose the
+ * single-family-home escape (their unit input is intentionally discarded).
+ */
+function diffFields(
+	current: FormValues,
+	initial: FormValues,
+	opts: { omitLine2: boolean },
+): UnconfirmedFieldType[] {
+	const edited: UnconfirmedFieldType[] = [];
+	if (current.line1.trim() !== initial.line1) edited.push("line1");
+	if (!opts.omitLine2 && current.line2.trim() !== initial.line2)
+		edited.push("line2");
+	if (current.city.trim() !== initial.city) edited.push("city");
+	if (current.state.trim() !== initial.state) edited.push("state");
+	if (current.postalCode.trim() !== initial.postalCode)
+		edited.push("postalCode");
+	return edited;
+}
+
 export function AddressConfirmModal({
 	selection,
 	googleAddressComponents,
-	requiresSubpremise,
+	validationResult,
 	loading,
 	onContinue,
 	onClose,
 }: AddressConfirmModalProps) {
+	const { kind } = validationResult;
+	const copy = useMemo(
+		() => copyFor(kind, validationResult.unconfirmedComponentTypes),
+		[kind, validationResult.unconfirmedComponentTypes],
+	);
+	const isFieldHighlighted = useFieldHighlight(validationResult);
 	const [line1, setLine1] = useState(
 		googleAddressComponents.line1 || selection.address.line1,
 	);
@@ -37,72 +97,166 @@ export function AddressConfirmModal({
 	const [postalCode, setPostalCode] = useState(
 		googleAddressComponents.postalCode || selection.address.postalCode,
 	);
-	const line2Ref = useRef<HTMLInputElement>(null);
-	const showLine2WarningId = useId();
-	const showLine2Warning = requiresSubpremise && !line2.trim();
 
-	const focusLine2 = useCallback(() => {
-		requestAnimationFrame(() => {
-			line2Ref.current?.focus();
-		});
-	}, []);
-
-	// Auto-focus line2 on mount
-	useEffect(() => {
-		focusLine2();
-	}, [focusLine2]);
-
-	const handleContinue = useCallback(() => {
-		if (requiresSubpremise && !line2.trim()) {
-			focusLine2();
-			return;
-		}
-
-		const normalizedLine1 = [line1.trim(), line2.trim()]
-			.filter(Boolean)
-			.join(" ");
-		const formattedAddress = [
-			normalizedLine1,
-			city.trim(),
-			[state.trim(), postalCode.trim()].filter(Boolean).join(" "),
-			selection.address.country,
-		]
-			.filter(Boolean)
-			.join(", ");
-
-		onContinue({
-			formattedAddress,
-			address: {
-				line1: normalizedLine1,
-				city: city.trim(),
-				state: state.trim(),
-				postalCode: postalCode.trim(),
-				country: selection.address.country,
-				latitude: selection.address.latitude,
-				longitude: selection.address.longitude,
-			},
-		});
-	}, [
-		city,
-		focusLine2,
+	// Snapshot of initial form values used for edit detection. Uses the same
+	// fallback chain as the useState initializers above so diffFields doesn't
+	// flag a "edited" when the user actually confirmed as-is.
+	const initialFormValuesRef = useRef<FormValues>({
 		line1,
 		line2,
-		onContinue,
-		postalCode,
-		requiresSubpremise,
-		selection,
+		city,
 		state,
-	]);
+		postalCode,
+	});
+
+	const line2Ref = useRef<HTMLInputElement>(null);
+	const line1Ref = useRef<HTMLInputElement>(null);
+	const line2WarningId = useId();
+
+	const line2IsRequired = kind === "missing_subpremise";
+	const line2Missing = line2IsRequired && !line2.trim();
+
+	// Track whether we've already captured the "shown" event for this modal
+	// mount so it fires once per validation, not every re-render.
+	const hasLoggedShown = useRef(false);
+	useEffect(() => {
+		if (hasLoggedShown.current) return;
+		hasLoggedShown.current = true;
+		posthogCapture("address_validation_result", {
+			kind: validationResult.kind,
+			possibleNextAction: validationResult.possibleNextAction,
+			unconfirmedComponentTypes: validationResult.unconfirmedComponentTypes,
+			missingComponentTypes: validationResult.missingComponentTypes,
+			hasUnconfirmedComponents: validationResult.hasUnconfirmedComponents,
+			hasInferredComponents: validationResult.hasInferredComponents,
+			hasReplacedComponents: validationResult.hasReplacedComponents,
+			dpvConfirmation: validationResult.dpvConfirmation,
+			dpvFootnote: validationResult.dpvFootnote,
+			inputFormattedAddress: selection.formattedAddress,
+			googleFormattedAddress: validationResult.googleFormattedAddress,
+			confirmation_path: "modal",
+		});
+	}, [validationResult, selection.formattedAddress]);
+
+	// Focus the most useful field on mount based on the kind:
+	// - subpremise cases → line_2
+	// - street_number / component cases → line_1
+	useEffect(() => {
+		const target =
+			kind === "missing_subpremise" || kind === "confirm_subpremise"
+				? line2Ref.current
+				: line1Ref.current;
+		requestAnimationFrame(() => {
+			target?.focus();
+			target?.select?.();
+		});
+	}, [kind]);
+
+	const buildResult = useCallback(
+		(opts: { omitLine2: boolean }): AddressResult => {
+			const effectiveLine2 = opts.omitLine2 ? "" : line2.trim();
+			const normalizedLine1 = [line1.trim(), effectiveLine2]
+				.filter(Boolean)
+				.join(" ");
+			const formattedAddress = [
+				normalizedLine1,
+				city.trim(),
+				[state.trim(), postalCode.trim()].filter(Boolean).join(" "),
+				selection.address.country,
+			]
+				.filter(Boolean)
+				.join(", ");
+			return {
+				formattedAddress,
+				address: {
+					line1: normalizedLine1,
+					city: city.trim(),
+					state: state.trim(),
+					postalCode: postalCode.trim(),
+					country: selection.address.country,
+					latitude: selection.address.latitude,
+					longitude: selection.address.longitude,
+				},
+			};
+		},
+		[
+			city,
+			line1,
+			line2,
+			postalCode,
+			selection.address.country,
+			selection.address.latitude,
+			selection.address.longitude,
+			state,
+		],
+	);
+
+	const submit = useCallback(
+		(userAction: "confirmed_as_is" | "confirmed_sfh" | "edited") => {
+			const omitLine2 = userAction === "confirmed_sfh";
+			const result = buildResult({ omitLine2 });
+			const editedFields = diffFields(
+				{ line1, line2, city, state, postalCode },
+				initialFormValuesRef.current,
+				{ omitLine2 },
+			);
+			posthogCapture("address_validation_override", {
+				kind: validationResult.kind,
+				user_action: userAction,
+				inputFormattedAddress: selection.formattedAddress,
+				submittedFormattedAddress: result.formattedAddress,
+				editedFields,
+			});
+			onContinue(result);
+		},
+		[
+			buildResult,
+			city,
+			line1,
+			line2,
+			onContinue,
+			postalCode,
+			selection.formattedAddress,
+			state,
+			validationResult.kind,
+		],
+	);
+
+	const handleContinue = useCallback(() => {
+		if (line2Missing) {
+			requestAnimationFrame(() => line2Ref.current?.focus());
+			return;
+		}
+		const edited =
+			diffFields(
+				{ line1, line2, city, state, postalCode },
+				initialFormValuesRef.current,
+				{ omitLine2: false },
+			).length > 0;
+		submit(edited ? "edited" : "confirmed_as_is");
+	}, [city, line1, line2, line2Missing, postalCode, state, submit]);
+
+	const handleSingleFamilyHome = useCallback(() => {
+		submit("confirmed_sfh");
+	}, [submit]);
+
+	const handleClose = useCallback(() => {
+		posthogCapture("address_validation_dismiss", {
+			kind: validationResult.kind,
+			inputFormattedAddress: selection.formattedAddress,
+		});
+		onClose();
+	}, [onClose, selection.formattedAddress, validationResult.kind]);
 
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: Backdrop click-to-dismiss is a standard modal pattern
 		<div
 			className={styles.addressConfirmBackdrop}
 			onClick={(e) => {
-				if (e.target === e.currentTarget) onClose();
+				if (e.target === e.currentTarget) handleClose();
 			}}
 			onKeyDown={(e) => {
-				if (e.key === "Escape") onClose();
+				if (e.key === "Escape") handleClose();
 			}}
 		>
 			<div
@@ -113,64 +267,64 @@ export function AddressConfirmModal({
 				<button
 					type="button"
 					className={styles.addressConfirmCloseIcon}
-					onClick={onClose}
+					onClick={handleClose}
 					aria-label="Close"
 				>
 					<CloseIcon />
 				</button>
 
-				<h2 className={styles.addressConfirmTitle}>Confirm your address</h2>
+				<h2 className={styles.addressConfirmTitle}>{copy.title}</h2>
+
+				{copy.banner && (
+					<div
+						className={cx(
+							styles.addressConfirmBanner,
+							copy.banner.tone === "error"
+								? styles.addressConfirmBannerError
+								: styles.addressConfirmBannerWarn,
+						)}
+						role={copy.banner.tone === "error" ? "alert" : "status"}
+					>
+						{copy.banner.text}
+					</div>
+				)}
 
 				<div className={styles.addressConfirmForm}>
-					<input
-						type="text"
+					<ConfirmField
+						ref={line1Ref}
 						value={line1}
-						onChange={(e) => setLine1(e.target.value)}
+						onChange={setLine1}
 						placeholder="Street address"
-						className={styles.addressConfirmInput}
+						highlighted={isFieldHighlighted("line1")}
 					/>
-					<input
+					<ConfirmField
 						ref={line2Ref}
-						type="text"
 						value={line2}
-						onChange={(e) => setLine2(e.target.value)}
-						placeholder="Apartment or unit number"
-						className={cx(
-							styles.addressConfirmInput,
-							showLine2Warning && styles.addressConfirmInputError,
-						)}
-						aria-invalid={showLine2Warning}
-						aria-describedby={showLine2Warning ? showLine2WarningId : undefined}
+						onChange={setLine2}
+						placeholder={copy.line2Placeholder}
+						highlighted={isFieldHighlighted("line2")}
+						error={line2Missing}
+						errorText={`Please enter your unit number, or choose \u201Csingle-family home\u201D below`}
+						errorId={line2WarningId}
 					/>
-					{showLine2Warning && (
-						<span
-							id={showLine2WarningId}
-							className={styles.addressConfirmErrorText}
-						>
-							Please enter your apartment or unit number
-						</span>
-					)}
 					<div className={styles.addressConfirmGrid}>
-						<input
-							type="text"
+						<ConfirmField
 							value={city}
-							onChange={(e) => setCity(e.target.value)}
+							onChange={setCity}
 							placeholder="City"
-							className={styles.addressConfirmInput}
+							highlighted={isFieldHighlighted("city")}
 						/>
-						<input
-							type="text"
+						<ConfirmField
 							value={state}
-							onChange={(e) => setState(e.target.value)}
+							onChange={setState}
 							placeholder="State"
-							className={styles.addressConfirmInput}
+							highlighted={isFieldHighlighted("state")}
 						/>
-						<input
-							type="text"
+						<ConfirmField
 							value={postalCode}
-							onChange={(e) => setPostalCode(e.target.value)}
+							onChange={setPostalCode}
 							placeholder="ZIP"
-							className={styles.addressConfirmInput}
+							highlighted={isFieldHighlighted("postalCode")}
 						/>
 					</div>
 
@@ -184,13 +338,23 @@ export function AddressConfirmModal({
 							{loading ? (
 								<span className={styles.addressConfirmSpinner} />
 							) : (
-								"Continue"
+								copy.continueLabel
 							)}
 						</button>
+						{copy.secondaryAction && (
+							<button
+								type="button"
+								className={styles.addressConfirmSecondaryButton}
+								onClick={handleSingleFamilyHome}
+								disabled={loading}
+							>
+								{copy.secondaryAction.label}
+							</button>
+						)}
 						<button
 							type="button"
 							className={styles.addressConfirmCloseButton}
-							onClick={onClose}
+							onClick={handleClose}
 							disabled={loading}
 						>
 							Close

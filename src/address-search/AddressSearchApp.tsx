@@ -11,8 +11,7 @@ import type {
 	RedirectStrategyMultipleUtility,
 } from "@/address-search/types";
 import { posthogCapture } from "@/address-search/utils";
-import { BatteryAddressSearchFlow } from "./BatteryAddressSearchFlow";
-import { EnergyOnlyAddressEntryFlow } from "./EnergyOnlyAddressEntryFlow";
+import { AddressSearchFlow } from "./AddressSearchFlow";
 
 export type AddressSearchAppProps = {
 	placeholder?: string;
@@ -67,6 +66,9 @@ export function AddressSearchApp({
 		  }
 		| undefined
 	>();
+	// Lifted from the flow so modal edits can sync back into the autocomplete
+	// input after the user clicks Confirm.
+	const [inputValue, setInputValue] = useState("");
 
 	const handleSelect = useCallback(
 		async (detail: {
@@ -189,6 +191,9 @@ export function AddressSearchApp({
 	const handleAddressConfirmContinue = useCallback(
 		async (result: AddressResult) => {
 			setAddressConfirmLoading(true);
+			// Sync the autocomplete input with whatever the user edited in the
+			// modal so there's no stale address visible while hydration runs.
+			setInputValue(result.formattedAddress);
 			try {
 				await handleSelect({ selection: result, confirmAddress: true });
 			} finally {
@@ -217,35 +222,28 @@ export function AddressSearchApp({
 			multipleUtilityResult != null ||
 			energySplashRedirectUrl != null);
 
+	const resolvedPlaceholder =
+		placeholder ||
+		(isEnergyOnly ? "Street address" : "Enter your home address");
+
 	return (
 		<>
-			{isEnergyOnly ? (
-				<EnergyOnlyAddressEntryFlow
-					placeholder={placeholder}
-					cta={cta}
-					zIndex={zIndex}
-					portalRoot={portalRoot}
-					onSubmitSelection={handleSelect}
-					onRequiresAddressConfirm={handleRequiresAddressConfirm}
-				/>
-			) : (
-				<BatteryAddressSearchFlow
-					placeholder={placeholder}
-					cta={cta}
-					zIndex={zIndex}
-					portalRoot={portalRoot}
-					onSubmitSelection={handleSelect}
-					onRequiresAddressConfirm={handleRequiresAddressConfirm}
-				/>
-			)}
+			<AddressSearchFlow
+				placeholder={resolvedPlaceholder}
+				cta={cta}
+				zIndex={zIndex}
+				portalRoot={portalRoot}
+				inputValue={inputValue}
+				onInputValueChange={setInputValue}
+				onSubmitSelection={handleSelect}
+				onRequiresAddressConfirm={handleRequiresAddressConfirm}
+			/>
 			{addressConfirmData &&
 				createPortal(
 					<AddressConfirmModal
 						selection={addressConfirmData.selection}
 						googleAddressComponents={addressConfirmData.googleAddressComponents}
-						requiresSubpremise={
-							addressConfirmData.validationResult.requiresSubpremise
-						}
+						validationResult={addressConfirmData.validationResult}
 						loading={addressConfirmLoading}
 						onContinue={handleAddressConfirmContinue}
 						onClose={handleAddressConfirmClose}

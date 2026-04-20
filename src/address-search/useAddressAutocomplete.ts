@@ -1,21 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-	AddressResult,
-	ParsedGoogleAddressComponents,
-} from "@/address-search/types";
-import {
-	parseAddress,
-	parseGoogleAddressComponents,
-} from "@/address-search/utils";
 import { useMapsLibrary } from "@/utils/useMapsLibrary";
 import type { Result } from "./Autocomplete";
 
-export type ResolvedAddressSelection = {
-	selection: AddressResult | undefined;
-	googleAddressComponents: ParsedGoogleAddressComponents | undefined;
+export type ResolvedPlace = {
+	/** The fully-fetched Google Place. Parse with `parseAddress` /
+	 *  `parseGoogleAddressComponents` at the call site — deferring parse lets
+	 *  callers supply a `cityFallback` after other async work completes. */
+	place: google.maps.places.Place;
 };
+
+/**
+ * Debounce window before we issue a Places Autocomplete request. Typing
+ * "938 Ramblewood" without debouncing fires a request per keystroke — 200ms
+ * is the sweet spot between snappy suggestions and API-quota efficiency.
+ */
+const AUTOCOMPLETE_DEBOUNCE_MS = 200;
 
 export function useAddressAutocomplete(inputValue: string) {
 	const places = useMapsLibrary("places");
@@ -25,7 +26,18 @@ export function useAddressAutocomplete(inputValue: string) {
 	const placesRef = useRef<
 		Record<string, google.maps.places.AutocompleteSuggestion | undefined>
 	>({});
-	const searchQuery = inputValue.trim();
+	const trimmed = inputValue.trim();
+	const [searchQuery, setSearchQuery] = useState(trimmed);
+	// Debounce the query that drives the fetch — input state updates
+	// immediately (for the controlled input), the fetch lags by the debounce.
+	useEffect(() => {
+		if (trimmed === searchQuery) return;
+		const handle = setTimeout(
+			() => setSearchQuery(trimmed),
+			AUTOCOMPLETE_DEBOUNCE_MS,
+		);
+		return () => clearTimeout(handle);
+	}, [trimmed, searchQuery]);
 	const [cache, setCache] = useState<
 		Record<
 			string,
@@ -89,7 +101,11 @@ export function useAddressAutocomplete(inputValue: string) {
 	}, [cache, searchQuery]);
 
 	const resolveSelection = useCallback(
-		async ({ result }: { result: Result }) => {
+		async ({
+			result,
+		}: {
+			result: Result;
+		}): Promise<ResolvedPlace | undefined> => {
 			const suggestion = placesRef.current[result.id];
 			if (!suggestion) return undefined;
 
@@ -100,24 +116,13 @@ export function useAddressAutocomplete(inputValue: string) {
 				fields: ["location", "formattedAddress", "addressComponents"],
 			});
 
-			// Return both shapes from the same place:
-			// - `selection` is the submit payload shared by both flows
-			// - `googleAddressComponents` is the parsed Google-derived shape used by energy-only
-			const selection = parseAddress(resolved.place);
-			const googleAddressComponents = parseGoogleAddressComponents(
-				resolved.place,
-			);
-
 			// Once a suggestion is resolved to a place, the current autocomplete
 			// session is complete and the next edit should start a new one.
 			setCache({});
 			placesRef.current = {};
 			token.current = null;
 
-			return {
-				selection,
-				googleAddressComponents,
-			} satisfies ResolvedAddressSelection;
+			return { place: resolved.place };
 		},
 		[],
 	);

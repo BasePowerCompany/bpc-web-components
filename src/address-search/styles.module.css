@@ -72,6 +72,26 @@ button.input {
 	transform: translateY(-50%);
 }
 
+.loadingSpinner {
+	position: absolute;
+	right: 16px;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 18px;
+	height: 18px;
+	border: 2px solid rgba(8, 77, 65, 0.2);
+	border-top-color: #084d41;
+	border-radius: 50%;
+	animation: addressSearchSpin 0.7s linear infinite;
+	pointer-events: none;
+}
+
+@keyframes addressSearchSpin {
+	to {
+		transform: translateY(-50%) rotate(360deg);
+	}
+}
+
 .activateButton {
 	font-size: inherit;
 	font-family: inherit;
