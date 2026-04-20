@@ -116,12 +116,6 @@ export function useAddressAutocomplete(inputValue: string) {
 				fields: ["location", "formattedAddress", "addressComponents"],
 			});
 
-			// Once a suggestion is resolved to a place, the current autocomplete
-			// session is complete and the next edit should start a new one.
-			setCache({});
-			placesRef.current = {};
-			token.current = null;
-
 			return { place: resolved.place };
 		},
 		[],
