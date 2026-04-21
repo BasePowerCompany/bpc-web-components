@@ -206,7 +206,9 @@ export function AddressSearchApp({
 		setExternalAddressId(undefined);
 	}, []);
 
-	const shouldShowModal = modalState.kind !== "idle";
+	// `selection` guard prevents a stale in-flight hydration that resolves after
+	// handleBack from re-opening the modal with an empty address.
+	const shouldShowModal = selection && modalState.kind !== "idle";
 
 	const resolvedPlaceholder =
 		placeholder ||
