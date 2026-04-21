@@ -57,7 +57,7 @@ export type AddressValidationResult = {
 	googleFormattedAddress: string | null;
 	/** Locality as Google validated it. Populated even for CDPs (e.g. "Cypress, TX")
 	 *  where Places Autocomplete omits the locality component — use this to
-	 *  backfill the city field when parseGoogleAddressComponents returns empty. */
+	 *  backfill the city field when `parseAddress` would otherwise return empty. */
 	validatedLocality: string | null;
 };
 

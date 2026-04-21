@@ -3,15 +3,8 @@ import {
 	type AddressValidationResult,
 	validateAddress,
 } from "@/address-search/addressValidation";
-import type {
-	AddressResult,
-	ParsedGoogleAddressComponents,
-} from "@/address-search/types";
-import {
-	parseAddress,
-	parseGoogleAddressComponents,
-	posthogCapture,
-} from "@/address-search/utils";
+import type { AddressResult } from "@/address-search/types";
+import { parseAddress, posthogCapture } from "@/address-search/utils";
 import { Autocomplete, type Result } from "./Autocomplete";
 import { useAddressAutocomplete } from "./useAddressAutocomplete";
 
@@ -28,7 +21,6 @@ type AddressSearchFlowProps = {
 	}) => void;
 	onRequiresAddressConfirm: (data: {
 		selection: AddressResult;
-		googleAddressComponents: ParsedGoogleAddressComponents;
 		validationResult: AddressValidationResult;
 	}) => void;
 };
@@ -75,23 +67,14 @@ export function AddressSearchFlow({
 			// Parse with Validation API's locality as a fallback — Places omits
 			// `locality` for CDPs like Cypress, TX, and we don't want to leak
 			// a county name into the city field. See utils.ts `resolveCity`.
-			const parseOptions = {
+			const selection = parseAddress(resolved.place, {
 				cityFallback: validationResult.validatedLocality,
-			};
-			const selection = parseAddress(resolved.place, parseOptions);
-			const googleAddressComponents = parseGoogleAddressComponents(
-				resolved.place,
-				parseOptions,
-			);
+			});
 
 			if (!selection) return;
 
-			if (validationResult.kind !== "accept" && googleAddressComponents) {
-				onRequiresAddressConfirm({
-					selection,
-					googleAddressComponents,
-					validationResult,
-				});
+			if (validationResult.kind !== "accept") {
+				onRequiresAddressConfirm({ selection, validationResult });
 				return;
 			}
 

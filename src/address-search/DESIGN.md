@@ -105,9 +105,8 @@ Outputs:
 - `results`
   - UI-ready autocomplete suggestions for `Autocomplete.tsx`
 - `resolveSelection`
-  - turns a clicked suggestion into:
-    - `selection`: backend-facing `AddressResult`
-    - `googleAddressComponents`: parsed Google-derived components for UI use
+  - turns a clicked suggestion into a fully-fetched Google `Place`; callers
+    parse it into `AddressResult` via `parseAddress`
 
 Important boundary:
 
@@ -125,14 +124,17 @@ This file contains shared parsing helpers.
 Important helpers:
 
 - `parseAddress`
-  - existing shared parse path that produces `AddressResult`
-- `parseGoogleAddressComponents`
-  - Google-specific parsed shape for flow-level UI use
+  - parses a Google `Place` into the internal `AddressResult` shape, with
+    `line1` (street) and `line2` (unit) kept separate
+- `toSubmittedAddress`
+  - folds `line1` + `line2` into the single joined `line1` the backend
+    expects; called only at the submission boundary in `fetchHydration`
 
 Guideline:
 
 - shared helpers should focus on Google parsing and normalization
-- each flow can shape its controlled form state into the final `AddressResult`
+- flows and the confirm modal operate on the two-line internal shape; only
+  the HTTP boundary sees the single-line submitted shape
 
 ### `types.ts`
 
@@ -145,9 +147,9 @@ This file defines the stable shared contracts between:
 
 In particular:
 
-- `AddressResult` is the shared submit shape
-- `ParsedGoogleAddressComponents` is the Google-derived parsed shape used for
-  UI prefilling
+- `AddressResult` is the single internal shape; `line2` is optional so that
+  backend hydration responses (which have the unit already folded into
+  `line1`) satisfy the type naturally
 
 ## Submission and Modal Architecture
 
@@ -180,8 +182,7 @@ This is intentionally centralized because both flows submit the same
 1. User types into `Autocomplete`
 2. `useAddressAutocomplete` returns suggestions
 3. User selects a suggestion
-4. Energy-only resolves it into `AddressResult` and
-   `ParsedGoogleAddressComponents`
+4. Energy-only resolves it into `AddressResult`
 5. If the address requires a subpremise, energy-only delegates to
    `AddressConfirmModal` via `onRequiresAddressConfirm`; otherwise it submits
    immediately

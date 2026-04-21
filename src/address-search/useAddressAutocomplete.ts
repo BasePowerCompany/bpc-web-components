@@ -5,9 +5,9 @@ import { useMapsLibrary } from "@/utils/useMapsLibrary";
 import type { Result } from "./Autocomplete";
 
 export type ResolvedPlace = {
-	/** The fully-fetched Google Place. Parse with `parseAddress` /
-	 *  `parseGoogleAddressComponents` at the call site — deferring parse lets
-	 *  callers supply a `cityFallback` after other async work completes. */
+	/** The fully-fetched Google Place. Parse with `parseAddress` at the call
+	 *  site — deferring parse lets callers supply a `cityFallback` after
+	 *  other async work (e.g. address validation) completes. */
 	place: google.maps.places.Place;
 };
 

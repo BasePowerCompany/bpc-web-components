@@ -6,7 +6,6 @@ import { AddressConfirmModal } from "@/address-search/modal/AddressConfirmModal"
 import { SelectionModal } from "@/address-search/modal/SelectionModal";
 import type {
 	AddressResult,
-	ParsedGoogleAddressComponents,
 	RedirectMultipleAddress,
 	RedirectStrategyMultipleUtility,
 } from "@/address-search/types";
@@ -61,7 +60,6 @@ export function AddressSearchApp({
 	const [addressConfirmData, setAddressConfirmData] = useState<
 		| {
 				selection: AddressResult;
-				googleAddressComponents: ParsedGoogleAddressComponents;
 				validationResult: AddressValidationResult;
 		  }
 		| undefined
@@ -178,7 +176,6 @@ export function AddressSearchApp({
 	const handleRequiresAddressConfirm = useCallback(
 		(data: {
 			selection: AddressResult;
-			googleAddressComponents: ParsedGoogleAddressComponents;
 			validationResult: AddressValidationResult;
 		}) => {
 			setAddressConfirmData(data);
@@ -242,7 +239,6 @@ export function AddressSearchApp({
 				createPortal(
 					<AddressConfirmModal
 						selection={addressConfirmData.selection}
-						googleAddressComponents={addressConfirmData.googleAddressComponents}
 						validationResult={addressConfirmData.validationResult}
 						loading={addressConfirmLoading}
 						onContinue={handleAddressConfirmContinue}

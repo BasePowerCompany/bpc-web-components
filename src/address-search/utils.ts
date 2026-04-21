@@ -1,7 +1,4 @@
-import type {
-	AddressResult,
-	ParsedGoogleAddressComponents,
-} from "@/address-search/types";
+import type { AddressResult } from "@/address-search/types";
 
 export type ParseAddressOptions = {
 	/**
@@ -13,8 +10,7 @@ export type ParseAddressOptions = {
 };
 
 /**
- * Map Google address components to a type-indexed lookup. Both parsers share
- * this — keeps the field-picking logic below DRY.
+ * Map Google address components to a type-indexed lookup.
  */
 function indexByType(
 	components: google.maps.places.AddressComponent[],
@@ -45,27 +41,13 @@ function resolveCity(
 	);
 }
 
-export function parseGoogleAddressComponents(
-	place: google.maps.places.Place,
-	options?: ParseAddressOptions,
-): ParsedGoogleAddressComponents | undefined {
-	if (!place.formattedAddress || !place.addressComponents) return undefined;
-	const addr = indexByType(place.addressComponents);
-
-	return {
-		line1: [addr.street_number?.longText, addr.route?.longText]
-			.filter(Boolean)
-			.join(" "),
-		line2: addr.subpremise?.longText || "",
-		city: resolveCity(addr, options?.cityFallback),
-		state: addr.administrative_area_level_1?.shortText || "",
-		postalCode: addr.postal_code?.longText || "",
-		country: addr.country?.shortText || "",
-		latitude: place.location?.lat(),
-		longitude: place.location?.lng(),
-	};
-}
-
+/**
+ * Parse a Google `Place` into the internal `AddressResult` shape. `line1` is
+ * the street (street_number + route) and `line2` is the unit (subpremise),
+ * kept separate so the confirm modal can edit each independently. Use
+ * `toSubmittedAddress` at the submission boundary to fold them back together
+ * for the backend.
+ */
 export function parseAddress(
 	place: google.maps.places.Place,
 	options?: ParseAddressOptions,
@@ -73,24 +55,42 @@ export function parseAddress(
 	if (!place.formattedAddress || !place.addressComponents) return undefined;
 	const addr = indexByType(place.addressComponents);
 
-	const line1 = [
-		addr.street_number?.longText,
-		addr.route?.longText,
-		addr.subpremise?.longText,
-	]
-		.filter(Boolean)
-		.join(" ");
-
 	return {
 		formattedAddress: place.formattedAddress,
 		address: {
-			line1,
+			line1: [addr.street_number?.longText, addr.route?.longText]
+				.filter(Boolean)
+				.join(" "),
+			line2: addr.subpremise?.longText || "",
 			city: resolveCity(addr, options?.cityFallback),
 			state: addr.administrative_area_level_1?.shortText || "",
 			postalCode: addr.postal_code?.longText || "",
 			country: addr.country?.shortText || "",
 			latitude: place.location?.lat(),
 			longitude: place.location?.lng(),
+		},
+	};
+}
+
+/**
+ * Fold the internal two-line address into the single-line shape the backend
+ * expects. Call at the HTTP boundary only (currently inside `fetchHydration`).
+ * The backend at `/api/address-router` reads `selection.address.line1` as the
+ * joined street + unit string and has no concept of `line2`.
+ *
+ * Idempotent: a hydration-response address that already has `line2` absent
+ * round-trips unchanged.
+ */
+export function toSubmittedAddress(selection: AddressResult): AddressResult {
+	const { line2, line1, ...rest } = selection.address;
+	const joinedLine1 = [line1.trim(), (line2 ?? "").trim()]
+		.filter(Boolean)
+		.join(" ");
+	return {
+		formattedAddress: selection.formattedAddress,
+		address: {
+			...rest,
+			line1: joinedLine1,
 		},
 	};
 }
