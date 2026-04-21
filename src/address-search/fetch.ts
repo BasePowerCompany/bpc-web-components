@@ -1,10 +1,14 @@
 import type { AddressResult, HydrationResult } from "@/address-search/types";
+import { toSubmittedAddress } from "@/address-search/utils";
 
 export function fetchHydration(
 	selection: AddressResult,
 	confirmAddress: boolean = false,
 	isEnergyOnly: boolean = false,
 ): Promise<HydrationResult> {
+	// Serialize the internal two-line shape into the single-line wire shape
+	// the backend expects — this is the one and only submission boundary.
+	const submittedSelection = toSubmittedAddress(selection);
 	return fetch(
 		`${import.meta.env.VITE_BPC_DASHBOARD_WEB_HOST}/api/address-router`,
 		{
@@ -13,7 +17,7 @@ export function fetchHydration(
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
-				selection,
+				selection: submittedSelection,
 				confirm_address: confirmAddress,
 				is_energy_only: isEnergyOnly,
 			}),

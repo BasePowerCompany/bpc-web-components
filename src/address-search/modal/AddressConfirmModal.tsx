@@ -11,10 +11,7 @@ import type {
 	UnconfirmedFieldType,
 } from "@/address-search/addressValidation";
 import { CloseIcon } from "@/address-search/icons/CloseIcon";
-import type {
-	AddressResult,
-	ParsedGoogleAddressComponents,
-} from "@/address-search/types";
+import type { AddressResult } from "@/address-search/types";
 import { posthogCapture } from "@/address-search/utils";
 import { cx } from "@/utils/cx";
 import { copyFor } from "./AddressConfirmModal.copy";
@@ -23,7 +20,6 @@ import styles from "./styles.module.css";
 
 export type AddressConfirmModalProps = {
 	selection: AddressResult;
-	googleAddressComponents: ParsedGoogleAddressComponents;
 	validationResult: AddressValidationResult;
 	loading: boolean;
 	onContinue: (result: AddressResult) => void;
@@ -72,7 +68,6 @@ function diffFields(
 
 export function AddressConfirmModal({
 	selection,
-	googleAddressComponents,
 	validationResult,
 	loading,
 	onContinue,
@@ -84,23 +79,15 @@ export function AddressConfirmModal({
 		[kind, validationResult.unconfirmedComponentTypes],
 	);
 	const isFieldHighlighted = useFieldHighlight(validationResult);
-	const [line1, setLine1] = useState(
-		googleAddressComponents.line1 || selection.address.line1,
-	);
-	const [line2, setLine2] = useState(googleAddressComponents.line2 || "");
-	const [city, setCity] = useState(
-		googleAddressComponents.city || selection.address.city,
-	);
-	const [state, setState] = useState(
-		googleAddressComponents.state || selection.address.state,
-	);
-	const [postalCode, setPostalCode] = useState(
-		googleAddressComponents.postalCode || selection.address.postalCode,
-	);
+	const [line1, setLine1] = useState(selection.address.line1);
+	const [line2, setLine2] = useState(selection.address.line2 ?? "");
+	const [city, setCity] = useState(selection.address.city);
+	const [state, setState] = useState(selection.address.state);
+	const [postalCode, setPostalCode] = useState(selection.address.postalCode);
 
-	// Snapshot of initial form values used for edit detection. Uses the same
-	// fallback chain as the useState initializers above so diffFields doesn't
-	// flag a "edited" when the user actually confirmed as-is.
+	// Snapshot of initial form values used for edit detection — compared
+	// against the trimmed current values so diffFields doesn't flag "edited"
+	// when the user actually confirmed as-is.
 	const initialFormValuesRef = useRef<FormValues>({
 		line1,
 		line2,
@@ -154,12 +141,14 @@ export function AddressConfirmModal({
 
 	const buildResult = useCallback(
 		(opts: { omitLine2: boolean }): AddressResult => {
+			const effectiveLine1 = line1.trim();
 			const effectiveLine2 = opts.omitLine2 ? "" : line2.trim();
-			const normalizedLine1 = [line1.trim(), effectiveLine2]
-				.filter(Boolean)
-				.join(" ");
+			// `formattedAddress` is a display-only joined string (used for
+			// posthog + the autocomplete input echo). The line1/line2 split
+			// inside `address` is preserved for the submission boundary to
+			// serialize via `toSubmittedAddress`.
 			const formattedAddress = [
-				normalizedLine1,
+				[effectiveLine1, effectiveLine2].filter(Boolean).join(" "),
 				city.trim(),
 				[state.trim(), postalCode.trim()].filter(Boolean).join(" "),
 				selection.address.country,
@@ -169,7 +158,8 @@ export function AddressConfirmModal({
 			return {
 				formattedAddress,
 				address: {
-					line1: normalizedLine1,
+					line1: effectiveLine1,
+					line2: effectiveLine2,
 					city: city.trim(),
 					state: state.trim(),
 					postalCode: postalCode.trim(),
