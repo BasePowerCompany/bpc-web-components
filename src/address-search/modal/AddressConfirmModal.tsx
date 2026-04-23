@@ -205,6 +205,8 @@ export function AddressConfirmModal({
 				user_action: userAction,
 				inputFormattedAddress: selection.formattedAddress,
 				submittedFormattedAddress: result.formattedAddress,
+				submittedLine1: line1.trim(),
+				submittedLine2: omitLine2 ? "" : line2.trim(),
 				editedFields,
 			});
 			onContinue(result);
