@@ -127,6 +127,7 @@ export function AddressSearchApp({
 					// fetchHydration returns single result success, dispatch to parent
 					posthogCapture("address_search_single_result", {
 						selection: detail.selection,
+						externalAddressId: result.data.externalAddressId,
 					});
 
 					if (isEnergyOnly) {
@@ -147,6 +148,7 @@ export function AddressSearchApp({
 				// fetchHydration failed, dispatch error to parent
 				posthogCapture("address_search_no_result", {
 					selection: detail.selection,
+					error: result.error,
 				});
 				onErrorEvent({ error: result.error });
 			}
