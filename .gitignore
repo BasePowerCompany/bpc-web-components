@@ -1,5 +1,6 @@
 .env.*
 .DS_Store
+.claude/worktrees/
 
 # Dependencies
 node_modules/
