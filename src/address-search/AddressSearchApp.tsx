@@ -161,11 +161,11 @@ export function AddressSearchApp({
 			if (!selection) return;
 			// Dispatch the result event to route the user to redirectUrl
 			onResultEvent({
-				result: { redirectUrl },
+				result: { redirectUrl, externalAddressId: externalAddressId ?? "" },
 				selection,
 			});
 		},
-		[onResultEvent, selection],
+		[onResultEvent, selection, externalAddressId],
 	);
 
 	const handleUserSelectAddress = useCallback(
