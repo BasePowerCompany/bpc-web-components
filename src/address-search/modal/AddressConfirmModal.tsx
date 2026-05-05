@@ -51,18 +51,15 @@ type FormValues = {
  * Names of the form fields the user actually changed. Compare against the
  * field's initial value at modal mount — NOT against `googleAddressComponents`
  * directly, because the form pre-fills with a fallback (selection.address.X)
- * when Google's component is empty. line2 is skipped when the user chose the
- * single-family-home escape (their unit input is intentionally discarded).
+ * when Google's component is empty.
  */
 function diffFields(
 	current: FormValues,
 	initial: FormValues,
-	opts: { omitLine2: boolean },
 ): UnconfirmedFieldType[] {
 	const edited: UnconfirmedFieldType[] = [];
 	if (current.line1.trim() !== initial.line1) edited.push("line1");
-	if (!opts.omitLine2 && current.line2.trim() !== initial.line2)
-		edited.push("line2");
+	if (current.line2.trim() !== initial.line2) edited.push("line2");
 	if (current.city.trim() !== initial.city) edited.push("city");
 	if (current.state.trim() !== initial.state) edited.push("state");
 	if (current.postalCode.trim() !== initial.postalCode)
@@ -152,53 +149,51 @@ export function AddressConfirmModal({
 		});
 	}, [kind]);
 
-	const buildResult = useCallback(
-		(opts: { omitLine2: boolean }): AddressResult => {
-			const effectiveLine2 = opts.omitLine2 ? "" : line2.trim();
-			const normalizedLine1 = [line1.trim(), effectiveLine2]
-				.filter(Boolean)
-				.join(" ");
-			const formattedAddress = [
-				normalizedLine1,
-				city.trim(),
-				[state.trim(), postalCode.trim()].filter(Boolean).join(" "),
-				selection.address.country,
-			]
-				.filter(Boolean)
-				.join(", ");
-			return {
-				formattedAddress,
-				address: {
-					line1: normalizedLine1,
-					city: city.trim(),
-					state: state.trim(),
-					postalCode: postalCode.trim(),
-					country: selection.address.country,
-					latitude: selection.address.latitude,
-					longitude: selection.address.longitude,
-				},
-			};
-		},
-		[
-			city,
-			line1,
-			line2,
-			postalCode,
+	const buildResult = useCallback((): AddressResult => {
+		const normalizedLine1 = [line1.trim(), line2.trim()]
+			.filter(Boolean)
+			.join(" ");
+		const formattedAddress = [
+			normalizedLine1,
+			city.trim(),
+			[state.trim(), postalCode.trim()].filter(Boolean).join(" "),
 			selection.address.country,
-			selection.address.latitude,
-			selection.address.longitude,
-			state,
-		],
-	);
+		]
+			.filter(Boolean)
+			.join(", ");
+		return {
+			formattedAddress,
+			address: {
+				line1: normalizedLine1,
+				city: city.trim(),
+				state: state.trim(),
+				postalCode: postalCode.trim(),
+				country: selection.address.country,
+				latitude: selection.address.latitude,
+				longitude: selection.address.longitude,
+			},
+		};
+	}, [
+		city,
+		line1,
+		line2,
+		postalCode,
+		selection.address.country,
+		selection.address.latitude,
+		selection.address.longitude,
+		state,
+	]);
 
 	const submit = useCallback(
-		(userAction: "confirmed_as_is" | "confirmed_sfh" | "edited") => {
-			const omitLine2 = userAction === "confirmed_sfh";
-			const result = buildResult({ omitLine2 });
+		(userAction: "confirmed_as_is" | "edited") => {
+			if (line2Missing) {
+				requestAnimationFrame(() => line2Ref.current?.focus());
+				return;
+			}
+			const result = buildResult();
 			const editedFields = diffFields(
 				{ line1, line2, city, state, postalCode },
 				initialFormValuesRef.current,
-				{ omitLine2 },
 			);
 			posthogCapture("address_validation_override", {
 				kind: validationResult.kind,
@@ -206,7 +201,7 @@ export function AddressConfirmModal({
 				inputFormattedAddress: selection.formattedAddress,
 				submittedFormattedAddress: result.formattedAddress,
 				submittedLine1: line1.trim(),
-				submittedLine2: omitLine2 ? "" : line2.trim(),
+				submittedLine2: line2.trim(),
 				editedFields,
 			});
 			onContinue(result);
@@ -216,6 +211,7 @@ export function AddressConfirmModal({
 			city,
 			line1,
 			line2,
+			line2Missing,
 			onContinue,
 			postalCode,
 			selection.formattedAddress,
@@ -233,14 +229,9 @@ export function AddressConfirmModal({
 			diffFields(
 				{ line1, line2, city, state, postalCode },
 				initialFormValuesRef.current,
-				{ omitLine2: false },
 			).length > 0;
 		submit(edited ? "edited" : "confirmed_as_is");
 	}, [city, line1, line2, line2Missing, postalCode, state, submit]);
-
-	const handleSingleFamilyHome = useCallback(() => {
-		submit("confirmed_sfh");
-	}, [submit]);
 
 	const handleClose = useCallback(() => {
 		posthogCapture("address_validation_dismiss", {
@@ -306,7 +297,7 @@ export function AddressConfirmModal({
 						placeholder={copy.line2Placeholder}
 						highlighted={isFieldHighlighted("line2")}
 						error={line2Missing}
-						errorText={`Please enter your unit number, or choose \u201Csingle-family home\u201D below`}
+						errorText="Please enter your apartment or unit number to continue."
 						errorId={line2WarningId}
 					/>
 					<div className={styles.addressConfirmGrid}>
@@ -335,7 +326,7 @@ export function AddressConfirmModal({
 							type="button"
 							className={styles.addressConfirmContinueButton}
 							onClick={handleContinue}
-							disabled={loading}
+							disabled={loading || line2Missing}
 						>
 							{loading ? (
 								<span className={styles.addressConfirmSpinner} />
@@ -343,16 +334,6 @@ export function AddressConfirmModal({
 								copy.continueLabel
 							)}
 						</button>
-						{copy.secondaryAction && (
-							<button
-								type="button"
-								className={styles.addressConfirmSecondaryButton}
-								onClick={handleSingleFamilyHome}
-								disabled={loading}
-							>
-								{copy.secondaryAction.label}
-							</button>
-						)}
 						<button
 							type="button"
 							className={styles.addressConfirmCloseButton}

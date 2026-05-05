@@ -57,7 +57,8 @@ Responsibilities:
 - treat autocomplete selection as the final address choice
 - submit immediately after selection, unless the address requires a
   subpremise — in which case delegate to `AddressConfirmModal` via
-  `onRequiresAddressConfirm`
+  `onRequiresAddressConfirm` and require the user to enter the unit before
+  submission
 
 Energy-only currently mirrors battery's pre-submit UX. If energy-only
 needs additional fields (e.g. a progressive-disclosure unit/apartment form)
@@ -183,8 +184,8 @@ This is intentionally centralized because both flows submit the same
 4. Energy-only resolves it into `AddressResult` and
    `ParsedGoogleAddressComponents`
 5. If the address requires a subpremise, energy-only delegates to
-   `AddressConfirmModal` via `onRequiresAddressConfirm`; otherwise it submits
-   immediately
+   `AddressConfirmModal` via `onRequiresAddressConfirm` and blocks submission
+   until the user enters the unit; otherwise it submits immediately
 6. `AddressSearchApp` handles shared post-submit behavior, including the
    energy-only splash redirect
 
