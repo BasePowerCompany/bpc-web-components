@@ -28,15 +28,15 @@ No vague warnings. Every banner / field caption must contain:
 
 ---
 
-## 3. Override is always one click away; hard blocks are last resort
+## 3. Override is usually one click away; multi-unit without unit is blocked
 
 The user is the source of truth, not Google. Our job is to surface risk, not to gatekeep.
 
 - Every non-trivial warning has a **Confirm** path. No warnings that only offer "Edit."
 - "Can't verify" is never a block. Only "can't parse" is — and even then the form stays editable.
-- `missing_subpremise` must have an **equal-weight** escape (not a dismissed secondary link). Meter-level properties, SFHs flagged as multi-unit, and ADUs must all be able to proceed.
+- `missing_subpremise` is blocking until the user enters a unit/apartment number. Do not submit a multi-unit address with an empty `line_2`.
 
-**Why:** Base's customer base includes rural, new-construction, and meter-per-structure properties that Google + USPS systematically mis-classify. Blocking these is blocking revenue.
+**Why:** Multi-unit serviceability depends on the unit. Submitting the base building address creates downstream ambiguity that the user can resolve at entry time.
 
 ---
 
@@ -73,7 +73,7 @@ If the principles are working, we should be able to prove it from data.
 
 Emit a PostHog event at every fork:
 - `address_validation_result` — after classifying (both silent and modal paths)
-- `address_validation_override` — user clicked Confirm / Edit / SFH
+- `address_validation_override` — user clicked Confirm or edited before continuing
 - `address_validation_dismiss` — user closed the modal
 
 Each event includes the raw validation signals (`dpvConfirmation`, `unconfirmedComponentTypes`, `possibleNextAction`) plus what the user did. PostHog stamps every event with a timestamp, so latency between steps can be derived at query time — don't duplicate it as client-side fields.
@@ -99,7 +99,7 @@ Base installs batteries in contexts Google + USPS don't always know about. The c
 
 **Copy should match the likely user intent per kind:**
 
-- `missing_subpremise` — dominant case is *"apartment dweller forgot the unit number."* Lead with that framing; the SFH escape button covers everything else (single-family, single-meter properties, etc.). Don't clutter the primary copy with barn/ADU examples.
+- `missing_subpremise` — dominant case is *"apartment dweller forgot the unit number."* Lead with that framing and require `line_2` before continuing.
 - `confirm_subpremise` — user has already typed a value we couldn't verify. This is where meter-level framing belongs: *"that's okay for separate meters like guest houses, barns, or trailers."*
 
 **Why:** These aren't edge cases — they're the ~7% of addresses that currently fail our SLA. But don't over-fit to the minority within that bucket: apartment-missing-unit is still the common case for `missing_subpremise`.

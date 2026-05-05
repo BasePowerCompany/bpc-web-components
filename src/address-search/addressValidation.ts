@@ -5,7 +5,7 @@ import { getGoogleMapsApiKey } from "@/utils/googleMaps";
  *
  * - `accept`             — submit silently, Google + USPS both happy.
  * - `missing_subpremise` — Google says a subpremise is required (apartment/unit).
- *                          UX: prompt for unit with equal-weight "single-family home" escape.
+ *                          UX: require unit before submission.
  * - `confirm_subpremise` — user entered a unit but USPS/Google can't confirm it.
  *                          UX: show unit with warning, let user confirm or edit.
  * - `confirm_street_number` — street number not confirmed by USPS (rural routes,
