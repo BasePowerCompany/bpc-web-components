@@ -20,18 +20,11 @@ export type Banner = {
 	text: string;
 };
 
-export type SecondaryAction = {
-	label: string;
-	/** If true, the secondary action clears line_2 before submitting. */
-	clearsLine2: boolean;
-};
-
 export type Copy = {
 	title: string;
 	banner?: Banner;
 	line2Placeholder: string;
 	continueLabel: string;
-	secondaryAction?: SecondaryAction;
 };
 
 const DEFAULT_COPY: Copy = {
@@ -46,13 +39,9 @@ const COPY_BY_KIND: Partial<Record<AddressValidationKind, Partial<Copy>>> = {
 		title: "Confirm your unit number",
 		banner: {
 			tone: "warn",
-			text: "This looks like a multi-unit building. Add your unit or confirm it's a single-family home.",
+			text: "This looks like a multi-unit building. Add your apartment or unit number to continue.",
 		},
 		line2Placeholder: "Apartment or unit number",
-		secondaryAction: {
-			label: "This is a single-family home",
-			clearsLine2: true,
-		},
 	},
 	confirm_subpremise: {
 		title: "Confirm your unit or meter detail",

@@ -5,6 +5,10 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
 	plugins: [react(), visualizer()],
+	test: {
+		environment: "jsdom",
+		globals: true,
+	},
 	build: {
 		// Build a single-file, browser-ready bundle
 		lib: {
@@ -26,7 +30,10 @@ export default defineConfig({
 		// If you ever import "react" libs, alias them to compat
 		alias: {
 			react: "preact/compat",
+			"react/jsx-runtime": "preact/jsx-runtime",
 			"react-dom": "preact/compat",
+			"react-dom/client": "preact/compat/client",
+			"react-dom/test-utils": "preact/test-utils",
 			"@": path.resolve(__dirname, "src"),
 		},
 	},
