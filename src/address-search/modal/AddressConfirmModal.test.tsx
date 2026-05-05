@@ -74,6 +74,7 @@ describe("AddressConfirmModal", () => {
 	it("blocks missing_subpremise continuation until a unit is entered", async () => {
 		const user = userEvent.setup();
 		const { onContinue } = renderModal();
+		const continueButton = screen.getByRole("button", { name: "Continue" });
 
 		await vi.waitFor(() => {
 			expect(
@@ -83,18 +84,16 @@ describe("AddressConfirmModal", () => {
 		expect(
 			screen.queryByText("This is a single-family home"),
 		).not.toBeInTheDocument();
-
-		await user.click(screen.getByRole("button", { name: "Continue" }));
+		expect(continueButton).toBeDisabled();
+		expect(
+			screen.getByText(
+				"Please enter your apartment or unit number to continue.",
+			),
+		).toBeVisible();
 
 		expect(onContinue).not.toHaveBeenCalled();
-		expect(
-			screen.getByText("Please enter your apartment or unit number"),
-		).toBeVisible();
-		await vi.waitFor(() => {
-			expect(
-				screen.getByPlaceholderText("Apartment or unit number"),
-			).toHaveFocus();
-		});
+		await user.click(continueButton);
+		expect(onContinue).not.toHaveBeenCalled();
 	});
 
 	it("submits the selected multifamily address only after unit entry", async () => {
@@ -104,7 +103,9 @@ describe("AddressConfirmModal", () => {
 		fireEvent.input(screen.getByPlaceholderText("Apartment or unit number"), {
 			target: { value: "23" },
 		});
-		await user.click(screen.getByRole("button", { name: "Continue" }));
+		const continueButton = screen.getByRole("button", { name: "Continue" });
+		expect(continueButton).toBeEnabled();
+		await user.click(continueButton);
 
 		expect(onContinue).toHaveBeenCalledWith({
 			formattedAddress: "12550 Piping Rock Drive 23, Houston, TX 77077, US",

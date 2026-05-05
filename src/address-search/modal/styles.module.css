@@ -720,32 +720,6 @@
 	cursor: not-allowed;
 }
 
-.addressConfirmSecondaryButton {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 100%;
-	padding: 14px 32px;
-	font-size: 15px;
-	font-family: inherit;
-	font-weight: 600;
-	color: #084d41;
-	background: none;
-	border: 1px solid #084d41;
-	border-radius: 12px;
-	cursor: pointer;
-	transition: background-color 0.2s ease-in-out;
-}
-
-.addressConfirmSecondaryButton:hover:not(:disabled) {
-	background-color: #f0f8f5;
-}
-
-.addressConfirmSecondaryButton:disabled {
-	opacity: 0.5;
-	cursor: not-allowed;
-}
-
 .addressConfirmSpinner {
 	display: inline-block;
 	width: 20px;

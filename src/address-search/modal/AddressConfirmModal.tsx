@@ -186,6 +186,10 @@ export function AddressConfirmModal({
 
 	const submit = useCallback(
 		(userAction: "confirmed_as_is" | "edited") => {
+			if (line2Missing) {
+				requestAnimationFrame(() => line2Ref.current?.focus());
+				return;
+			}
 			const result = buildResult();
 			const editedFields = diffFields(
 				{ line1, line2, city, state, postalCode },
@@ -207,6 +211,7 @@ export function AddressConfirmModal({
 			city,
 			line1,
 			line2,
+			line2Missing,
 			onContinue,
 			postalCode,
 			selection.formattedAddress,
@@ -292,7 +297,7 @@ export function AddressConfirmModal({
 						placeholder={copy.line2Placeholder}
 						highlighted={isFieldHighlighted("line2")}
 						error={line2Missing}
-						errorText="Please enter your apartment or unit number"
+						errorText="Please enter your apartment or unit number to continue."
 						errorId={line2WarningId}
 					/>
 					<div className={styles.addressConfirmGrid}>
@@ -321,7 +326,7 @@ export function AddressConfirmModal({
 							type="button"
 							className={styles.addressConfirmContinueButton}
 							onClick={handleContinue}
-							disabled={loading}
+							disabled={loading || line2Missing}
 						>
 							{loading ? (
 								<span className={styles.addressConfirmSpinner} />
