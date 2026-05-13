@@ -1,7 +1,9 @@
 import { useCallback, useState } from "react";
 import {
+	type AddressValidationInput,
 	type AddressValidationResult,
 	validateAddress,
+	validationEventProperties,
 } from "@/address-search/addressValidation";
 import type {
 	AddressResult,
@@ -25,13 +27,42 @@ type AddressSearchFlowProps = {
 	onSubmitSelection: (detail: {
 		selection: AddressResult | undefined;
 		confirmAddress: boolean;
+		validationSessionId?: string;
 	}) => void;
 	onRequiresAddressConfirm: (data: {
 		selection: AddressResult;
 		googleAddressComponents: ParsedGoogleAddressComponents;
 		validationResult: AddressValidationResult;
+		validationSessionId: string;
+	}) => void;
+	onRequiresUnitRequirementConfirm: (data: {
+		selection: AddressResult;
+		googleAddressComponents: ParsedGoogleAddressComponents;
+		validationResult: AddressValidationResult;
+		validationSessionId: string;
 	}) => void;
 };
+
+function createValidationSessionId(): string {
+	return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+}
+
+function toAddressValidationInput(
+	place: google.maps.places.Place,
+	fallbackAddressLine: string,
+): AddressValidationInput {
+	const components = parseGoogleAddressComponents(place);
+	if (!components?.line1) return fallbackAddressLine;
+
+	return {
+		addressLines: [
+			[components.line1, components.line2].filter(Boolean).join(" "),
+		],
+		locality: components.city || undefined,
+		administrativeArea: components.state || undefined,
+		postalCode: components.postalCode || undefined,
+	};
+}
 
 /**
  * Shared address entry + resolve + validate flow. Used by both the battery
@@ -47,6 +78,7 @@ export function AddressSearchFlow({
 	onInputValueChange,
 	onSubmitSelection,
 	onRequiresAddressConfirm,
+	onRequiresUnitRequirementConfirm,
 }: AddressSearchFlowProps) {
 	const [validating, setValidating] = useState(false);
 	const { results, resolveSelection } = useAddressAutocomplete(inputValue);
@@ -56,21 +88,24 @@ export function AddressSearchFlow({
 			const fullText = [result.mainText ?? "", result.secondaryText ?? ""]
 				.filter(Boolean)
 				.join(", ");
+			const validationSessionId = createValidationSessionId();
 			onInputValueChange(fullText);
 			setValidating(true);
 
 			let resolved: Awaited<ReturnType<typeof resolveSelection>>;
-			let validationResult: AddressValidationResult;
+			let validationResult: AddressValidationResult | undefined;
 			try {
-				[resolved, validationResult] = await Promise.all([
-					resolveSelection({ result }),
-					validateAddress(fullText),
-				]);
+				resolved = await resolveSelection({ result });
+				if (resolved?.place) {
+					validationResult = await validateAddress(
+						toAddressValidationInput(resolved.place, fullText),
+					);
+				}
 			} finally {
 				setValidating(false);
 			}
 
-			if (!resolved?.place) return;
+			if (!resolved?.place || !validationResult) return;
 
 			// Parse with Validation API's locality as a fallback — Places omits
 			// `locality` for CDPs like Cypress, TX, and we don't want to leak
@@ -86,29 +121,44 @@ export function AddressSearchFlow({
 
 			if (!selection) return;
 
+			if (
+				validationResult.kind === "confirm_unit_requirement" &&
+				googleAddressComponents
+			) {
+				onRequiresUnitRequirementConfirm({
+					selection,
+					googleAddressComponents,
+					validationResult,
+					validationSessionId,
+				});
+				return;
+			}
+
 			if (validationResult.kind !== "accept" && googleAddressComponents) {
 				onRequiresAddressConfirm({
 					selection,
 					googleAddressComponents,
 					validationResult,
+					validationSessionId,
 				});
 				return;
 			}
 
 			posthogCapture("address_validation_result", {
-				kind: validationResult.kind,
-				possibleNextAction: validationResult.possibleNextAction,
-				dpvConfirmation: validationResult.dpvConfirmation,
-				dpvFootnote: validationResult.dpvFootnote,
+				...validationEventProperties(validationResult, validationSessionId),
 				inputFormattedAddress: fullText,
-				googleFormattedAddress: validationResult.googleFormattedAddress,
 				confirmation_path: "silent",
 			});
-			onSubmitSelection({ selection, confirmAddress: true });
+			onSubmitSelection({
+				selection,
+				confirmAddress: true,
+				validationSessionId,
+			});
 		},
 		[
 			onInputValueChange,
 			onRequiresAddressConfirm,
+			onRequiresUnitRequirementConfirm,
 			onSubmitSelection,
 			resolveSelection,
 		],

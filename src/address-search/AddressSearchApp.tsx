@@ -1,9 +1,13 @@
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
-import type { AddressValidationResult } from "@/address-search/addressValidation";
+import {
+	type AddressValidationResult,
+	requireSubpremise,
+} from "@/address-search/addressValidation";
 import { fetchHydration } from "@/address-search/fetch";
 import { AddressConfirmModal } from "@/address-search/modal/AddressConfirmModal";
 import { SelectionModal } from "@/address-search/modal/SelectionModal";
+import { UnitRequirementPromptModal } from "@/address-search/modal/UnitRequirementPromptModal";
 import type {
 	AddressResult,
 	ParsedGoogleAddressComponents,
@@ -22,10 +26,12 @@ export type AddressSearchAppProps = {
 	onSelectEvent: (detail: {
 		selection: AddressResult | undefined;
 		confirmAddress: boolean;
+		validationSessionId?: string;
 	}) => void;
 	onResultEvent: (detail: {
 		result: { redirectUrl: string; [key: string]: unknown };
 		selection: AddressResult;
+		validationSessionId?: string;
 	}) => void;
 	onErrorEvent: (detail: { error: string }) => void;
 };
@@ -41,6 +47,8 @@ export function AddressSearchApp({
 	onErrorEvent,
 }: AddressSearchAppProps) {
 	const [selection, setSelection] = useState<AddressResult | undefined>();
+	const [selectionValidationSessionId, setSelectionValidationSessionId] =
+		useState<string | undefined>();
 	const [externalAddressId, setExternalAddressId] = useState<
 		string | undefined
 	>();
@@ -63,19 +71,31 @@ export function AddressSearchApp({
 				selection: AddressResult;
 				googleAddressComponents: ParsedGoogleAddressComponents;
 				validationResult: AddressValidationResult;
+				validationSessionId: string;
 		  }
 		| undefined
 	>();
 	// Lifted from the flow so modal edits can sync back into the autocomplete
 	// input after the user clicks Confirm.
 	const [inputValue, setInputValue] = useState("");
+	const [unitRequirementData, setUnitRequirementData] = useState<
+		| {
+				selection: AddressResult;
+				googleAddressComponents: ParsedGoogleAddressComponents;
+				validationResult: AddressValidationResult;
+				validationSessionId: string;
+		  }
+		| undefined
+	>();
 
 	const handleSelect = useCallback(
 		async (detail: {
 			selection: AddressResult | undefined;
 			confirmAddress: boolean;
+			validationSessionId?: string;
 		}) => {
 			setSelection(detail.selection);
+			setSelectionValidationSessionId(detail.validationSessionId);
 
 			// Fire the select event to the parent
 			onSelectEvent(detail);
@@ -102,6 +122,7 @@ export function AddressSearchApp({
 					setMultipleAddressResults(undefined);
 					setEnergySplashRedirectUrl(undefined);
 					posthogCapture("address_search_multiple_utility_result", {
+						validationSessionId: detail.validationSessionId,
 						selection: detail.selection,
 						multipleResult: {
 							redirectUrl: result.data.redirectUrl,
@@ -119,6 +140,7 @@ export function AddressSearchApp({
 					setMultipleUtilityResult(undefined);
 					setEnergySplashRedirectUrl(undefined);
 					posthogCapture("address_search_multiple_address_result", {
+						validationSessionId: detail.validationSessionId,
 						selection: detail.selection,
 						multipleResult: result.data.redirectStrategy.multipleAddresses,
 					});
@@ -126,6 +148,7 @@ export function AddressSearchApp({
 				} else {
 					// fetchHydration returns single result success, dispatch to parent
 					posthogCapture("address_search_single_result", {
+						validationSessionId: detail.validationSessionId,
 						selection: detail.selection,
 						externalAddressId: result.data.externalAddressId,
 					});
@@ -135,6 +158,7 @@ export function AddressSearchApp({
 						setMultipleAddressResults(undefined);
 						setMultipleUtilityResult(undefined);
 						setAddressConfirmData(undefined);
+						setUnitRequirementData(undefined);
 						setEnergySplashRedirectUrl(result.data.redirectUrl);
 						return;
 					}
@@ -142,11 +166,13 @@ export function AddressSearchApp({
 					onResultEvent({
 						result: result.data,
 						selection: detail.selection,
+						validationSessionId: detail.validationSessionId,
 					});
 				}
 			} else {
 				// fetchHydration failed, dispatch error to parent
 				posthogCapture("address_search_no_result", {
+					validationSessionId: detail.validationSessionId,
 					selection: detail.selection,
 					error: result.error,
 				});
@@ -163,18 +189,23 @@ export function AddressSearchApp({
 			onResultEvent({
 				result: { redirectUrl, externalAddressId: externalAddressId ?? "" },
 				selection,
+				validationSessionId: selectionValidationSessionId,
 			});
 		},
-		[onResultEvent, selection, externalAddressId],
+		[onResultEvent, selection, externalAddressId, selectionValidationSessionId],
 	);
 
 	const handleUserSelectAddress = useCallback(
 		(address: AddressResult) => {
 			// when user selects an address from the AddressSelectionContent
 			// we don't want to confirm the address, user will be redirected
-			handleSelect({ selection: address, confirmAddress: false });
+			handleSelect({
+				selection: address,
+				confirmAddress: false,
+				validationSessionId: selectionValidationSessionId,
+			});
 		},
-		[handleSelect],
+		[handleSelect, selectionValidationSessionId],
 	);
 
 	const handleRequiresAddressConfirm = useCallback(
@@ -182,40 +213,90 @@ export function AddressSearchApp({
 			selection: AddressResult;
 			googleAddressComponents: ParsedGoogleAddressComponents;
 			validationResult: AddressValidationResult;
+			validationSessionId: string;
 		}) => {
 			setAddressConfirmData(data);
 		},
 		[],
 	);
 
+	const handleRequiresUnitRequirementConfirm = useCallback(
+		(data: {
+			selection: AddressResult;
+			googleAddressComponents: ParsedGoogleAddressComponents;
+			validationResult: AddressValidationResult;
+			validationSessionId: string;
+		}) => {
+			setUnitRequirementData(data);
+		},
+		[],
+	);
+
 	const [addressConfirmLoading, setAddressConfirmLoading] = useState(false);
+	const [unitRequirementLoading, setUnitRequirementLoading] = useState(false);
 
 	const handleAddressConfirmContinue = useCallback(
 		async (result: AddressResult) => {
+			if (!addressConfirmData) return;
 			setAddressConfirmLoading(true);
 			// Sync the autocomplete input with whatever the user edited in the
 			// modal so there's no stale address visible while hydration runs.
 			setInputValue(result.formattedAddress);
 			try {
-				await handleSelect({ selection: result, confirmAddress: true });
+				await handleSelect({
+					selection: result,
+					confirmAddress: true,
+					validationSessionId: addressConfirmData.validationSessionId,
+				});
 			} finally {
 				setAddressConfirmData(undefined);
 				setAddressConfirmLoading(false);
 			}
 		},
-		[handleSelect],
+		[addressConfirmData, handleSelect],
 	);
 
 	const handleAddressConfirmClose = useCallback(() => {
 		setAddressConfirmData(undefined);
 	}, []);
 
+	const handleUnitRequirementNeedsUnit = useCallback(() => {
+		if (!unitRequirementData) return;
+		setUnitRequirementData(undefined);
+		setAddressConfirmData({
+			...unitRequirementData,
+			validationResult: requireSubpremise(unitRequirementData.validationResult),
+		});
+	}, [unitRequirementData]);
+
+	const handleUnitRequirementNoUnit = useCallback(async () => {
+		if (!unitRequirementData) return;
+		setUnitRequirementLoading(true);
+		try {
+			await handleSelect({
+				selection: unitRequirementData.selection,
+				confirmAddress: true,
+				validationSessionId: unitRequirementData.validationSessionId,
+			});
+		} finally {
+			setUnitRequirementData(undefined);
+			setUnitRequirementLoading(false);
+		}
+	}, [handleSelect, unitRequirementData]);
+
+	const handleUnitRequirementClose = useCallback(() => {
+		setUnitRequirementData(undefined);
+	}, []);
+
 	const handleBack = useCallback(() => {
 		setMultipleUtilityResult(undefined);
 		setMultipleAddressResults(undefined);
 		setSelection(undefined);
+		setSelectionValidationSessionId(undefined);
 		setExternalAddressId(undefined);
 		setEnergySplashRedirectUrl(undefined);
+		setAddressConfirmData(undefined);
+		setUnitRequirementData(undefined);
 	}, []);
 
 	const shouldShowModal =
@@ -239,13 +320,28 @@ export function AddressSearchApp({
 				onInputValueChange={setInputValue}
 				onSubmitSelection={handleSelect}
 				onRequiresAddressConfirm={handleRequiresAddressConfirm}
+				onRequiresUnitRequirementConfirm={handleRequiresUnitRequirementConfirm}
 			/>
+			{unitRequirementData &&
+				createPortal(
+					<UnitRequirementPromptModal
+						selection={unitRequirementData.selection}
+						validationResult={unitRequirementData.validationResult}
+						validationSessionId={unitRequirementData.validationSessionId}
+						loading={unitRequirementLoading}
+						onNeedsUnit={handleUnitRequirementNeedsUnit}
+						onNoUnit={handleUnitRequirementNoUnit}
+						onClose={handleUnitRequirementClose}
+					/>,
+					portalRoot,
+				)}
 			{addressConfirmData &&
 				createPortal(
 					<AddressConfirmModal
 						selection={addressConfirmData.selection}
 						googleAddressComponents={addressConfirmData.googleAddressComponents}
 						validationResult={addressConfirmData.validationResult}
+						validationSessionId={addressConfirmData.validationSessionId}
 						loading={addressConfirmLoading}
 						onContinue={handleAddressConfirmContinue}
 						onClose={handleAddressConfirmClose}

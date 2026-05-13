@@ -542,6 +542,19 @@
 	width: 90%;
 }
 
+.unitPromptCard {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	background: white;
+	border-radius: 16px;
+	padding: 32px;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16);
+	max-width: 520px;
+	width: 90%;
+}
+
 .addressConfirmCloseIcon {
 	position: absolute;
 	top: 12px;
@@ -561,6 +574,143 @@
 
 .addressConfirmCloseIcon:hover {
 	background-color: #f0f0f0;
+}
+
+.addressConfirmCloseIcon:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.unitPromptHeader {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding-right: 24px;
+}
+
+.unitPromptEyebrow {
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	color: #54524f;
+	margin: 0;
+	text-transform: uppercase;
+}
+
+.unitPromptTitle {
+	font-size: 26px;
+	font-weight: 600;
+	color: #0b0e0f;
+	margin: 0;
+	line-height: 1.2;
+	text-wrap: balance;
+}
+
+.unitPromptDescription {
+	font-size: 15px;
+	line-height: 1.5;
+	color: #54524f;
+	margin: 0;
+	text-wrap: balance;
+}
+
+.unitPromptAddress {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 12px 14px;
+	background: #f6f5f3;
+	border: 1px solid #e8e6e3;
+	border-radius: 10px;
+}
+
+.unitPromptAddressLabel {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	color: #7f7d7a;
+	text-transform: uppercase;
+}
+
+.unitPromptAddressText {
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.4;
+	color: #292826;
+}
+
+.unitPromptOptions {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.unitPromptOption {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	min-height: 74px;
+	padding: 16px;
+	border: 1px solid #d8d7d5;
+	border-radius: 12px;
+	background: white;
+	color: #0b0e0f;
+	cursor: pointer;
+	text-align: left;
+	font-family: inherit;
+	transition:
+		border-color 0.2s ease-in-out,
+		background-color 0.2s ease-in-out,
+		box-shadow 0.2s ease-in-out;
+}
+
+.unitPromptOption:hover:not(:disabled),
+.unitPromptOption:focus-visible {
+	border-color: #084d41;
+	box-shadow: 0 0 0 2px rgba(208, 245, 133, 0.7);
+	outline: none;
+}
+
+.unitPromptOption:disabled {
+	opacity: 0.7;
+	cursor: not-allowed;
+}
+
+.unitPromptOptionPrimary {
+	background: #fbfff2;
+	border-color: #b2dd79;
+}
+
+.unitPromptOptionIndicator {
+	position: relative;
+	width: 22px;
+	height: 22px;
+	border: 2px solid #084d41;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.unitPromptOptionCopy {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+	flex: 1;
+}
+
+.unitPromptOptionTitle {
+	font-size: 16px;
+	font-weight: 600;
+	line-height: 1.3;
+	color: #0b0e0f;
+}
+
+.unitPromptOptionSubtitle {
+	font-size: 14px;
+	font-weight: 400;
+	line-height: 1.4;
+	color: #666;
 }
 
 .addressConfirmTitle {
@@ -738,15 +888,43 @@
 
 @media screen and (max-width: 540px) {
 	.addressConfirmGrid {
-		grid-template-columns: minmax(0, 1.2fr) minmax(72px, 0.7fr) minmax(
-				84px,
-				0.9fr
-			);
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 		gap: 8px;
+	}
+
+	.addressConfirmGrid > .addressConfirmInput:first-child {
+		grid-column: 1 / -1;
 	}
 
 	.addressConfirmCard {
 		padding: 24px;
+	}
+
+	.unitPromptCard {
+		padding: 24px;
+		gap: 16px;
+	}
+
+	.unitPromptHeader {
+		padding-right: 20px;
+	}
+
+	.unitPromptTitle {
+		font-size: 22px;
+	}
+
+	.unitPromptDescription {
+		font-size: 14px;
+	}
+
+	.unitPromptOption {
+		align-items: flex-start;
+		min-height: 78px;
+		padding: 14px;
+	}
+
+	.unitPromptOptionTitle {
+		font-size: 15px;
 	}
 
 	.addressConfirmTitle {
