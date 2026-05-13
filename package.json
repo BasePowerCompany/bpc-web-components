@@ -13,6 +13,7 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"lint": "biome check .",
+		"test": "node scripts/run-address-validation-tests.mjs",
 		"precommit": "npm run build"
 	},
 	"dependencies": {

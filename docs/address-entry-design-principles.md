@@ -45,11 +45,12 @@ The user is the source of truth, not Google. Our job is to surface risk, not to 
 Stack validation signals by strength. When a stronger signal is clean, don't ask questions the weaker signal might flag.
 
 Strength order (strongest first):
-1. **USPS DPV=Y** — confirmed deliverable. Silent submit, regardless of any Google-layer flags.
+1. **USPS DPV=Y** — confirmed deliverable. Silent submit, unless USPS also says this is a building/apartment record or a default address with more specific addresses.
 2. **User confirmation via modal** — explicit intent. Don't re-ask downstream.
-3. **Google `possibleNextAction=ACCEPT` with no unconfirmed components** — silent submit.
+3. **Google `possibleNextAction=ACCEPT` with no unconfirmed components and a conclusive USPS DPV signal** — silent submit.
 4. **Google component-level confirmation** — drives the modal kind.
-5. **USPS DPV footnote** — tiebreaker for copy (new-build vs wrong-unit framing).
+5. **Inconclusive unit requirement** — ask whether the user lives in a single-family home or a multi-unit building before deciding whether `line_2` is required. Useful signals include USPS `addressRecordType=H`, USPS `defaultAddress=true`, missing or inconclusive DPV data, and no `SUB_PREMISE` in `inputGranularity`.
+6. **USPS DPV footnote** — tiebreaker for copy (new-build vs wrong-unit framing).
 
 **Why:** If USPS says they'll deliver mail here, we have no business second-guessing Google's inference layer.
 
@@ -65,6 +66,8 @@ All confirm/warn/block states render in the **same modal component**. Only the c
 
 **Why:** Familiarity reduces cognitive load. Variant modals teach users nothing transferable.
 
+The `confirm_unit_requirement` prompt is the one exception: it is a short fork before the confirm modal. If the user chooses a multi-unit building, route them into the normal `missing_subpremise` modal so `line_2` is still required in the familiar address-edit view. If they choose a single-family home, continue without `line_2`.
+
 ---
 
 ## 6. Every decision emits an event
@@ -75,8 +78,9 @@ Emit a PostHog event at every fork:
 - `address_validation_result` — after classifying (both silent and modal paths)
 - `address_validation_override` — user clicked Confirm or edited before continuing
 - `address_validation_dismiss` — user closed the modal
+- `address_unit_requirement_response` — user answered the home-vs-unit prompt
 
-Each event includes the raw validation signals (`dpvConfirmation`, `unconfirmedComponentTypes`, `possibleNextAction`) plus what the user did. PostHog stamps every event with a timestamp, so latency between steps can be derived at query time — don't duplicate it as client-side fields.
+Each event includes the raw validation signals (`dpvConfirmation`, `unconfirmedComponentTypes`, `possibleNextAction`) plus what the user did. Address-attempt events also include `validationSessionId`, which lets dashboards connect the validation decision, any user prompt response, address edit/override, and final search result without relying only on session-level joins. PostHog stamps every event with a timestamp, so latency between steps can be derived at query time — don't duplicate it as client-side fields.
 
 **Key metrics to monitor:**
 - Silent-submit rate (should rise after DPV=Y short-circuit)

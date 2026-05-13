@@ -6,9 +6,10 @@ import {
 	useRef,
 	useState,
 } from "react";
-import type {
-	AddressValidationResult,
-	UnconfirmedFieldType,
+import {
+	type AddressValidationResult,
+	type UnconfirmedFieldType,
+	validationEventProperties,
 } from "@/address-search/addressValidation";
 import { CloseIcon } from "@/address-search/icons/CloseIcon";
 import type {
@@ -25,6 +26,7 @@ export type AddressConfirmModalProps = {
 	selection: AddressResult;
 	googleAddressComponents: ParsedGoogleAddressComponents;
 	validationResult: AddressValidationResult;
+	validationSessionId: string;
 	loading: boolean;
 	onContinue: (result: AddressResult) => void;
 	onClose: () => void;
@@ -71,6 +73,7 @@ export function AddressConfirmModal({
 	selection,
 	googleAddressComponents,
 	validationResult,
+	validationSessionId,
 	loading,
 	onContinue,
 	onClose,
@@ -120,20 +123,11 @@ export function AddressConfirmModal({
 		if (hasLoggedShown.current) return;
 		hasLoggedShown.current = true;
 		posthogCapture("address_validation_result", {
-			kind: validationResult.kind,
-			possibleNextAction: validationResult.possibleNextAction,
-			unconfirmedComponentTypes: validationResult.unconfirmedComponentTypes,
-			missingComponentTypes: validationResult.missingComponentTypes,
-			hasUnconfirmedComponents: validationResult.hasUnconfirmedComponents,
-			hasInferredComponents: validationResult.hasInferredComponents,
-			hasReplacedComponents: validationResult.hasReplacedComponents,
-			dpvConfirmation: validationResult.dpvConfirmation,
-			dpvFootnote: validationResult.dpvFootnote,
+			...validationEventProperties(validationResult, validationSessionId),
 			inputFormattedAddress: selection.formattedAddress,
-			googleFormattedAddress: validationResult.googleFormattedAddress,
 			confirmation_path: "modal",
 		});
-	}, [validationResult, selection.formattedAddress]);
+	}, [validationResult, selection.formattedAddress, validationSessionId]);
 
 	// Focus the most useful field on mount based on the kind:
 	// - subpremise cases → line_2
@@ -196,13 +190,14 @@ export function AddressConfirmModal({
 				initialFormValuesRef.current,
 			);
 			posthogCapture("address_validation_override", {
-				kind: validationResult.kind,
+				...validationEventProperties(validationResult, validationSessionId),
 				user_action: userAction,
 				inputFormattedAddress: selection.formattedAddress,
 				submittedFormattedAddress: result.formattedAddress,
 				submittedLine1: line1.trim(),
 				submittedLine2: line2.trim(),
 				editedFields,
+				confirmation_path: "modal",
 			});
 			onContinue(result);
 		},
@@ -216,7 +211,8 @@ export function AddressConfirmModal({
 			postalCode,
 			selection.formattedAddress,
 			state,
-			validationResult.kind,
+			validationResult,
+			validationSessionId,
 		],
 	);
 
@@ -235,11 +231,17 @@ export function AddressConfirmModal({
 
 	const handleClose = useCallback(() => {
 		posthogCapture("address_validation_dismiss", {
-			kind: validationResult.kind,
+			...validationEventProperties(validationResult, validationSessionId),
 			inputFormattedAddress: selection.formattedAddress,
+			confirmation_path: "modal",
 		});
 		onClose();
-	}, [onClose, selection.formattedAddress, validationResult.kind]);
+	}, [
+		onClose,
+		selection.formattedAddress,
+		validationResult,
+		validationSessionId,
+	]);
 
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: Backdrop click-to-dismiss is a standard modal pattern

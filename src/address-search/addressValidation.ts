@@ -8,6 +8,10 @@ import { getGoogleMapsApiKey } from "@/utils/googleMaps";
  *                          UX: require unit before submission.
  * - `confirm_subpremise` — user entered a unit but USPS/Google can't confirm it.
  *                          UX: show unit with warning, let user confirm or edit.
+ * - `confirm_unit_requirement` — Google validated the street address but did
+ *                          not give us a conclusive signal that no unit is
+ *                          needed. UX: ask whether the user lives in a
+ *                          multi-unit home; require unit only when they say yes.
  * - `confirm_street_number` — street number not confirmed by USPS (rural routes,
  *                          new construction, USPS blind spots). UX: show banner,
  *                          let user confirm or edit.
@@ -24,9 +28,17 @@ export type AddressValidationKind =
 	| "accept"
 	| "missing_subpremise"
 	| "confirm_subpremise"
+	| "confirm_unit_requirement"
 	| "confirm_street_number"
 	| "confirm_components"
 	| "block";
+
+export type UnitRequirementPromptReason =
+	| "building_or_apartment_record"
+	| "default_address"
+	| "missing_usps_dpv"
+	| "inconclusive_usps_dpv"
+	| "unconfirmed_google";
 
 /** Component types we can surface per-field in the modal UI. */
 export type UnconfirmedFieldType =
@@ -45,6 +57,9 @@ export type AddressValidationResult = {
 	unconfirmedFields: UnconfirmedFieldType[];
 	/** Raw verdict action: ACCEPT, CONFIRM, CONFIRM_ADD_SUBPREMISES, FIX */
 	possibleNextAction: string;
+	inputGranularity: string | null;
+	validationGranularity: string | null;
+	geocodeGranularity: string | null;
 	addressComplete: boolean;
 	hasUnconfirmedComponents: boolean;
 	hasInferredComponents: boolean;
@@ -53,13 +68,56 @@ export type AddressValidationResult = {
 	 *  S=primary OK/secondary mismatch, N=not deliverable, null=no USPS data */
 	dpvConfirmation: string | null;
 	dpvFootnote: string | null;
+	/** USPS record type: H=building/apartment, S=street record, etc. */
+	addressRecordType: string | null;
+	/** USPS found a default address but more specific addresses exist. */
+	defaultAddress: boolean;
+	/** Google metadata: residence vs business, not single-family vs multi-unit. */
+	metadataResidential: boolean | null;
 	/** Google's standardized formatted address — useful for logging / display */
 	googleFormattedAddress: string | null;
+	/** Why we asked the home-vs-unit question, if that prompt is shown. */
+	unitRequirementPromptReason: UnitRequirementPromptReason | null;
 	/** Locality as Google validated it. Populated even for CDPs (e.g. "Cypress, TX")
 	 *  where Places Autocomplete omits the locality component — use this to
 	 *  backfill the city field when parseGoogleAddressComponents returns empty. */
 	validatedLocality: string | null;
 };
+
+export type AddressValidationInput =
+	| string
+	| {
+			addressLines: string[];
+			locality?: string;
+			administrativeArea?: string;
+			postalCode?: string;
+	  };
+
+export function validationEventProperties(
+	validationResult: AddressValidationResult,
+	validationSessionId?: string,
+): Record<string, unknown> {
+	return {
+		...(validationSessionId ? { validationSessionId } : {}),
+		kind: validationResult.kind,
+		possibleNextAction: validationResult.possibleNextAction,
+		inputGranularity: validationResult.inputGranularity,
+		validationGranularity: validationResult.validationGranularity,
+		geocodeGranularity: validationResult.geocodeGranularity,
+		unconfirmedComponentTypes: validationResult.unconfirmedComponentTypes,
+		missingComponentTypes: validationResult.missingComponentTypes,
+		hasUnconfirmedComponents: validationResult.hasUnconfirmedComponents,
+		hasInferredComponents: validationResult.hasInferredComponents,
+		hasReplacedComponents: validationResult.hasReplacedComponents,
+		dpvConfirmation: validationResult.dpvConfirmation,
+		dpvFootnote: validationResult.dpvFootnote,
+		addressRecordType: validationResult.addressRecordType,
+		defaultAddress: validationResult.defaultAddress,
+		metadataResidential: validationResult.metadataResidential,
+		googleFormattedAddress: validationResult.googleFormattedAddress,
+		unitRequirementPromptReason: validationResult.unitRequirementPromptReason,
+	};
+}
 
 const SAFE_DEFAULT: AddressValidationResult = {
 	kind: "accept",
@@ -67,13 +125,20 @@ const SAFE_DEFAULT: AddressValidationResult = {
 	missingComponentTypes: [],
 	unconfirmedFields: [],
 	possibleNextAction: "ACCEPT",
+	inputGranularity: null,
+	validationGranularity: null,
+	geocodeGranularity: null,
 	addressComplete: true,
 	hasUnconfirmedComponents: false,
 	hasInferredComponents: false,
 	hasReplacedComponents: false,
 	dpvConfirmation: null,
 	dpvFootnote: null,
+	addressRecordType: null,
+	defaultAddress: false,
+	metadataResidential: null,
 	googleFormattedAddress: null,
+	unitRequirementPromptReason: null,
 	validatedLocality: null,
 };
 
@@ -91,50 +156,151 @@ function toField(componentType: string): UnconfirmedFieldType | undefined {
 	return COMPONENT_TO_FIELD[componentType];
 }
 
-function classify(params: {
+function dedupe<T>(values: T[]): T[] {
+	return Array.from(new Set(values));
+}
+
+function compactPostalAddress(input: AddressValidationInput): {
+	regionCode: "US";
+	addressLines: string[];
+	locality?: string;
+	administrativeArea?: string;
+	postalCode?: string;
+} {
+	if (typeof input === "string") {
+		return { regionCode: "US", addressLines: [input] };
+	}
+
+	return {
+		regionCode: "US",
+		addressLines: input.addressLines.filter((line) => line.trim()),
+		...(input.locality ? { locality: input.locality } : {}),
+		...(input.administrativeArea
+			? { administrativeArea: input.administrativeArea }
+			: {}),
+		...(input.postalCode ? { postalCode: input.postalCode } : {}),
+	};
+}
+
+function unitRequirementPromptReason(params: {
 	possibleNextAction: string;
+	inputGranularity: string | null;
 	addressComplete: boolean;
 	unconfirmedComponentTypes: string[];
 	missingComponentTypes: string[];
 	unresolvedTokens: string[];
 	dpvConfirmation: string | null;
-}): AddressValidationKind {
+	addressRecordType: string | null;
+	defaultAddress: boolean;
+	hasUnconfirmedComponents: boolean;
+}): UnitRequirementPromptReason | null {
 	const {
 		possibleNextAction,
+		inputGranularity,
 		addressComplete,
 		unconfirmedComponentTypes,
 		missingComponentTypes,
 		unresolvedTokens,
 		dpvConfirmation,
+		addressRecordType,
+		defaultAddress,
+		hasUnconfirmedComponents,
 	} = params;
 
-	// Fast path: USPS DPV confirms deliverable (primary + secondary, or no
-	// secondary needed). This is the strongest single signal — when present
-	// it implies Google's verdict is also clean. Verified over a 40-address
-	// probe: 0 DPV=Y cases had any unconfirmed components or non-ACCEPT action.
-	if (dpvConfirmation === "Y") {
-		return "accept";
+	if (!addressComplete || unresolvedTokens.length > 0) return null;
+	if (inputGranularity === "SUB_PREMISE") return null;
+	if (dpvConfirmation === "N") return null;
+	if (
+		possibleNextAction === "CONFIRM_ADD_SUBPREMISES" ||
+		missingComponentTypes.includes("subpremise") ||
+		unconfirmedComponentTypes.includes("subpremise")
+	) {
+		return null;
 	}
 
-	// Block when the verdict says we can't resolve the address.
-	if (
-		possibleNextAction === "FIX" ||
-		!addressComplete ||
-		unresolvedTokens.length > 0
-	) {
-		return "block";
+	if (defaultAddress) {
+		return "default_address";
 	}
+
+	if (addressRecordType === "H") {
+		return "building_or_apartment_record";
+	}
+
+	if (dpvConfirmation === "Y") return null;
+
+	if (possibleNextAction === "CONFIRM" && !hasUnconfirmedComponents) {
+		return "unconfirmed_google";
+	}
+
+	if (
+		possibleNextAction === "CONFIRM" &&
+		!unconfirmedComponentTypes.some((t) => COMPONENT_TO_FIELD[t])
+	) {
+		return "unconfirmed_google";
+	}
+
+	if (possibleNextAction === "ACCEPT" && dpvConfirmation == null) {
+		return "missing_usps_dpv";
+	}
+
+	if (possibleNextAction === "ACCEPT" && dpvConfirmation !== "Y") {
+		return "inconclusive_usps_dpv";
+	}
+
+	return null;
+}
+
+function classify(params: {
+	possibleNextAction: string;
+	inputGranularity: string | null;
+	addressComplete: boolean;
+	unconfirmedComponentTypes: string[];
+	missingComponentTypes: string[];
+	unresolvedTokens: string[];
+	dpvConfirmation: string | null;
+	addressRecordType: string | null;
+	defaultAddress: boolean;
+	hasUnconfirmedComponents: boolean;
+}): AddressValidationKind {
+	const {
+		possibleNextAction,
+		inputGranularity,
+		addressComplete,
+		unconfirmedComponentTypes,
+		missingComponentTypes,
+		unresolvedTokens,
+		dpvConfirmation,
+		addressRecordType,
+		defaultAddress,
+		hasUnconfirmedComponents,
+	} = params;
 
 	// Subpremise cases take priority over other unconfirmed components —
 	// an apartment mismatch matters more than a city-spelling nit.
 	if (
 		possibleNextAction === "CONFIRM_ADD_SUBPREMISES" ||
-		missingComponentTypes.includes("subpremise")
+		missingComponentTypes.includes("subpremise") ||
+		dpvConfirmation === "D"
 	) {
 		return "missing_subpremise";
 	}
-	if (unconfirmedComponentTypes.includes("subpremise")) {
+	if (
+		unconfirmedComponentTypes.includes("subpremise") ||
+		dpvConfirmation === "S"
+	) {
 		return "confirm_subpremise";
+	}
+
+	// Block when the verdict says we can't resolve the primary address. Keep
+	// this after subpremise handling because Google's `addressComplete` is
+	// false for missing units too.
+	if (
+		possibleNextAction === "FIX" ||
+		dpvConfirmation === "N" ||
+		unresolvedTokens.length > 0 ||
+		missingComponentTypes.some((t) => t !== "subpremise")
+	) {
+		return "block";
 	}
 
 	// Street number is the biggest SLA lever (66% of L7D failures).
@@ -153,7 +319,50 @@ function classify(params: {
 		return "confirm_components";
 	}
 
+	if (
+		dpvConfirmation === "Y" &&
+		!defaultAddress &&
+		(inputGranularity === "SUB_PREMISE" || addressRecordType !== "H")
+	) {
+		return "accept";
+	}
+
+	if (!addressComplete) {
+		return "block";
+	}
+
+	if (
+		unitRequirementPromptReason({
+			possibleNextAction,
+			inputGranularity,
+			addressComplete,
+			unconfirmedComponentTypes,
+			missingComponentTypes,
+			unresolvedTokens,
+			dpvConfirmation,
+			addressRecordType,
+			defaultAddress,
+			hasUnconfirmedComponents,
+		})
+	) {
+		return "confirm_unit_requirement";
+	}
+
 	return "accept";
+}
+
+export function requireSubpremise(
+	validationResult: AddressValidationResult,
+): AddressValidationResult {
+	return {
+		...validationResult,
+		kind: "missing_subpremise",
+		missingComponentTypes: dedupe([
+			...validationResult.missingComponentTypes,
+			"subpremise",
+		]),
+		unconfirmedFields: dedupe([...validationResult.unconfirmedFields, "line2"]),
+	};
 }
 
 /**
@@ -166,33 +375,63 @@ export function interpretValidation(raw: any): AddressValidationResult {
 	const verdict = result.verdict ?? {};
 	const address = result.address ?? {};
 	const usps = result.uspsData ?? {};
+	const metadata = result.metadata ?? {};
 
 	const possibleNextAction: string = verdict.possibleNextAction ?? "ACCEPT";
-	const addressComplete: boolean = verdict.addressComplete ?? true;
+	const inputGranularity: string | null = verdict.inputGranularity ?? null;
+	const validationGranularity: string | null =
+		verdict.validationGranularity ?? null;
+	const geocodeGranularity: string | null = verdict.geocodeGranularity ?? null;
+	const addressComplete: boolean = verdict.addressComplete === true;
 	const unconfirmedComponentTypes: string[] =
 		address.unconfirmedComponentTypes ?? [];
 	const missingComponentTypes: string[] = address.missingComponentTypes ?? [];
 	const unresolvedTokens: string[] = address.unresolvedTokens ?? [];
 	const dpvConfirmation: string | null = usps.dpvConfirmation ?? null;
+	const addressRecordType: string | null = usps.addressRecordType ?? null;
+	const defaultAddress: boolean = usps.defaultAddress ?? false;
+	const metadataResidential: boolean | null = metadata.residential ?? null;
+	const hasUnconfirmedComponents: boolean =
+		verdict.hasUnconfirmedComponents ?? false;
 
 	const kind = classify({
 		possibleNextAction,
+		inputGranularity,
 		addressComplete,
 		unconfirmedComponentTypes,
 		missingComponentTypes,
 		unresolvedTokens,
 		dpvConfirmation,
+		addressRecordType,
+		defaultAddress,
+		hasUnconfirmedComponents,
 	});
+	const promptReason =
+		kind === "confirm_unit_requirement"
+			? unitRequirementPromptReason({
+					possibleNextAction,
+					inputGranularity,
+					addressComplete,
+					unconfirmedComponentTypes,
+					missingComponentTypes,
+					unresolvedTokens,
+					dpvConfirmation,
+					addressRecordType,
+					defaultAddress,
+					hasUnconfirmedComponents,
+				})
+			: null;
 
-	const unconfirmedFields = Array.from(
-		new Set(
-			[
-				...unconfirmedComponentTypes,
-				...missingComponentTypes.filter((t) => t === "subpremise"),
-			]
-				.map(toField)
-				.filter((f): f is UnconfirmedFieldType => Boolean(f)),
-		),
+	const unconfirmedFields = dedupe(
+		[
+			...unconfirmedComponentTypes,
+			...missingComponentTypes.filter((t) => t === "subpremise"),
+			...(kind === "missing_subpremise" || kind === "confirm_subpremise"
+				? ["subpremise"]
+				: []),
+		]
+			.map(toField)
+			.filter((f): f is UnconfirmedFieldType => Boolean(f)),
 	);
 
 	// Prefer the Google-validated locality, falling back to USPS's
@@ -213,13 +452,20 @@ export function interpretValidation(raw: any): AddressValidationResult {
 		missingComponentTypes,
 		unconfirmedFields,
 		possibleNextAction,
+		inputGranularity,
+		validationGranularity,
+		geocodeGranularity,
 		addressComplete,
-		hasUnconfirmedComponents: verdict.hasUnconfirmedComponents ?? false,
+		hasUnconfirmedComponents,
 		hasInferredComponents: verdict.hasInferredComponents ?? false,
 		hasReplacedComponents: verdict.hasReplacedComponents ?? false,
 		dpvConfirmation,
 		dpvFootnote: usps.dpvFootnote ?? null,
+		addressRecordType,
+		defaultAddress,
+		metadataResidential,
 		googleFormattedAddress: address.formattedAddress ?? null,
+		unitRequirementPromptReason: promptReason,
 		validatedLocality,
 	};
 }
@@ -231,11 +477,12 @@ export function interpretValidation(raw: any): AddressValidationResult {
  * without mocking fetch.
  */
 async function fetchValidation(
-	addressLine: string,
+	input: AddressValidationInput,
 	// biome-ignore lint/suspicious/noExplicitAny: Google API response
 ): Promise<any | null> {
 	const apiKey = getGoogleMapsApiKey();
-	if (!addressLine.trim() || !apiKey) return null;
+	const address = compactPostalAddress(input);
+	if (address.addressLines.length === 0 || !apiKey) return null;
 
 	try {
 		const response = await fetch(
@@ -244,7 +491,8 @@ async function fetchValidation(
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-					address: { regionCode: "US", addressLines: [addressLine] },
+					address,
+					enableUspsCass: true,
 				}),
 			},
 		);
@@ -256,9 +504,9 @@ async function fetchValidation(
 }
 
 export async function validateAddress(
-	addressLine: string,
+	input: AddressValidationInput,
 ): Promise<AddressValidationResult> {
-	const raw = await fetchValidation(addressLine);
+	const raw = await fetchValidation(input);
 	if (!raw) return SAFE_DEFAULT;
 	return interpretValidation(raw);
 }
