@@ -52,6 +52,15 @@ const COPY_BY_KIND: Partial<Record<AddressValidationKind, Partial<Copy>>> = {
 		line2Placeholder: "Apartment, unit, or structure (e.g., guest house, barn)",
 		continueLabel: "Confirm",
 	},
+	confirm_unit_requirement: {
+		title: "What kind of home is this?",
+		banner: {
+			tone: "warn",
+			text: "Google couldn't fully verify this address. This is common for new buildings, so please tell us if you have an apartment, unit, or suite number.",
+		},
+		line2Placeholder: "Apartment, unit, or suite number",
+		continueLabel: "Continue",
+	},
 	confirm_street_number: {
 		banner: {
 			tone: "warn",

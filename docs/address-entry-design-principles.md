@@ -101,6 +101,7 @@ Base installs batteries in contexts Google + USPS don't always know about. The c
 
 - `missing_subpremise` — dominant case is *"apartment dweller forgot the unit number."* Lead with that framing and require `line_2` before continuing.
 - `confirm_subpremise` — user has already typed a value we couldn't verify. This is where meter-level framing belongs: *"that's okay for separate meters like guest houses, barns, or trailers."*
+- `confirm_unit_requirement` — Google cannot verify the base address, so first ask whether the user has a unit number. If yes, require `line_2`; if no, treat the user as the source of truth and continue.
 
 **Why:** These aren't edge cases — they're the ~7% of addresses that currently fail our SLA. But don't over-fit to the minority within that bucket: apartment-missing-unit is still the common case for `missing_subpremise`.
 

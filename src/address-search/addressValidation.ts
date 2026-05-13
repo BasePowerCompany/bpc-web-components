@@ -8,6 +8,9 @@ import { getGoogleMapsApiKey } from "@/utils/googleMaps";
  *                          UX: require unit before submission.
  * - `confirm_subpremise` — user entered a unit but USPS/Google can't confirm it.
  *                          UX: show unit with warning, let user confirm or edit.
+ * - `confirm_unit_requirement` — Google can't verify the base address, so we
+ *                          don't know whether a unit number is required.
+ *                          UX: ask home vs multi-unit before submitting.
  * - `confirm_street_number` — street number not confirmed by USPS (rural routes,
  *                          new construction, USPS blind spots). UX: show banner,
  *                          let user confirm or edit.
@@ -24,6 +27,7 @@ export type AddressValidationKind =
 	| "accept"
 	| "missing_subpremise"
 	| "confirm_subpremise"
+	| "confirm_unit_requirement"
 	| "confirm_street_number"
 	| "confirm_components"
 	| "block";
@@ -137,11 +141,10 @@ function classify(params: {
 		return "confirm_subpremise";
 	}
 
-	// Street number is the biggest SLA lever (66% of L7D failures).
-	// USPS blind spots (rural routes, new construction) show up here with
-	// possibleNextAction=ACCEPT but hasUnconfirmedComponents=true.
+	// If the base address is unconfirmed, Google can't reliably tell whether
+	// this is a single-family home or a multi-unit building.
 	if (unconfirmedComponentTypes.includes("street_number")) {
-		return "confirm_street_number";
+		return "confirm_unit_requirement";
 	}
 
 	// Any other unconfirmed component (locality, route, postal_code) →

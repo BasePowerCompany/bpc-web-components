@@ -110,7 +110,13 @@ export function AddressConfirmModal({
 	const line1Ref = useRef<HTMLInputElement>(null);
 	const line2WarningId = useId();
 
-	const line2IsRequired = kind === "missing_subpremise";
+	const asksUnitRequirement = kind === "confirm_unit_requirement";
+	const [unitRequirementAnswer, setUnitRequirementAnswer] = useState<
+		"requires_unit" | "no_unit" | undefined
+	>();
+	const line2IsRequired =
+		kind === "missing_subpremise" ||
+		(asksUnitRequirement && unitRequirementAnswer === "requires_unit");
 	const line2Missing = line2IsRequired && !line2.trim();
 
 	// Track whether we've already captured the "shown" event for this modal
@@ -135,9 +141,6 @@ export function AddressConfirmModal({
 		});
 	}, [validationResult, selection.formattedAddress]);
 
-	// Focus the most useful field on mount based on the kind:
-	// - subpremise cases → line_2
-	// - street_number / component cases → line_1
 	useEffect(() => {
 		const target =
 			kind === "missing_subpremise" || kind === "confirm_subpremise"
@@ -241,6 +244,26 @@ export function AddressConfirmModal({
 		onClose();
 	}, [onClose, selection.formattedAddress, validationResult.kind]);
 
+	const handleRequireUnit = useCallback(() => {
+		posthogCapture("address_validation_unit_requirement_answer", {
+			kind: validationResult.kind,
+			inputFormattedAddress: selection.formattedAddress,
+			requiresUnit: true,
+		});
+		setUnitRequirementAnswer("requires_unit");
+		requestAnimationFrame(() => line2Ref.current?.focus());
+	}, [selection.formattedAddress, validationResult.kind]);
+
+	const handleNoUnitRequired = useCallback(() => {
+		setUnitRequirementAnswer("no_unit");
+		posthogCapture("address_validation_unit_requirement_answer", {
+			kind: validationResult.kind,
+			inputFormattedAddress: selection.formattedAddress,
+			requiresUnit: false,
+		});
+		submit("confirmed_as_is");
+	}, [selection.formattedAddress, submit, validationResult.kind]);
+
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: Backdrop click-to-dismiss is a standard modal pattern
 		<div
@@ -279,6 +302,52 @@ export function AddressConfirmModal({
 						role={copy.banner.tone === "error" ? "alert" : "status"}
 					>
 						{copy.banner.text}
+					</div>
+				)}
+
+				{asksUnitRequirement && (
+					<div className={styles.unitRequirementOptions}>
+						<button
+							type="button"
+							className={cx(
+								styles.unitRequirementOption,
+								unitRequirementAnswer === "requires_unit" &&
+									styles.unitRequirementOptionSelected,
+							)}
+							onClick={handleRequireUnit}
+							disabled={loading}
+						>
+							<span className={styles.unitRequirementKicker}>
+								Apartment or multifamily
+							</span>
+							<span className={styles.unitRequirementTitle}>
+								I have a unit number
+							</span>
+							<span className={styles.unitRequirementText}>
+								Apartment, condo, suite, duplex, or another address that needs a
+								unit.
+							</span>
+						</button>
+						<button
+							type="button"
+							className={cx(
+								styles.unitRequirementOption,
+								unitRequirementAnswer === "no_unit" &&
+									styles.unitRequirementOptionSelected,
+							)}
+							onClick={handleNoUnitRequired}
+							disabled={loading}
+						>
+							<span className={styles.unitRequirementKicker}>
+								Single-family home
+							</span>
+							<span className={styles.unitRequirementTitle}>
+								No unit number
+							</span>
+							<span className={styles.unitRequirementText}>
+								This is a standalone home and the address is complete.
+							</span>
+						</button>
 					</div>
 				)}
 
@@ -326,7 +395,12 @@ export function AddressConfirmModal({
 							type="button"
 							className={styles.addressConfirmContinueButton}
 							onClick={handleContinue}
-							disabled={loading || line2Missing}
+							disabled={
+								loading ||
+								line2Missing ||
+								(asksUnitRequirement &&
+									unitRequirementAnswer !== "requires_unit")
+							}
 						>
 							{loading ? (
 								<span className={styles.addressConfirmSpinner} />
