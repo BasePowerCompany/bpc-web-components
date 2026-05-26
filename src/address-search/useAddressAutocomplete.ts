@@ -69,12 +69,29 @@ export function useAddressAutocomplete(inputValue: string) {
 					// Shared input: both battery and energy-only ask for the same
 					// street-address suggestions, but each flow decides how to use
 					// the selected result afterward.
-					places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
-						input: searchQuery,
-						sessionToken: curToken,
-						language: "en",
-						includedPrimaryTypes: ["street_address"],
-					}).then(({ suggestions }) => {
+					Promise.all([
+						places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+							input: searchQuery,
+							sessionToken: curToken,
+							language: "en",
+							includedPrimaryTypes: ["street_address"],
+						}),
+						places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+							input: searchQuery,
+							sessionToken: curToken,
+							language: "en",
+							includedPrimaryTypes: ["premise"],
+						}),
+					]).then((responses) => {
+						const seenPlaceIds = new Set<string>();
+						const suggestions = responses
+							.flatMap((response) => response.suggestions)
+							.filter((suggestion) => {
+								const placeId = suggestion.placePrediction?.placeId;
+								if (!placeId || seenPlaceIds.has(placeId)) return false;
+								seenPlaceIds.add(placeId);
+								return true;
+							});
 						suggestions.forEach((suggestion) => {
 							if (!suggestion.placePrediction?.placeId) return;
 							placesRef.current[suggestion.placePrediction.placeId] =
