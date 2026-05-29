@@ -40,6 +40,31 @@ describe("interpretValidation classification", () => {
 			"accept",
 		],
 		[
+			"DPV=Y, street record, residential metadata accepts",
+			{
+				uspsData: { dpvConfirmation: "Y", addressRecordType: "S" },
+				metadata: { residential: true },
+			},
+			"accept",
+		],
+		[
+			"DPV=Y, street record, non-residential metadata asks unit question",
+			{
+				uspsData: { dpvConfirmation: "Y", addressRecordType: "S" },
+				metadata: { residential: false },
+			},
+			"confirm_unit_requirement",
+		],
+		[
+			"DPV=Y, non-residential with subpremise input accepts",
+			{
+				verdict: { inputGranularity: "SUB_PREMISE" },
+				uspsData: { dpvConfirmation: "Y", addressRecordType: "S" },
+				metadata: { residential: false },
+			},
+			"accept",
+		],
+		[
 			"DPV=Y, building record without subpremise asks unit question",
 			{ uspsData: { dpvConfirmation: "Y", addressRecordType: "H" } },
 			"confirm_unit_requirement",

@@ -35,6 +35,7 @@ export type AddressValidationKind =
 
 export type UnitRequirementPromptReason =
 	| "building_or_apartment_record"
+	| "non_residential_premise"
 	| "default_address"
 	| "missing_usps_dpv"
 	| "inconclusive_usps_dpv"
@@ -193,6 +194,7 @@ function unitRequirementPromptReason(params: {
 	addressRecordType: string | null;
 	defaultAddress: boolean;
 	hasUnconfirmedComponents: boolean;
+	metadataResidential: boolean | null;
 }): UnitRequirementPromptReason | null {
 	const {
 		possibleNextAction,
@@ -205,6 +207,7 @@ function unitRequirementPromptReason(params: {
 		addressRecordType,
 		defaultAddress,
 		hasUnconfirmedComponents,
+		metadataResidential,
 	} = params;
 
 	if (!addressComplete || unresolvedTokens.length > 0) return null;
@@ -224,6 +227,10 @@ function unitRequirementPromptReason(params: {
 
 	if (addressRecordType === "H") {
 		return "building_or_apartment_record";
+	}
+
+	if (metadataResidential === false) {
+		return "non_residential_premise";
 	}
 
 	if (dpvConfirmation === "Y") return null;
@@ -261,6 +268,7 @@ function classify(params: {
 	addressRecordType: string | null;
 	defaultAddress: boolean;
 	hasUnconfirmedComponents: boolean;
+	metadataResidential: boolean | null;
 }): AddressValidationKind {
 	const {
 		possibleNextAction,
@@ -273,6 +281,7 @@ function classify(params: {
 		addressRecordType,
 		defaultAddress,
 		hasUnconfirmedComponents,
+		metadataResidential,
 	} = params;
 
 	// Subpremise cases take priority over other unconfirmed components —
@@ -322,7 +331,8 @@ function classify(params: {
 	if (
 		dpvConfirmation === "Y" &&
 		!defaultAddress &&
-		(inputGranularity === "SUB_PREMISE" || addressRecordType !== "H")
+		(inputGranularity === "SUB_PREMISE" ||
+			(addressRecordType !== "H" && metadataResidential !== false))
 	) {
 		return "accept";
 	}
@@ -343,6 +353,7 @@ function classify(params: {
 			addressRecordType,
 			defaultAddress,
 			hasUnconfirmedComponents,
+			metadataResidential,
 		})
 	) {
 		return "confirm_unit_requirement";
@@ -405,6 +416,7 @@ export function interpretValidation(raw: any): AddressValidationResult {
 		addressRecordType,
 		defaultAddress,
 		hasUnconfirmedComponents,
+		metadataResidential,
 	});
 	const promptReason =
 		kind === "confirm_unit_requirement"
@@ -419,6 +431,7 @@ export function interpretValidation(raw: any): AddressValidationResult {
 					addressRecordType,
 					defaultAddress,
 					hasUnconfirmedComponents,
+					metadataResidential,
 				})
 			: null;
 
