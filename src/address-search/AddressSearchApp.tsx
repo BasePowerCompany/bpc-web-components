@@ -17,6 +17,19 @@ import type {
 import { posthogCapture } from "@/address-search/utils";
 import { AddressSearchFlow } from "./AddressSearchFlow";
 
+type ModalState =
+	| { kind: "idle" }
+	| {
+			kind: "multipleUtility";
+			data: {
+				redirectUrl: string;
+				redirectStrategy: RedirectStrategyMultipleUtility;
+				externalAddressId: string;
+			};
+	  }
+	| { kind: "multipleAddress"; data: RedirectMultipleAddress }
+	| { kind: "energySplash"; redirectUrl: string };
+
 export type AddressSearchAppProps = {
 	placeholder?: string;
 	cta?: string;
@@ -52,20 +65,7 @@ export function AddressSearchApp({
 	const [externalAddressId, setExternalAddressId] = useState<
 		string | undefined
 	>();
-	const [multipleUtilityResult, setMultipleUtilityResult] = useState<
-		| {
-				redirectUrl: string;
-				redirectStrategy: RedirectStrategyMultipleUtility;
-				externalAddressId: string;
-		  }
-		| undefined
-	>();
-	const [multipleAddressResults, setMultipleAddressResults] = useState<
-		RedirectMultipleAddress | undefined
-	>();
-	const [energySplashRedirectUrl, setEnergySplashRedirectUrl] = useState<
-		string | undefined
-	>();
+	const [modalState, setModalState] = useState<ModalState>({ kind: "idle" });
 	const [addressConfirmData, setAddressConfirmData] = useState<
 		| {
 				selection: AddressResult;
@@ -112,33 +112,23 @@ export function AddressSearchApp({
 			if (result.success) {
 				setExternalAddressId(result.data.externalAddressId);
 				if (result.data.redirectStrategy.isMultiple) {
-					// multiple utility result
-					setMultipleUtilityResult({
+					const utilityData = {
 						redirectUrl: result.data.redirectUrl,
 						redirectStrategy: result.data.redirectStrategy,
 						externalAddressId: result.data.externalAddressId,
-					});
-					// clear other modal states
-					setMultipleAddressResults(undefined);
-					setEnergySplashRedirectUrl(undefined);
+					};
+					setModalState({ kind: "multipleUtility", data: utilityData });
 					posthogCapture("address_search_multiple_utility_result", {
 						validationSessionId: detail.validationSessionId,
 						selection: detail.selection,
-						multipleResult: {
-							redirectUrl: result.data.redirectUrl,
-							redirectStrategy: result.data.redirectStrategy,
-							externalAddressId: result.data.externalAddressId,
-						},
+						multipleResult: utilityData,
 					});
 					return;
 				} else if (result.data.redirectStrategy.isMultipleAddresses) {
-					// multiple address result
-					setMultipleAddressResults(
-						result.data.redirectStrategy.multipleAddresses,
-					);
-					// clear other modal states
-					setMultipleUtilityResult(undefined);
-					setEnergySplashRedirectUrl(undefined);
+					setModalState({
+						kind: "multipleAddress",
+						data: result.data.redirectStrategy.multipleAddresses,
+					});
 					posthogCapture("address_search_multiple_address_result", {
 						validationSessionId: detail.validationSessionId,
 						selection: detail.selection,
@@ -154,12 +144,12 @@ export function AddressSearchApp({
 					});
 
 					if (isEnergyOnly) {
-						// Show splash screen before redirecting
-						setMultipleAddressResults(undefined);
-						setMultipleUtilityResult(undefined);
 						setAddressConfirmData(undefined);
 						setUnitRequirementData(undefined);
-						setEnergySplashRedirectUrl(result.data.redirectUrl);
+						setModalState({
+							kind: "energySplash",
+							redirectUrl: result.data.redirectUrl,
+						});
 						return;
 					}
 
@@ -289,21 +279,17 @@ export function AddressSearchApp({
 	}, []);
 
 	const handleBack = useCallback(() => {
-		setMultipleUtilityResult(undefined);
-		setMultipleAddressResults(undefined);
+		setModalState({ kind: "idle" });
 		setSelection(undefined);
 		setSelectionValidationSessionId(undefined);
 		setExternalAddressId(undefined);
-		setEnergySplashRedirectUrl(undefined);
 		setAddressConfirmData(undefined);
 		setUnitRequirementData(undefined);
 	}, []);
 
-	const shouldShowModal =
-		selection &&
-		(multipleAddressResults != null ||
-			multipleUtilityResult != null ||
-			energySplashRedirectUrl != null);
+	// `selection` guard prevents a stale in-flight hydration that resolves after
+	// handleBack from re-opening the modal with an empty address.
+	const shouldShowModal = selection && modalState.kind !== "idle";
 
 	const resolvedPlaceholder =
 		placeholder ||
@@ -353,11 +339,21 @@ export function AddressSearchApp({
 					<SelectionModal
 						address={selection?.formattedAddress ?? ""}
 						externalAddressId={externalAddressId ?? ""}
-						multipleAddressOptions={multipleAddressResults}
-						multipleUtilityOptions={
-							multipleUtilityResult?.redirectStrategy.multiple.options
+						multipleAddressOptions={
+							modalState.kind === "multipleAddress"
+								? modalState.data
+								: undefined
 						}
-						energySplashRedirectUrl={energySplashRedirectUrl}
+						multipleUtilityOptions={
+							modalState.kind === "multipleUtility"
+								? modalState.data.redirectStrategy.multiple.options
+								: undefined
+						}
+						energySplashRedirectUrl={
+							modalState.kind === "energySplash"
+								? modalState.redirectUrl
+								: undefined
+						}
 						onSelectAddress={handleUserSelectAddress}
 						onTriggerRedirect={handleRedirect}
 						onBack={handleBack}
