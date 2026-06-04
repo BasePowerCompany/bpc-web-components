@@ -73,7 +73,17 @@ export function useAddressAutocomplete(inputValue: string) {
 						input: searchQuery,
 						sessionToken: curToken,
 						language: "en",
-						includedPrimaryTypes: ["street_address"],
+						// Google's published "Search Destinations" filter set. The
+						// narrower ["street_address"] dropped real addresses Google
+						// classifies as `premise` (e.g. "2740 Castlebridge, The Colony,
+						// TX"). See EVAL.md for the regression set.
+						includedPrimaryTypes: [
+							"street_address",
+							"premise",
+							"subpremise",
+							"point_of_interest",
+							"establishment",
+						],
 					}).then(({ suggestions }) => {
 						suggestions.forEach((suggestion) => {
 							if (!suggestion.placePrediction?.placeId) return;
