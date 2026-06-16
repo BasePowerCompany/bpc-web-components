@@ -4,6 +4,10 @@ import {
 	type AddressValidationResult,
 	requireSubpremise,
 } from "@/address-search/addressValidation";
+import {
+	checkDeregFunnelParityTestEligibility,
+	resolveDeregFunnelParityTest,
+} from "@/address-search/experiments";
 import { fetchHydration } from "@/address-search/fetch";
 import { AddressConfirmModal } from "@/address-search/modal/AddressConfirmModal";
 import { SelectionModal } from "@/address-search/modal/SelectionModal";
@@ -14,17 +18,8 @@ import type {
 	RedirectMultipleAddress,
 	RedirectStrategyMultipleUtility,
 } from "@/address-search/types";
-import { posthogCapture, posthogGetFeatureFlag } from "@/address-search/utils";
+import { posthogCapture } from "@/address-search/utils";
 import { AddressSearchFlow } from "./AddressSearchFlow";
-
-// PostHog experiment (dereg_funnel_parity_test): route eligible deregulated,
-// battery (non-energy-only) addresses to the new lead funnel app instead of
-// the existing /join-now flow. Eligible addresses resolve to exactly the
-// "/join-now" path (DEREG serving single-result) from /api/address-router.
-const DEREG_FUNNEL_EXPERIMENT_FLAG = "dereg_funnel_parity_test";
-const DEREG_FUNNEL_EXPERIMENT_TEST_VARIANT = "test";
-const DEREG_FUNNEL_ELIGIBLE_PATH = "/join-now";
-const DEREG_FUNNEL_ORIGIN = "https://join.basepowercompany.com";
 
 export type AddressSearchAppProps = {
 	placeholder?: string;
@@ -172,37 +167,24 @@ export function AddressSearchApp({
 						return;
 					}
 
-					// dereg_funnel_parity_test: for eligible (non-energy-only,
-					// deregulated serving) addresses, the experiment's test variant
-					// redirects to the new funnel app instead of the default
-					// /join-now flow. Reuse the address query params the backend
-					// already appended and add external_id for the funnel.
+					// dereg_funnel_parity_test: eligible (non-energy-only,
+					// deregulated serving) addresses get routed to the new funnel
+					// app on the test variant; control/unbucketed keep the default
+					// /join-now flow.
 					let redirectUrl = result.data.redirectUrl;
-					const parsedRedirect = new URL(redirectUrl, window.location.origin);
-					const isDeregServing =
-						parsedRedirect.pathname === DEREG_FUNNEL_ELIGIBLE_PATH;
-					if (!isEnergyOnly && isDeregServing) {
-						const variant = posthogGetFeatureFlag(DEREG_FUNNEL_EXPERIMENT_FLAG);
-						if (variant === DEREG_FUNNEL_EXPERIMENT_TEST_VARIANT) {
-							// Rebase only the path + query onto the funnel origin so the
-							// swap holds even if the backend ever returns an absolute URL.
-							const funnelUrl = new URL(
-								parsedRedirect.pathname + parsedRedirect.search,
-								DEREG_FUNNEL_ORIGIN,
-							);
-							funnelUrl.searchParams.set(
-								"external_id",
-								result.data.externalAddressId,
-							);
-							redirectUrl = funnelUrl.toString();
-						}
+					if (
+						checkDeregFunnelParityTestEligibility(isEnergyOnly, redirectUrl)
+					) {
+						const resolved = resolveDeregFunnelParityTest(
+							redirectUrl,
+							result.data.externalAddressId,
+						);
+						redirectUrl = resolved.redirectUrl;
 						posthogCapture("dereg_funnel_parity_test_exposure", {
 							validationSessionId: detail.validationSessionId,
 							selection: detail.selection,
 							externalAddressId: result.data.externalAddressId,
-							// getFeatureFlag returns `false` (not undefined) when off /
-							// untargeted, so `||` is required to coalesce to "control".
-							variant: variant || "control",
+							variant: resolved.variant,
 							redirectUrl,
 						});
 					}
