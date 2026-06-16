@@ -5,8 +5,6 @@ import { ModalLayout } from "./ModalLayout";
 import styles from "./styles.module.css";
 
 const UtilityValueToLogoMap: Record<string, string> = {
-	AUSTIN_ENERGY:
-		"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy2cakbyFxBnplOVBC35TO63vLVN4BbkuYdA&s",
 	FARMERS:
 		"https://bpc-web-static-files.s3.us-east-2.amazonaws.com/Farmers-Logo.png",
 };
