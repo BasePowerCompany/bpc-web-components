@@ -110,3 +110,25 @@ export const posthogCapture = (
 		posthog.capture(eventName, properties);
 	}
 };
+
+/**
+ * Read a PostHog feature flag / experiment variant client-side. Returns the
+ * variant string (e.g. "control" / "test") or `undefined` when PostHog is
+ * unavailable or flags haven't loaded — callers should treat `undefined` as
+ * the control/default behavior. Calling this also records the experiment
+ * exposure ($feature_flag_called), so only call it once the user is eligible.
+ */
+export const posthogGetFeatureFlag = (
+	flagKey: string,
+): string | boolean | undefined => {
+	if (
+		typeof window === "undefined" ||
+		// biome-ignore lint/suspicious/noExplicitAny: Posthog is any
+		!(window as unknown as { posthog?: any }).posthog
+	) {
+		return undefined;
+	}
+	// biome-ignore lint/suspicious/noExplicitAny: Posthog is any
+	const posthog = (window as unknown as { posthog?: any }).posthog;
+	return posthog.getFeatureFlag(flagKey);
+};

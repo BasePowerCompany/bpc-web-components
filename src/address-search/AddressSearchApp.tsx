@@ -14,8 +14,17 @@ import type {
 	RedirectMultipleAddress,
 	RedirectStrategyMultipleUtility,
 } from "@/address-search/types";
-import { posthogCapture } from "@/address-search/utils";
+import { posthogCapture, posthogGetFeatureFlag } from "@/address-search/utils";
 import { AddressSearchFlow } from "./AddressSearchFlow";
+
+// PostHog experiment (dereg_funnel_parity_test): route eligible deregulated,
+// battery (non-energy-only) addresses to the new lead funnel app instead of
+// the existing /join-now flow. Eligible addresses resolve to exactly the
+// "/join-now" path (DEREG serving single-result) from /api/address-router.
+const DEREG_FUNNEL_EXPERIMENT_FLAG = "dereg_funnel_parity_test";
+const DEREG_FUNNEL_EXPERIMENT_TEST_VARIANT = "test";
+const DEREG_FUNNEL_ELIGIBLE_PATH = "/join-now";
+const DEREG_FUNNEL_ORIGIN = "https://join.basepowercompany.com";
 
 export type AddressSearchAppProps = {
 	placeholder?: string;
@@ -163,8 +172,36 @@ export function AddressSearchApp({
 						return;
 					}
 
+					// dereg_funnel_parity_test: for eligible (non-energy-only,
+					// deregulated serving) addresses, the experiment's test variant
+					// redirects to the new funnel app instead of the default
+					// /join-now flow. Reuse the address query params the backend
+					// already appended and add external_id for the funnel.
+					let redirectUrl = result.data.redirectUrl;
+					const isDeregServing =
+						new URL(redirectUrl, window.location.origin).pathname ===
+						DEREG_FUNNEL_ELIGIBLE_PATH;
+					if (!isEnergyOnly && isDeregServing) {
+						const variant = posthogGetFeatureFlag(DEREG_FUNNEL_EXPERIMENT_FLAG);
+						if (variant === DEREG_FUNNEL_EXPERIMENT_TEST_VARIANT) {
+							const funnelUrl = new URL(redirectUrl, DEREG_FUNNEL_ORIGIN);
+							funnelUrl.searchParams.set(
+								"external_id",
+								result.data.externalAddressId,
+							);
+							redirectUrl = funnelUrl.toString();
+						}
+						posthogCapture("dereg_funnel_parity_test_exposure", {
+							validationSessionId: detail.validationSessionId,
+							selection: detail.selection,
+							externalAddressId: result.data.externalAddressId,
+							variant: variant ?? "control",
+							redirectUrl,
+						});
+					}
+
 					onResultEvent({
-						result: result.data,
+						result: { ...result.data, redirectUrl },
 						selection: detail.selection,
 						validationSessionId: detail.validationSessionId,
 					});
