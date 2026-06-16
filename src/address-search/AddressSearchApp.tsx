@@ -178,13 +178,18 @@ export function AddressSearchApp({
 					// /join-now flow. Reuse the address query params the backend
 					// already appended and add external_id for the funnel.
 					let redirectUrl = result.data.redirectUrl;
+					const parsedRedirect = new URL(redirectUrl, window.location.origin);
 					const isDeregServing =
-						new URL(redirectUrl, window.location.origin).pathname ===
-						DEREG_FUNNEL_ELIGIBLE_PATH;
+						parsedRedirect.pathname === DEREG_FUNNEL_ELIGIBLE_PATH;
 					if (!isEnergyOnly && isDeregServing) {
 						const variant = posthogGetFeatureFlag(DEREG_FUNNEL_EXPERIMENT_FLAG);
 						if (variant === DEREG_FUNNEL_EXPERIMENT_TEST_VARIANT) {
-							const funnelUrl = new URL(redirectUrl, DEREG_FUNNEL_ORIGIN);
+							// Rebase only the path + query onto the funnel origin so the
+							// swap holds even if the backend ever returns an absolute URL.
+							const funnelUrl = new URL(
+								parsedRedirect.pathname + parsedRedirect.search,
+								DEREG_FUNNEL_ORIGIN,
+							);
 							funnelUrl.searchParams.set(
 								"external_id",
 								result.data.externalAddressId,
@@ -195,7 +200,9 @@ export function AddressSearchApp({
 							validationSessionId: detail.validationSessionId,
 							selection: detail.selection,
 							externalAddressId: result.data.externalAddressId,
-							variant: variant ?? "control",
+							// getFeatureFlag returns `false` (not undefined) when off /
+							// untargeted, so `||` is required to coalesce to "control".
+							variant: variant || "control",
 							redirectUrl,
 						});
 					}
