@@ -51,18 +51,21 @@ export function resolveDeregFunnelParityTest(
 	redirectUrl: string,
 	externalId: string,
 ): { variant: string; redirectUrl: string } {
-	const raw = posthogGetFeatureFlag(DEREG_FUNNEL_PARITY_TEST_FLAG);
-	const variant = typeof raw === "string" ? raw : DEREG_FUNNEL_CONTROL_VARIANT;
-
-	if (variant !== DEREG_FUNNEL_PARITY_TEST_VARIANT) {
-		return { variant, redirectUrl };
+	if (
+		posthogGetFeatureFlag(DEREG_FUNNEL_PARITY_TEST_FLAG) ===
+		DEREG_FUNNEL_PARITY_TEST_VARIANT
+	) {
+		const source = new URL(redirectUrl, window.location.origin);
+		const funnelUrl = new URL(
+			source.pathname + source.search,
+			DEREG_FUNNEL_ORIGIN,
+		);
+		funnelUrl.searchParams.set("external_id", externalId);
+		return {
+			variant: DEREG_FUNNEL_PARITY_TEST_VARIANT,
+			redirectUrl: funnelUrl.toString(),
+		};
+	} else {
+		return { variant: DEREG_FUNNEL_CONTROL_VARIANT, redirectUrl };
 	}
-
-	const source = new URL(redirectUrl, window.location.origin);
-	const funnelUrl = new URL(
-		source.pathname + source.search,
-		DEREG_FUNNEL_ORIGIN,
-	);
-	funnelUrl.searchParams.set("external_id", externalId);
-	return { variant, redirectUrl: funnelUrl.toString() };
 }
