@@ -84,7 +84,7 @@ export function UtilitySelectionModal({
 		<ModalLayout onBack={onBack}>
 			<div>
 				<p className={styles.addressLabel}>{address}</p>
-				<h1 className={styles.utilityModalTitle}>Who's your local utility?</h1>
+				<h1 className={styles.utilityModalTitle}>Who is your energy provider?</h1>
 				<p className={styles.utilityModalSubtitle}>
 					So we can show the right plan and next steps for this address.
 				</p>
