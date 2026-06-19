@@ -180,13 +180,17 @@ export function AddressSearchApp({
 							result.data.externalAddressId,
 						);
 						redirectUrl = resolved.redirectUrl;
-						posthogCapture("dereg_funnel_parity_test_exposure", {
-							validationSessionId: detail.validationSessionId,
-							selection: detail.selection,
-							externalAddressId: result.data.externalAddressId,
-							variant: resolved.variant,
-							redirectUrl,
-						});
+						// Only bucketed users (test/control) are in the experiment;
+						// unbucketed users are left untagged for a clean comparison.
+						if (resolved.variant) {
+							posthogCapture("dereg_funnel_parity_test_exposure", {
+								validationSessionId: detail.validationSessionId,
+								selection: detail.selection,
+								externalAddressId: result.data.externalAddressId,
+								variant: resolved.variant,
+								redirectUrl,
+							});
+						}
 					}
 
 					onResultEvent({
