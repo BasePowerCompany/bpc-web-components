@@ -43,29 +43,46 @@ export function checkDeregFunnelParityTestEligibility(
  * origin with `external_id` added. Only the path + query are rebased so the
  * swap holds even if the backend ever returns an absolute redirect URL.
  *
- * Call only after `checkDeregFunnelParityTestEligibility` passes. `variant` is
- * normalized to "control" when the user is unbucketed (PostHog returns `false`
- * / `undefined`).
+ * Bucketed variants ("test" / "control") get an `experiment_flag=<flag>:<variant>`
+ * query param appended to the redirect so downstream apps can read the
+ * assignment. Unbucketed users (PostHog returns `false` / `undefined` — the flag
+ * is a 50%-gated multivariate split, so half of eligible users fall outside it)
+ * are left untouched and untagged, keeping the control-vs-test comparison clean.
+ *
+ * Call only after `checkDeregFunnelParityTestEligibility` passes. Returns
+ * `variant: undefined` for unbucketed users.
  */
 export function resolveDeregFunnelParityTest(
 	redirectUrl: string,
 	externalId: string,
-): { variant: string; redirectUrl: string } {
+): { variant: string | undefined; redirectUrl: string } {
+	const variant = posthogGetFeatureFlag(DEREG_FUNNEL_PARITY_TEST_FLAG);
+
+	// Unbucketed: not assigned a real variant. Leave the redirect untouched and
+	// tag nothing.
 	if (
-		posthogGetFeatureFlag(DEREG_FUNNEL_PARITY_TEST_FLAG) ===
-		DEREG_FUNNEL_PARITY_TEST_VARIANT
+		variant !== DEREG_FUNNEL_PARITY_TEST_VARIANT &&
+		variant !== DEREG_FUNNEL_CONTROL_VARIANT
 	) {
-		const source = new URL(redirectUrl, window.location.origin);
+		return { variant: undefined, redirectUrl };
+	}
+
+	const source = new URL(redirectUrl, window.location.origin);
+	source.searchParams.set(
+		"experiment_flag",
+		`${DEREG_FUNNEL_PARITY_TEST_FLAG}:${variant}`,
+	);
+
+	if (variant === DEREG_FUNNEL_PARITY_TEST_VARIANT) {
 		const funnelUrl = new URL(
 			source.pathname + source.search,
 			DEREG_FUNNEL_ORIGIN,
 		);
 		funnelUrl.searchParams.set("external_id", externalId);
-		return {
-			variant: DEREG_FUNNEL_PARITY_TEST_VARIANT,
-			redirectUrl: funnelUrl.toString(),
-		};
-	} else {
-		return { variant: DEREG_FUNNEL_CONTROL_VARIANT, redirectUrl };
+		return { variant, redirectUrl: funnelUrl.toString() };
 	}
+
+	// Control: keep the existing relative /join-now redirect, annotated with the
+	// experiment_flag param.
+	return { variant, redirectUrl: source.pathname + source.search };
 }
