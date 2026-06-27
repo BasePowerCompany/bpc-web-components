@@ -5,13 +5,18 @@ import { bootstrap } from "@/utils/googleMaps";
 import { AddressSearchApp } from "./AddressSearchApp";
 import modalStyleSheet from "./modal/styles.module.css?inline";
 import styleSheet from "./styles.module.css?inline";
+import { ZipSearchApp } from "./ZipSearchApp";
 
 function parseProps(el: HTMLElement) {
 	const publicApiKey = el.getAttribute("public-key") || "";
 	const placeholder = el.getAttribute("placeholder") || undefined;
 	const cta = el.getAttribute("cta") || undefined;
 	const isEnergyOnly = el.getAttribute("is-energy-only") === "true";
-	return { publicApiKey, placeholder, cta, isEnergyOnly };
+	// "zip" renders the lower-commitment zip-first entry; anything else (default)
+	// renders the full address search. Experiment assignment lives outside the
+	// component (PostHog web experiment / Webflow), keeping this element dumb.
+	const mode = el.getAttribute("mode") === "zip" ? "zip" : "address";
+	return { publicApiKey, placeholder, cta, isEnergyOnly, mode };
 }
 
 function getZIndex(el: HTMLElement) {
@@ -36,7 +41,7 @@ class AddressSearchElement extends HTMLElement {
 	private overlayWrapper?: HTMLElement;
 	private reactRoot?: Root;
 	static get observedAttributes() {
-		return ["public-key", "placeholder", "cta", "is-energy-only"];
+		return ["public-key", "placeholder", "cta", "is-energy-only", "mode"];
 	}
 
 	connectedCallback() {
@@ -64,10 +69,18 @@ class AddressSearchElement extends HTMLElement {
 		}
 
 		const props = parseProps(this);
-		if (!props.publicApiKey) {
-			throw new Error("bpc-address-search: public-key is required");
+		// Zip mode does not use Google Places, so the API key is only required for
+		// the address-search mode.
+		if (props.mode !== "zip") {
+			if (!props.publicApiKey) {
+				throw new Error("bpc-address-search: public-key is required");
+			}
+			bootstrap({
+				key: props.publicApiKey,
+				v: "weekly",
+				libraries: ["places"],
+			});
 		}
-		bootstrap({ key: props.publicApiKey, v: "weekly", libraries: ["places"] });
 
 		if (!this.reactRoot && this.container) {
 			this.reactRoot = createRoot(this.container);
@@ -91,6 +104,25 @@ class AddressSearchElement extends HTMLElement {
 		if (!this.reactRoot || !this.overlayRoot) return;
 		const props = parseProps(this);
 		const zIndex = getZIndex(this.shadowRootRef?.host as HTMLElement);
+
+		if (props.mode === "zip") {
+			this.reactRoot.render(
+				<StrictMode>
+					<ZipSearchApp
+						placeholder={props.placeholder}
+						cta={props.cta}
+						portalRoot={this.overlayRoot}
+						onResultEvent={(detail) =>
+							this.dispatchEvent(new CustomEvent("result", { detail }))
+						}
+						onErrorEvent={(detail) =>
+							this.dispatchEvent(new CustomEvent("error", { detail }))
+						}
+					/>
+				</StrictMode>,
+			);
+			return;
+		}
 
 		this.reactRoot.render(
 			<StrictMode>
