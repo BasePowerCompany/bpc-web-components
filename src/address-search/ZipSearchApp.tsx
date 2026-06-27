@@ -39,6 +39,7 @@ export function ZipSearchApp({
 }: ZipSearchAppProps) {
 	const [zip, setZip] = useState("");
 	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<string | undefined>();
 	const [utilityOptions, setUtilityOptions] = useState<
 		RedirectMultipleOption[] | undefined
 	>();
@@ -46,10 +47,12 @@ export function ZipSearchApp({
 	const submit = useCallback(async () => {
 		const normalized = normalizeZip(zip);
 		if (normalized.length < 5) {
+			setError("Please enter a valid 5-digit ZIP code.");
 			posthogCapture("zip_search_invalid", { zip: normalized });
 			return;
 		}
 
+		setError(undefined);
 		setLoading(true);
 		posthogCapture("zip_search_submit", { zip: normalized });
 
@@ -61,6 +64,7 @@ export function ZipSearchApp({
 		}
 
 		if (!result.success) {
+			setError("Something went wrong. Please try again.");
 			posthogCapture("zip_search_no_result", {
 				zip: normalized,
 				error: result.error,
@@ -109,7 +113,10 @@ export function ZipSearchApp({
 				<input
 					name="zip-search"
 					value={zip}
-					onChange={(e) => setZip(normalizeZip(e.target.value))}
+					onChange={(e) => {
+						setZip(normalizeZip(e.target.value));
+						if (error) setError(undefined);
+					}}
 					onKeyDown={(e) => {
 						if (e.key === "Enter") {
 							e.preventDefault();
@@ -121,6 +128,7 @@ export function ZipSearchApp({
 					autoComplete="postal-code"
 					maxLength={5}
 					className={styles.input}
+					aria-invalid={!!error}
 				/>
 				<MapPin className={styles.mapPin} />
 				{loading && (
@@ -128,6 +136,8 @@ export function ZipSearchApp({
 				)}
 				{!!cta && !loading && <CtaButton title={cta} onClick={submit} />}
 			</div>
+
+			{error && <p className={styles.energyFormInputErrorText}>{error}</p>}
 
 			{!!cta && (
 				<CtaButton title={cta} onClick={submit} className={styles.mobileBtn} />
