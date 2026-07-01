@@ -4,10 +4,6 @@ import {
 	type AddressValidationResult,
 	requireSubpremise,
 } from "@/address-search/addressValidation";
-import {
-	checkDeregFunnelParityTestEligibility,
-	resolveDeregFunnelParityTest,
-} from "@/address-search/experiments";
 import { fetchHydration } from "@/address-search/fetch";
 import { AddressConfirmModal } from "@/address-search/modal/AddressConfirmModal";
 import { SelectionModal } from "@/address-search/modal/SelectionModal";
@@ -167,34 +163,8 @@ export function AddressSearchApp({
 						return;
 					}
 
-					// dereg_funnel_parity_test: eligible (non-energy-only,
-					// deregulated serving) addresses get routed to the new funnel
-					// app on the test variant; control/unbucketed keep the default
-					// /join-now flow.
-					let redirectUrl = result.data.redirectUrl;
-					if (
-						checkDeregFunnelParityTestEligibility(isEnergyOnly, redirectUrl)
-					) {
-						const resolved = resolveDeregFunnelParityTest(
-							redirectUrl,
-							result.data.externalAddressId,
-						);
-						redirectUrl = resolved.redirectUrl;
-						// Only bucketed users (test/control) are in the experiment;
-						// unbucketed users are left untagged for a clean comparison.
-						if (resolved.variant) {
-							posthogCapture("dereg_funnel_parity_test_exposure", {
-								validationSessionId: detail.validationSessionId,
-								selection: detail.selection,
-								externalAddressId: result.data.externalAddressId,
-								variant: resolved.variant,
-								redirectUrl,
-							});
-						}
-					}
-
 					onResultEvent({
-						result: { ...result.data, redirectUrl },
+						result: result.data,
 						selection: detail.selection,
 						validationSessionId: detail.validationSessionId,
 					});
