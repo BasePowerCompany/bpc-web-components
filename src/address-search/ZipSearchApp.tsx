@@ -4,6 +4,7 @@ import { CtaButton } from "@/address-search/CtaButton";
 import { fetchZipRouting } from "@/address-search/fetch";
 import type { RedirectMultipleOption } from "@/address-search/types";
 import { posthogCapture } from "@/address-search/utils";
+import { rebaseToZipFunnel } from "@/address-search/zipFunnel";
 import MapPin from "./MapPin";
 import { UtilitySelectionModal } from "./modal/UtilitySelectionModal";
 import styles from "./styles.module.css";
@@ -88,7 +89,7 @@ export function ZipSearchApp({
 			utility: strategy.utility,
 		});
 		onResultEvent({
-			result: { redirectUrl: result.data.redirectUrl },
+			result: { redirectUrl: rebaseToZipFunnel(result.data.redirectUrl) },
 			zip: normalized,
 			utility: strategy.utility,
 		});
@@ -96,7 +97,10 @@ export function ZipSearchApp({
 
 	const handleUtilityRedirect = useCallback(
 		(redirectUrl: string) => {
-			onResultEvent({ result: { redirectUrl }, zip: normalizeZip(zip) });
+			onResultEvent({
+				result: { redirectUrl: rebaseToZipFunnel(redirectUrl) },
+				zip: normalizeZip(zip),
+			});
 		},
 		[onResultEvent, zip],
 	);

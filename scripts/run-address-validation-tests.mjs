@@ -11,7 +11,6 @@ const rootDir = path.resolve(
 	"..",
 );
 const tempDir = await mkdtemp(path.join(tmpdir(), "bpc-address-tests-"));
-const outfile = path.join(tempDir, "addressValidation.test.mjs");
 
 const aliasPlugin = {
 	name: "local-alias",
@@ -31,8 +30,10 @@ try {
 	await esbuild.build({
 		entryPoints: [
 			path.join(rootDir, "src/address-search/addressValidation.test.ts"),
+			path.join(rootDir, "src/address-search/zipFunnel.test.ts"),
 		],
-		outfile,
+		outdir: tempDir,
+		outExtension: { ".js": ".mjs" },
 		bundle: true,
 		format: "esm",
 		platform: "node",
@@ -41,9 +42,15 @@ try {
 		plugins: [aliasPlugin],
 	});
 
-	const result = spawnSync(process.execPath, ["--test", outfile], {
-		stdio: "inherit",
-	});
+	const result = spawnSync(
+		process.execPath,
+		[
+			"--test",
+			path.join(tempDir, "addressValidation.test.mjs"),
+			path.join(tempDir, "zipFunnel.test.mjs"),
+		],
+		{ stdio: "inherit" },
+	);
 
 	process.exitCode = result.status ?? 1;
 } finally {
