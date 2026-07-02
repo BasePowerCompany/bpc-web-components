@@ -11,7 +11,6 @@ import { UtilitySelectionModal } from "./modal/UtilitySelectionModal";
 import styles from "./styles.module.css";
 
 export type ZipSearchAppProps = {
-	placeholder?: string;
 	cta?: string;
 	portalRoot: ShadowRoot;
 	onResultEvent: (detail: {
@@ -26,6 +25,10 @@ function normalizeZip(value: string): string {
 	return value.replace(/\D/g, "").slice(0, 5);
 }
 
+// Fixed on purpose: the embed's `placeholder` attribute serves the control arm
+// (address search) of the same element, so the zip entry owns its own copy.
+const ZIP_PLACEHOLDER = "Enter your zip code";
+
 /**
  * Zip-first funnel entry. A lower-commitment alternative to the full address
  * search: the user enters a zip, the backend (dashboard-web /api/zip-router →
@@ -33,7 +36,6 @@ function normalizeZip(value: string): string {
  * are disambiguated in-flow with the shared utility selector before redirect.
  */
 export function ZipSearchApp({
-	placeholder,
 	cta,
 	portalRoot,
 	onResultEvent,
@@ -126,8 +128,6 @@ export function ZipSearchApp({
 		setUtilityOptions(undefined);
 	}, []);
 
-	const resolvedPlaceholder = placeholder || "Enter your zip code";
-
 	return (
 		<div className={styles.autocomplete}>
 			<div className={styles.inputContainer}>
@@ -145,7 +145,7 @@ export function ZipSearchApp({
 							submit();
 						}
 					}}
-					placeholder={resolvedPlaceholder}
+					placeholder={ZIP_PLACEHOLDER}
 					inputMode="numeric"
 					autoComplete="postal-code"
 					maxLength={5}
