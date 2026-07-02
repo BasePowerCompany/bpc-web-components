@@ -77,10 +77,6 @@ export type HydrationResult =
 			error: string;
 	  };
 
-// Zip-first funnel entry: the dashboard-web /api/zip-router response. The backend
-// owns the funnel host/path, so redirectUrl is ready to navigate to. Overlapping
-// utilities come back as a multi-option selection; everything else is a single
-// redirect (including the not-served waitlist).
 export type ZipRedirectStrategy =
 	| { redirectUrl: string; isMultiple: false; utility: string }
 	| { redirectUrl: string; isMultiple: true; multiple: RedirectMultiple };
