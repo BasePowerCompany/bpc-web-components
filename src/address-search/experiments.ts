@@ -17,9 +17,6 @@ const ZIP_ENTRY_TEST_FLAG = "zip_entry_test_0701";
 const ZIP_ENTRY_TEST_VARIANT = "test";
 
 export function resolveZipEntryArm(): "zip" | "address" {
-	// The $feature_flag_called event fires for any response, but PostHog only
-	// registers test/control responses as experiment exposures — an unbucketed
-	// visitor's `false` never enters the experiment.
 	return posthogGetFeatureFlag(ZIP_ENTRY_TEST_FLAG) === ZIP_ENTRY_TEST_VARIANT
 		? "zip"
 		: "address";
