@@ -53,6 +53,27 @@ export function ZipSearchApp({
 		posthogCapture("zip_search_opened", {});
 	}, []);
 
+	// Funnel step 3 ("zip entry redirecting"): rebase to the zip funnel, capture
+	// before dispatch so the event isn't lost to the navigation, then hand the
+	// URL to the host page. Shared by the single-result and utility-modal paths.
+	const emitRedirect = useCallback(
+		(redirectUrl: string, utility?: string) => {
+			const normalized = normalizeZip(zip);
+			const rebased = rebaseToZipFunnel(redirectUrl);
+			posthogCapture("zip_search_redirect", {
+				zip: normalized,
+				utility,
+				redirectUrl: rebased,
+			});
+			onResultEvent({
+				result: { redirectUrl: rebased },
+				zip: normalized,
+				utility,
+			});
+		},
+		[onResultEvent, zip],
+	);
+
 	const submit = useCallback(async () => {
 		if (loading) return;
 		const normalized = normalizeZip(zip);
@@ -97,38 +118,8 @@ export function ZipSearchApp({
 			zip: normalized,
 			utility: strategy.utility,
 		});
-		const redirectUrl = rebaseToZipFunnel(result.data.redirectUrl);
-		// Funnel step 3 ("zip entry redirecting"): captured before dispatch so the
-		// event isn't lost to the navigation.
-		posthogCapture("zip_search_redirect", {
-			zip: normalized,
-			utility: strategy.utility,
-			redirectUrl,
-		});
-		onResultEvent({
-			result: { redirectUrl },
-			zip: normalized,
-			utility: strategy.utility,
-		});
-	}, [zip, loading, onResultEvent, onErrorEvent]);
-
-	const handleUtilityRedirect = useCallback(
-		(redirectUrl: string, utility?: string) => {
-			const normalized = normalizeZip(zip);
-			const rebased = rebaseToZipFunnel(redirectUrl);
-			posthogCapture("zip_search_redirect", {
-				zip: normalized,
-				utility,
-				redirectUrl: rebased,
-			});
-			onResultEvent({
-				result: { redirectUrl: rebased },
-				zip: normalized,
-				utility,
-			});
-		},
-		[onResultEvent, zip],
-	);
+		emitRedirect(result.data.redirectUrl, strategy.utility);
+	}, [zip, loading, emitRedirect, onErrorEvent]);
 
 	const handleBack = useCallback(() => {
 		setUtilityOptions(undefined);
@@ -180,7 +171,7 @@ export function ZipSearchApp({
 						externalAddressId=""
 						utilityOptions={utilityOptions}
 						skipUtilityConfirm
-						onTriggerRedirect={handleUtilityRedirect}
+						onTriggerRedirect={emitRedirect}
 						onBack={handleBack}
 					/>,
 					portalRoot,

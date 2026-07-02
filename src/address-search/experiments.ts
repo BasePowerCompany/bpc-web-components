@@ -13,7 +13,7 @@ import { posthogGetFeatureFlag } from "@/address-search/utils";
  * For QA, force an arm with PostHog's own override tooling
  * (posthog.featureFlags.overrideFeatureFlags / the toolbar).
  */
-export const ZIP_ENTRY_TEST_FLAG = "zip_entry_test_0701";
+const ZIP_ENTRY_TEST_FLAG = "zip_entry_test_0701";
 const ZIP_ENTRY_TEST_VARIANT = "test";
 
 export function resolveZipEntryArm(): "zip" | "address" {

@@ -5,6 +5,7 @@ import {
 	posthogOnFeatureFlags,
 	resolveZipEntryArm,
 } from "@/address-search/experiments";
+import { posthogCapture } from "@/address-search/utils";
 import { bootstrap } from "@/utils/googleMaps";
 import { AddressSearchApp } from "./AddressSearchApp";
 import modalStyleSheet from "./modal/styles.module.css?inline";
@@ -16,10 +17,6 @@ function parseProps(el: HTMLElement) {
 	const placeholder = el.getAttribute("placeholder") || undefined;
 	const cta = el.getAttribute("cta") || undefined;
 	const isEnergyOnly = el.getAttribute("is-energy-only") === "true";
-	// "zip" marks the element as the zip-first experiment surface: the PostHog
-	// flag (zip_entry_test_0701) decides whether the visitor sees the zip entry
-	// (test) or the standard address search (control/unbucketed). Anything else
-	// (default) always renders the address search.
 	const mode = el.getAttribute("mode") === "zip" ? "zip" : "address";
 	return { publicApiKey, placeholder, cta, isEnergyOnly, mode };
 }
@@ -47,8 +44,10 @@ class AddressSearchElement extends HTMLElement {
 	private reactRoot?: Root;
 	private flagsReady = false;
 	private flagsRequested = false;
+	// `mode` is intentionally not observed: it is a static embed attribute, so
+	// runtime flips are unsupported.
 	static get observedAttributes() {
-		return ["public-key", "placeholder", "cta", "is-energy-only", "mode"];
+		return ["public-key", "placeholder", "cta", "is-energy-only"];
 	}
 
 	// Zip mode is experiment-gated (zip_entry_test_0701), and PostHog loads its
@@ -64,7 +63,24 @@ class AddressSearchElement extends HTMLElement {
 			this.renderApp();
 		};
 		const subscribed = posthogOnFeatureFlags(resolve);
-		window.setTimeout(resolve, subscribed ? 1500 : 0);
+		window.setTimeout(
+			() => {
+				if (subscribed && !this.flagsReady) {
+					// Flags were slow, not absent: the visitor gets the address entry
+					// but posthog-js may later tag their events with the test variant.
+					// Captured (queued until PostHog loads) so this mislabeling risk is
+					// measurable during the experiment.
+					posthogCapture("zip_entry_flags_timeout", {});
+				}
+				resolve();
+			},
+			subscribed ? 1500 : 0,
+		);
+	}
+
+	private emit(eventName: string) {
+		return (detail: unknown) =>
+			this.dispatchEvent(new CustomEvent(eventName, { detail }));
 	}
 
 	connectedCallback() {
@@ -128,12 +144,8 @@ class AddressSearchElement extends HTMLElement {
 							placeholder={props.placeholder}
 							cta={props.cta}
 							portalRoot={this.overlayRoot}
-							onResultEvent={(detail) =>
-								this.dispatchEvent(new CustomEvent("result", { detail }))
-							}
-							onErrorEvent={(detail) =>
-								this.dispatchEvent(new CustomEvent("error", { detail }))
-							}
+							onResultEvent={this.emit("result")}
+							onErrorEvent={this.emit("error")}
 						/>
 					</StrictMode>,
 				);
@@ -141,10 +153,10 @@ class AddressSearchElement extends HTMLElement {
 			}
 		}
 
-		// The zip entry does not use Google Places, but zip mode still requires the
-		// key: control-arm visitors get the address entry. Bootstrapping here
-		// (idempotent) rather than in connectedCallback keeps address mode working
-		// if `mode` is flipped at runtime.
+		// Google Places is only needed by the address entry, and a zip-mode element
+		// doesn't know it will render one until the flag resolves — so the key check
+		// and (idempotent) bootstrap live here, on the address render path, instead
+		// of connectedCallback. Test-arm visitors never load Places.
 		if (!props.publicApiKey) {
 			throw new Error("bpc-address-search: public-key is required");
 		}
@@ -158,15 +170,9 @@ class AddressSearchElement extends HTMLElement {
 					isEnergyOnly={props.isEnergyOnly}
 					portalRoot={this.overlayRoot}
 					zIndex={zIndex}
-					onSelectEvent={(detail) =>
-						this.dispatchEvent(new CustomEvent("select", { detail }))
-					}
-					onResultEvent={(detail) =>
-						this.dispatchEvent(new CustomEvent("result", { detail }))
-					}
-					onErrorEvent={(detail) =>
-						this.dispatchEvent(new CustomEvent("error", { detail }))
-					}
+					onSelectEvent={this.emit("select")}
+					onResultEvent={this.emit("result")}
+					onErrorEvent={this.emit("error")}
 				/>
 			</StrictMode>,
 		);
