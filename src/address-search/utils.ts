@@ -101,6 +101,7 @@ export function parseAddress(
 interface PostHogLike {
 	capture(event: string, properties?: Record<string, unknown>): void;
 	getFeatureFlag(key: string): string | boolean | undefined;
+	onFeatureFlags(callback: () => void): void;
 }
 
 declare global {

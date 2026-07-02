@@ -327,6 +327,14 @@ button.input {
 	padding-left: 4px;
 }
 
+/* Zip entry reuses the error typography above, but its message sits directly
+   under the input pill (no form gap), so it needs real breathing room and an
+   indent that lines up with the pill's rounded corner. */
+.zipErrorText {
+	margin-top: 10px;
+	padding-left: 16px;
+}
+
 @media screen and (max-width: 540px) {
 	.input {
 		padding: 12px 8px 12px 40px;
