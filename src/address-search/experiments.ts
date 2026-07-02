@@ -10,24 +10,25 @@ import { posthogGetFeatureFlag } from "@/address-search/utils";
  *
  * Reading the flag records the experiment exposure ($feature_flag_called), so
  * resolve only after PostHog's flags have loaded and only on zip-mode elements.
+ * For QA, force an arm with PostHog's own override tooling
+ * (posthog.featureFlags.overrideFeatureFlags / the toolbar).
  */
 export const ZIP_ENTRY_TEST_FLAG = "zip_entry_test_0701";
 const ZIP_ENTRY_TEST_VARIANT = "test";
-const ZIP_ENTRY_CONTROL_VARIANT = "control";
-
-// QA override: ?zip_entry_test=test|control forces an arm without reading the
-// flag (no exposure recorded), so pre-rollout end-to-end testing on real pages
-// doesn't pollute the experiment.
-const ZIP_ENTRY_TEST_OVERRIDE_PARAM = "zip_entry_test";
 
 export function resolveZipEntryArm(): "zip" | "address" {
-	const override = new URLSearchParams(window.location.search).get(
-		ZIP_ENTRY_TEST_OVERRIDE_PARAM,
-	);
-	if (override === ZIP_ENTRY_TEST_VARIANT) return "zip";
-	if (override === ZIP_ENTRY_CONTROL_VARIANT) return "address";
-
 	return posthogGetFeatureFlag(ZIP_ENTRY_TEST_FLAG) === ZIP_ENTRY_TEST_VARIANT
 		? "zip"
 		: "address";
 }
+
+/**
+ * Run `callback` once PostHog's feature flags have loaded (immediately if they
+ * already have). Returns `false` when PostHog isn't on the page, so callers
+ * can fall back without waiting.
+ */
+export const posthogOnFeatureFlags = (callback: () => void): boolean => {
+	if (!window.posthog?.onFeatureFlags) return false;
+	window.posthog.onFeatureFlags(callback);
+	return true;
+};

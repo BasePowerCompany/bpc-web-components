@@ -127,14 +127,3 @@ export const posthogCapture = (
 export const posthogGetFeatureFlag = (
 	flagKey: string,
 ): string | boolean | undefined => window.posthog?.getFeatureFlag(flagKey);
-
-/**
- * Run `callback` once PostHog's feature flags have loaded (immediately if they
- * already have). Returns `false` when PostHog isn't on the page, so callers
- * can fall back without waiting.
- */
-export const posthogOnFeatureFlags = (callback: () => void): boolean => {
-	if (!window.posthog?.onFeatureFlags) return false;
-	window.posthog.onFeatureFlags(callback);
-	return true;
-};

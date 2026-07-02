@@ -1,8 +1,10 @@
 import { StrictMode } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
-import { resolveZipEntryArm } from "@/address-search/experiments";
-import { posthogOnFeatureFlags } from "@/address-search/utils";
+import {
+	posthogOnFeatureFlags,
+	resolveZipEntryArm,
+} from "@/address-search/experiments";
 import { bootstrap } from "@/utils/googleMaps";
 import { AddressSearchApp } from "./AddressSearchApp";
 import modalStyleSheet from "./modal/styles.module.css?inline";
