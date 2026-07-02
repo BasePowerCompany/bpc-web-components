@@ -71,8 +71,11 @@
     </div>
     <div class="container dark" style="padding-top: 6vh">
       <div style="max-width: 540px">
+        <!-- Experiment-gated: append ?zip_entry_test=test (or =control) to the
+             page URL to force an arm; without it the PostHog flag decides. -->
         <bpc-address-search
           mode="zip"
+          public-key="%VITE_GOOGLE_MAPS_API_KEY%"
           cta="See if my home qualifies"
         ></bpc-address-search>
         <script>

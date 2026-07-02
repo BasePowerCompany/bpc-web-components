@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CtaButton } from "@/address-search/CtaButton";
 import { fetchZipRouting } from "@/address-search/fetch";
@@ -44,6 +44,14 @@ export function ZipSearchApp({
 	const [utilityOptions, setUtilityOptions] = useState<
 		RedirectMultipleOption[] | undefined
 	>();
+	const openedRef = useRef(false);
+
+	// Funnel step 1 ("zip entry clicked open"): first interaction with the input.
+	const handleFocus = useCallback(() => {
+		if (openedRef.current) return;
+		openedRef.current = true;
+		posthogCapture("zip_search_opened", {});
+	}, []);
 
 	const submit = useCallback(async () => {
 		if (loading) return;
@@ -89,8 +97,16 @@ export function ZipSearchApp({
 			zip: normalized,
 			utility: strategy.utility,
 		});
+		const redirectUrl = rebaseToZipFunnel(result.data.redirectUrl);
+		// Funnel step 3 ("zip entry redirecting"): captured before dispatch so the
+		// event isn't lost to the navigation.
+		posthogCapture("zip_search_redirect", {
+			zip: normalized,
+			utility: strategy.utility,
+			redirectUrl,
+		});
 		onResultEvent({
-			result: { redirectUrl: rebaseToZipFunnel(result.data.redirectUrl) },
+			result: { redirectUrl },
 			zip: normalized,
 			utility: strategy.utility,
 		});
@@ -98,9 +114,16 @@ export function ZipSearchApp({
 
 	const handleUtilityRedirect = useCallback(
 		(redirectUrl: string, utility?: string) => {
+			const normalized = normalizeZip(zip);
+			const rebased = rebaseToZipFunnel(redirectUrl);
+			posthogCapture("zip_search_redirect", {
+				zip: normalized,
+				utility,
+				redirectUrl: rebased,
+			});
 			onResultEvent({
-				result: { redirectUrl: rebaseToZipFunnel(redirectUrl) },
-				zip: normalizeZip(zip),
+				result: { redirectUrl: rebased },
+				zip: normalized,
 				utility,
 			});
 		},
@@ -123,6 +146,7 @@ export function ZipSearchApp({
 						setZip(normalizeZip(e.target.value));
 						if (error) setError(undefined);
 					}}
+					onFocus={handleFocus}
 					onKeyDown={(e) => {
 						if (e.key === "Enter") {
 							e.preventDefault();
