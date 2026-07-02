@@ -69,6 +69,35 @@
         </script>
       </div>
     </div>
+    <div class="container dark" style="padding-top: 6vh">
+      <div style="max-width: 540px">
+        <bpc-address-search
+          mode="zip"
+          cta="See if my home qualifies"
+        ></bpc-address-search>
+        <script>
+          (() => {
+            const el = document.currentScript.previousElementSibling;
+            el.addEventListener("result", (e) => {
+              const url = new URL(
+                e.detail.result.redirectUrl,
+                window.location.origin,
+              );
+              url.searchParams.set("utm_source", "bpc-web-components");
+              url.searchParams.set("utm_medium", "address-search");
+              url.searchParams.set("utm_campaign", "bpc-web-components");
+
+              // window.location.href = url.href;
+              console.log("zip result", e.detail);
+              console.log("Would redirect to:", url.href);
+            });
+            el.addEventListener("error", (e) =>
+              console.log("zip error", e.detail),
+            );
+          })();
+        </script>
+      </div>
+    </div>
     <div class="container light">
       <div style="max-width: 540px">
         <bpc-address-search

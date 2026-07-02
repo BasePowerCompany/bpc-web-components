@@ -15,7 +15,7 @@ export type UtilitySelectionModalProps = {
 	address: string;
 	externalAddressId: string;
 	utilityOptions: RedirectMultipleOption[];
-	onTriggerRedirect: (redirectUrl: string) => void;
+	onTriggerRedirect: (redirectUrl: string, utility?: string) => void;
 	onBack: () => void;
 	// Zip-first entry has no resolved address yet, so there is nothing to confirm
 	// against BOS — each option's URL already encodes its destination. When set,
@@ -50,7 +50,7 @@ export function UtilitySelectionModal({
 				utility: utility,
 				multipleResult: found,
 			});
-			onTriggerRedirect(found.redirectUrl);
+			onTriggerRedirect(found.redirectUrl, utility);
 			return;
 		}
 

@@ -46,6 +46,7 @@ export function ZipSearchApp({
 	>();
 
 	const submit = useCallback(async () => {
+		if (loading) return;
 		const normalized = normalizeZip(zip);
 		if (normalized.length < 5) {
 			setError("Please enter a valid 5-digit ZIP code.");
@@ -93,13 +94,14 @@ export function ZipSearchApp({
 			zip: normalized,
 			utility: strategy.utility,
 		});
-	}, [zip, onResultEvent, onErrorEvent]);
+	}, [zip, loading, onResultEvent, onErrorEvent]);
 
 	const handleUtilityRedirect = useCallback(
-		(redirectUrl: string) => {
+		(redirectUrl: string, utility?: string) => {
 			onResultEvent({
 				result: { redirectUrl: rebaseToZipFunnel(redirectUrl) },
 				zip: normalizeZip(zip),
+				utility,
 			});
 		},
 		[onResultEvent, zip],
@@ -143,7 +145,7 @@ export function ZipSearchApp({
 
 			{error && <p className={styles.energyFormInputErrorText}>{error}</p>}
 
-			{!!cta && (
+			{!!cta && !loading && (
 				<CtaButton title={cta} onClick={submit} className={styles.mobileBtn} />
 			)}
 

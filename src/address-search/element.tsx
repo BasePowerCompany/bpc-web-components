@@ -68,20 +68,6 @@ class AddressSearchElement extends HTMLElement {
 			document.body.appendChild(this.overlayWrapper);
 		}
 
-		const props = parseProps(this);
-		// Zip mode does not use Google Places, so the API key is only required for
-		// the address-search mode.
-		if (props.mode !== "zip") {
-			if (!props.publicApiKey) {
-				throw new Error("bpc-address-search: public-key is required");
-			}
-			bootstrap({
-				key: props.publicApiKey,
-				v: "weekly",
-				libraries: ["places"],
-			});
-		}
-
 		if (!this.reactRoot && this.container) {
 			this.reactRoot = createRoot(this.container);
 		}
@@ -123,6 +109,15 @@ class AddressSearchElement extends HTMLElement {
 			);
 			return;
 		}
+
+		// Zip mode does not use Google Places, so the API key is only required for
+		// the address-search mode. Bootstrapping here (idempotent) rather than in
+		// connectedCallback keeps address mode working if `mode` is flipped at
+		// runtime (e.g. by a PostHog web experiment setting the attribute).
+		if (!props.publicApiKey) {
+			throw new Error("bpc-address-search: public-key is required");
+		}
+		bootstrap({ key: props.publicApiKey, v: "weekly", libraries: ["places"] });
 
 		this.reactRoot.render(
 			<StrictMode>
