@@ -15,26 +15,14 @@ import { posthogGetFeatureFlag } from "@/address-search/utils";
  */
 const ZIP_ENTRY_TEST_FLAG = "zip_entry_test_0701";
 const ZIP_ENTRY_TEST_VARIANT = "test";
-const ZIP_ENTRY_CONTROL_VARIANT = "control";
 
 export function resolveZipEntryArm(): "zip" | "address" {
-	// Peek without sending $feature_flag_called: unbucketed visitors (flag off /
-	// outside the rollout %) must not log an exposure at all.
-	const variant = posthogGetFeatureFlag(ZIP_ENTRY_TEST_FLAG, {
-		send_event: false,
-	});
-	if (
-		variant !== ZIP_ENTRY_TEST_VARIANT &&
-		variant !== ZIP_ENTRY_CONTROL_VARIANT
-	) {
-		return "address";
-	}
-
-	// Bucketed (test or control): re-read with the event enabled so posthog-js
-	// records the exposure ($feature_flag_called) exactly when the assigned arm
-	// renders. posthog-js dedupes repeat calls for the same flag+value.
-	posthogGetFeatureFlag(ZIP_ENTRY_TEST_FLAG);
-	return variant === ZIP_ENTRY_TEST_VARIANT ? "zip" : "address";
+	// The $feature_flag_called event fires for any response, but PostHog only
+	// registers test/control responses as experiment exposures — an unbucketed
+	// visitor's `false` never enters the experiment.
+	return posthogGetFeatureFlag(ZIP_ENTRY_TEST_FLAG) === ZIP_ENTRY_TEST_VARIANT
+		? "zip"
+		: "address";
 }
 
 /**
