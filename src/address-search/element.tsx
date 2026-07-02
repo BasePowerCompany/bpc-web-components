@@ -141,7 +141,6 @@ class AddressSearchElement extends HTMLElement {
 				this.reactRoot.render(
 					<StrictMode>
 						<ZipSearchApp
-							placeholder={props.placeholder}
 							cta={props.cta}
 							portalRoot={this.overlayRoot}
 							onResultEvent={this.emit("result")}
