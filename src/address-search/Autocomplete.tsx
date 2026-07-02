@@ -8,6 +8,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { CtaButton } from "@/address-search/CtaButton";
+import { posthogCapture } from "@/address-search/utils";
 import { cx } from "@/utils/cx";
 import MapPin from "./MapPin";
 import styles from "./styles.module.css";
@@ -274,6 +275,7 @@ export function Autocomplete({
 	// accepting another ref object as its initializer.
 	const inputRef = externalInputRef ?? internalInputRef;
 	const [isActivated, setIsActivated] = useState(false);
+	const openedRef = useRef(false);
 	const [overlayPosition, setOverlayPosition] =
 		useState<OverlayPosition | null>(null);
 
@@ -294,6 +296,12 @@ export function Autocomplete({
 	}, []);
 
 	function open() {
+		// Funnel entry ("address component clicked open"): every click/focus path
+		// routes through here; fire once per mount.
+		if (!openedRef.current) {
+			openedRef.current = true;
+			posthogCapture("address_search_opened", {});
+		}
 		updatePosition();
 		setIsActivated(true);
 		inputRef.current?.focus();

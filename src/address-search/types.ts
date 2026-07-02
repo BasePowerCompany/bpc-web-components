@@ -76,3 +76,20 @@ export type HydrationResult =
 			success: false;
 			error: string;
 	  };
+
+export type ZipRedirectStrategy =
+	| { redirectUrl: string; isMultiple: false; utility: string }
+	| { redirectUrl: string; isMultiple: true; multiple: RedirectMultiple };
+
+export type ZipRoutingResult =
+	| {
+			success: true;
+			data: {
+				redirectUrl: string;
+				redirectStrategy: ZipRedirectStrategy;
+			};
+	  }
+	| {
+			success: false;
+			error: string;
+	  };

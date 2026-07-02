@@ -15,8 +15,12 @@ export type UtilitySelectionModalProps = {
 	address: string;
 	externalAddressId: string;
 	utilityOptions: RedirectMultipleOption[];
-	onTriggerRedirect: (redirectUrl: string) => void;
+	onTriggerRedirect: (redirectUrl: string, utility?: string) => void;
 	onBack: () => void;
+	// Zip-first entry has no resolved address yet, so there is nothing to confirm
+	// against BOS — each option's URL already encodes its destination. When set,
+	// every selection redirects directly without calling /api/utility-select.
+	skipUtilityConfirm?: boolean;
 };
 
 export function UtilitySelectionModal({
@@ -25,6 +29,7 @@ export function UtilitySelectionModal({
 	utilityOptions,
 	onTriggerRedirect,
 	onBack,
+	skipUtilityConfirm = false,
 }: UtilitySelectionModalProps) {
 	const onSelectUtility = async (option: RedirectMultipleOption) => {
 		const utility = option.value;
@@ -36,6 +41,16 @@ export function UtilitySelectionModal({
 				utility: utility,
 				utilityOptions,
 			});
+			return;
+		}
+
+		if (skipUtilityConfirm) {
+			posthogCapture("zip_search_modal_selection", {
+				addressSelected: address,
+				utility: utility,
+				multipleResult: found,
+			});
+			onTriggerRedirect(found.redirectUrl, utility);
 			return;
 		}
 
