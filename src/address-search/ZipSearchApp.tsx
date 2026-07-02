@@ -5,6 +5,7 @@ import { fetchZipRouting } from "@/address-search/fetch";
 import type { RedirectMultipleOption } from "@/address-search/types";
 import { posthogCapture } from "@/address-search/utils";
 import { rebaseToZipFunnel } from "@/address-search/zipFunnel";
+import { cx } from "@/utils/cx";
 import MapPin from "./MapPin";
 import { UtilitySelectionModal } from "./modal/UtilitySelectionModal";
 import styles from "./styles.module.css";
@@ -158,7 +159,11 @@ export function ZipSearchApp({
 				{!!cta && !loading && <CtaButton title={cta} onClick={submit} />}
 			</div>
 
-			{error && <p className={styles.energyFormInputErrorText}>{error}</p>}
+			{error && (
+				<p className={cx(styles.energyFormInputErrorText, styles.zipErrorText)}>
+					{error}
+				</p>
+			)}
 
 			{!!cta && !loading && (
 				<CtaButton title={cta} onClick={submit} className={styles.mobileBtn} />
