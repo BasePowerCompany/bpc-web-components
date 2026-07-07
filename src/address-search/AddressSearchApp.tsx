@@ -103,6 +103,13 @@ export function AddressSearchApp({
 			// If no selection, return
 			if (!detail.selection) return;
 
+			// Funnel parity with zip_search_submit: the user committed an address
+			// (router call starts now, results captured separately below).
+			posthogCapture("address_search_submit", {
+				validationSessionId: detail.validationSessionId,
+				selection: detail.selection,
+			});
+
 			// Fetch the hydration data
 			const result = await fetchHydration(
 				detail.selection,
@@ -163,6 +170,13 @@ export function AddressSearchApp({
 						return;
 					}
 
+					// Funnel parity with zip_search_redirect: captured before dispatch
+					// so the event isn't lost to the navigation.
+					posthogCapture("address_search_redirect", {
+						redirectUrl: result.data.redirectUrl,
+						externalAddressId: result.data.externalAddressId,
+						validationSessionId: detail.validationSessionId,
+					});
 					onResultEvent({
 						result: result.data,
 						selection: detail.selection,
@@ -185,6 +199,13 @@ export function AddressSearchApp({
 	const handleRedirect = useCallback(
 		(redirectUrl: string) => {
 			if (!selection) return;
+			// Funnel parity with zip_search_redirect (modal/splash paths): captured
+			// before dispatch so the event isn't lost to the navigation.
+			posthogCapture("address_search_redirect", {
+				redirectUrl,
+				externalAddressId: externalAddressId ?? "",
+				validationSessionId: selectionValidationSessionId,
+			});
 			// Dispatch the result event to route the user to redirectUrl
 			onResultEvent({
 				result: { redirectUrl, externalAddressId: externalAddressId ?? "" },
