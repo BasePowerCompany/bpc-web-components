@@ -11,7 +11,6 @@ import { UtilitySelectionModal } from "./modal/UtilitySelectionModal";
 import styles from "./styles.module.css";
 
 export type ZipSearchAppProps = {
-	cta?: string;
 	portalRoot: ShadowRoot;
 	onResultEvent: (detail: {
 		result: { redirectUrl: string };
@@ -25,9 +24,11 @@ function normalizeZip(value: string): string {
 	return value.replace(/\D/g, "").slice(0, 5);
 }
 
-// Fixed on purpose: the embed's `placeholder` attribute serves the control arm
-// (address search) of the same element, so the zip entry owns its own copy.
+// Fixed on purpose: the embed's `placeholder` and `cta` attributes serve the
+// control arm (address search) of the same element, so the zip entry owns its
+// own copy.
 const ZIP_PLACEHOLDER = "Enter your zip code";
+const ZIP_CTA = "Check Availability";
 
 /**
  * Zip-first funnel entry. A lower-commitment alternative to the full address
@@ -36,7 +37,6 @@ const ZIP_PLACEHOLDER = "Enter your zip code";
  * are disambiguated in-flow with the shared utility selector before redirect.
  */
 export function ZipSearchApp({
-	cta,
 	portalRoot,
 	onResultEvent,
 	onErrorEvent,
@@ -156,7 +156,7 @@ export function ZipSearchApp({
 				{loading && (
 					<output className={styles.loadingSpinner} aria-label="Checking zip" />
 				)}
-				{!!cta && !loading && <CtaButton title={cta} onClick={submit} />}
+				{!loading && <CtaButton title={ZIP_CTA} onClick={submit} />}
 			</div>
 
 			{error && (
@@ -165,8 +165,12 @@ export function ZipSearchApp({
 				</p>
 			)}
 
-			{!!cta && !loading && (
-				<CtaButton title={cta} onClick={submit} className={styles.mobileBtn} />
+			{!loading && (
+				<CtaButton
+					title={ZIP_CTA}
+					onClick={submit}
+					className={styles.mobileBtn}
+				/>
 			)}
 
 			{utilityOptions &&
