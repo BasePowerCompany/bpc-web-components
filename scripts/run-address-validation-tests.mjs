@@ -30,6 +30,7 @@ try {
 	await esbuild.build({
 		entryPoints: [
 			path.join(rootDir, "src/address-search/addressValidation.test.ts"),
+			path.join(rootDir, "src/address-search/experiments.test.ts"),
 			path.join(rootDir, "src/address-search/zipFunnel.test.ts"),
 		],
 		outdir: tempDir,
@@ -47,6 +48,7 @@ try {
 		[
 			"--test",
 			path.join(tempDir, "addressValidation.test.mjs"),
+			path.join(tempDir, "experiments.test.mjs"),
 			path.join(tempDir, "zipFunnel.test.mjs"),
 		],
 		{ stdio: "inherit" },

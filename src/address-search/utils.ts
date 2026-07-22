@@ -100,6 +100,8 @@ export function parseAddress(
 // it through `?.` — this is client-only embed code, so `window` always exists.
 interface PostHogLike {
 	capture(event: string, properties?: Record<string, unknown>): void;
+	getFeatureFlag(key: string): string | boolean | undefined;
+	onFeatureFlags(callback: () => void): void;
 }
 
 declare global {
@@ -114,3 +116,16 @@ export const posthogCapture = (
 ) => {
 	window.posthog?.capture(eventName, properties);
 };
+
+/**
+ * Read a PostHog feature flag / experiment variant client-side. Returns the
+ * variant string (e.g. "control" / "test"), or `undefined` when PostHog is
+ * unavailable or flags haven't loaded — callers should treat `undefined` as
+ * the control/default behavior. Calling this also records the experiment
+ * exposure ($feature_flag_called), so only call it once the user is eligible.
+ *
+ * Building block for experiment resolvers — see @/address-search/experiments.
+ */
+export const posthogGetFeatureFlag = (
+	flagKey: string,
+): string | boolean | undefined => window.posthog?.getFeatureFlag(flagKey);
