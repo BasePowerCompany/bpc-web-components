@@ -1,26 +1,36 @@
-import { posthogGetFeatureFlag } from "@/address-search/utils";
-
 /**
- * zip_entry_test_0701 — zip-first funnel entry experiment.
+ * PostHog experiment helpers for the bpc-address-search element.
  *
- * Elements with `mode="zip"` are the experiment surface: the flag decides
- * which entry the visitor actually sees. `test` renders the zip entry;
- * `control` and unbucketed visitors (flag off / not yet rolled out / PostHog
- * unavailable) keep the standard address entry.
+ * ── How to set up an experiment-gated arm ──────────────────────────────────
  *
- * Reading the flag records the experiment exposure ($feature_flag_called), so
- * resolve only after PostHog's flags have loaded and only on zip-mode elements.
- * For QA, force an arm with PostHog's own override tooling
- * (posthog.featureFlags.overrideFeatureFlags / the toolbar).
+ * An experiment lives behind a PostHog feature flag whose variant decides which
+ * UI a visitor sees. To add one:
+ *
+ *  1. Write a resolver that reads the flag and maps its variant to a UI arm.
+ *     Read the flag with `posthogGetFeatureFlag` (from ./utils); treat
+ *     `undefined` (PostHog absent / flag off / not yet loaded) and any
+ *     unexpected variant as the control/default arm.
+ *  2. Gate the render in `element.tsx`: wait for flags with
+ *     `posthogOnFeatureFlags` (below), then call the resolver — only on the
+ *     element that opts into the experiment, so reading the flag records the
+ *     `$feature_flag_called` exposure for eligible visitors only.
+ *
+ * The concluded `zip_entry_test_0701` experiment resolved like this (kept as a
+ * reference for the next one — remove/replace when you add a real resolver):
+ *
+ *     import { posthogGetFeatureFlag } from "@/address-search/utils";
+ *
+ *     const ZIP_ENTRY_TEST_FLAG = "zip_entry_test_0701";
+ *     const ZIP_ENTRY_TEST_VARIANT = "test";
+ *
+ *     export function resolveZipEntryArm(): "zip" | "address" {
+ *       return posthogGetFeatureFlag(ZIP_ENTRY_TEST_FLAG) === ZIP_ENTRY_TEST_VARIANT
+ *         ? "zip"
+ *         : "address";
+ *     }
+ *
+ * ───────────────────────────────────────────────────────────────────────────
  */
-const ZIP_ENTRY_TEST_FLAG = "zip_entry_test_0701";
-const ZIP_ENTRY_TEST_VARIANT = "test";
-
-export function resolveZipEntryArm(): "zip" | "address" {
-	return posthogGetFeatureFlag(ZIP_ENTRY_TEST_FLAG) === ZIP_ENTRY_TEST_VARIANT
-		? "zip"
-		: "address";
-}
 
 /**
  * Run `callback` once PostHog's feature flags have loaded (immediately if they
