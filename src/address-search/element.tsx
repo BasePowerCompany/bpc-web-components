@@ -100,6 +100,7 @@ class AddressSearchElement extends HTMLElement {
 				<StrictMode>
 					<ZipSearchApp
 						portalRoot={this.overlayRoot}
+						cta={props.cta}
 						onResultEvent={this.emit("result")}
 						onErrorEvent={this.emit("error")}
 					/>

@@ -12,6 +12,8 @@ import styles from "./styles.module.css";
 
 export type ZipSearchAppProps = {
 	portalRoot: ShadowRoot;
+	/** CTA label; defaults to "Check Availability" when the embed omits `cta`. */
+	cta?: string;
 	onResultEvent: (detail: {
 		result: { redirectUrl: string };
 		zip: string;
@@ -24,11 +26,10 @@ function normalizeZip(value: string): string {
 	return value.replace(/\D/g, "").slice(0, 5);
 }
 
-// Fixed on purpose: the embed's `placeholder` and `cta` attributes serve the
-// control arm (address search) of the same element, so the zip entry owns its
-// own copy.
+// The zip entry owns its placeholder copy. Its CTA defaults to "Check
+// Availability" but the embed can override it via the `cta` attribute.
 const ZIP_PLACEHOLDER = "Enter your zip code";
-const ZIP_CTA = "Check Availability";
+const DEFAULT_ZIP_CTA = "Check Availability";
 
 /**
  * Zip-first funnel entry. A lower-commitment alternative to the full address
@@ -38,6 +39,7 @@ const ZIP_CTA = "Check Availability";
  */
 export function ZipSearchApp({
 	portalRoot,
+	cta = DEFAULT_ZIP_CTA,
 	onResultEvent,
 	onErrorEvent,
 }: ZipSearchAppProps) {
@@ -156,7 +158,7 @@ export function ZipSearchApp({
 				{loading && (
 					<output className={styles.loadingSpinner} aria-label="Checking zip" />
 				)}
-				{!loading && <CtaButton title={ZIP_CTA} onClick={submit} />}
+				{!loading && <CtaButton title={cta} onClick={submit} />}
 			</div>
 
 			{error && (
@@ -166,11 +168,7 @@ export function ZipSearchApp({
 			)}
 
 			{!loading && (
-				<CtaButton
-					title={ZIP_CTA}
-					onClick={submit}
-					className={styles.mobileBtn}
-				/>
+				<CtaButton title={cta} onClick={submit} className={styles.mobileBtn} />
 			)}
 
 			{utilityOptions &&
