@@ -1,6 +1,6 @@
 /**
  * The backend stays experiment-agnostic: zip routing returns the canonical
- * funnel URL (DEREG serving → https://join.basepowercompany.com/join-now).
+ * funnel URL (deregulated serving → https://join.basepowercompany.com/join-now).
  * Zip mode IS the zip-first test arm (assignment lives outside the component,
  * via the `mode` attribute), so the /join-now → /join-now-zip override is
  * applied here, deterministically, before the redirect is dispatched. Every
