@@ -2,11 +2,13 @@
  * Client-side redirect-URL decoration, mirroring the host embed script's
  * `result` listener (the Webflow embed appends these before navigating).
  *
- * The web component normally emits a RAW redirectUrl and lets the host page do
- * this decoration. The plan-reveal experiment is the exception: the component
- * builds the `/plan-reveal?next=…` URL itself, so it must produce a fully
- * decorated `next` (see ./planReveal). Keep this in sync with the embed script's
- * UTM_KEYS + base_vid / person_id / external_id logic.
+ * The component decorates every address redirect at the call site (see
+ * AddressSearchApp) so the component is the single source of truth for the
+ * funnel URL — control and the plan-reveal `next` share one decoration path and
+ * can't drift. A host that also decorates (the current Webflow embed) simply
+ * re-applies the same params idempotently. Keep this in sync with the embed
+ * script's UTM_KEYS + base_vid / person_id / external_id logic until the hosts
+ * drop their own decoration.
  *
  * All cookie / localStorage / posthog access is guarded — any unavailable source
  * is simply skipped. This is client-only embed code, so `window` always exists.
