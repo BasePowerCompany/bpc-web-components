@@ -32,7 +32,7 @@
  * ───────────────────────────────────────────────────────────────────────────
  */
 
-import { posthogGetFeatureFlag } from "@/address-search/utils";
+import { posthogCapture, posthogGetFeatureFlag } from "@/address-search/utils";
 
 /**
  * Run `callback` once PostHog's feature flags have loaded (immediately if they
@@ -46,18 +46,23 @@ export const posthogOnFeatureFlags = (callback: () => void): boolean => {
 };
 
 const PLAN_REVEAL_TEST_FLAG = "dereg_plan_reveal_0724";
-const PLAN_REVEAL_TEST_VARIANT = "test";
 
 /**
- * Plan-reveal experiment arm (see ./planReveal). Reading the flag records the
- * `$feature_flag_called` exposure, so call this ONLY at divert time for an
- * already-known-eligible (deregulated) user — never at mount — so
- * exposure stays scoped to the eligible population. `undefined` (PostHog absent
- * / flag off / not yet loaded) and any other variant are treated as control.
+ * Plan-reveal experiment arm (see ./planReveal). Reads the flag WITHOUT sending
+ * the built-in exposure, then records `$feature_flag_called` only for a user
+ * actually assigned a variant — a user outside the rollout population
+ * (`unassigned`) logs no exposure. Call this ONLY at divert time for an
+ * already-known-eligible (deregulated) user so exposure stays scoped to the
+ * eligible, assigned population.
  */
-export function resolvePlanRevealArm(): "test" | "control" {
-	return posthogGetFeatureFlag(PLAN_REVEAL_TEST_FLAG) ===
-		PLAN_REVEAL_TEST_VARIANT
-		? "test"
-		: "control";
+export function resolvePlanRevealArm(): "test" | "control" | "unassigned" {
+	const variant = posthogGetFeatureFlag(PLAN_REVEAL_TEST_FLAG, {
+		send_event: false,
+	});
+	if (variant !== "test" && variant !== "control") return "unassigned";
+	posthogCapture("$feature_flag_called", {
+		$feature_flag: PLAN_REVEAL_TEST_FLAG,
+		$feature_flag_response: variant,
+	});
+	return variant;
 }
