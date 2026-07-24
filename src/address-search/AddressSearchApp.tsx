@@ -171,9 +171,7 @@ export function AddressSearchApp({
 						return;
 					}
 
-					// For a deregulated (Oncor/CenterPoint) address in the test arm,
-					// divert to the /plan-reveal interstitial carrying the funnel URL
-					// as `next`; control / ineligible / flag-off / utility-absent stay on it.
+					// Deregulated single-utility results divert to /plan-reveal in the test arm; everyone else stays on the funnel URL.
 					const redirectUrl = maybeWrapInPlanReveal({
 						utility: result.data.redirectStrategy.utility,
 						next: result.data.redirectUrl,
@@ -209,8 +207,7 @@ export function AddressSearchApp({
 	const handleRedirect = useCallback(
 		(rawRedirectUrl: string) => {
 			if (!selection) return;
-			// Plan-reveal does not apply to these paths (utility is not known
-			// per-option here), so dispatch the funnel URL directly.
+			// Modal/splash paths dispatch directly — plan-reveal is single-utility only.
 			const redirectUrl = rawRedirectUrl;
 			// Funnel parity with zip_search_redirect (modal/splash paths): captured
 			// before dispatch so the event isn't lost to the navigation.

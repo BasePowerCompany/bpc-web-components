@@ -95,9 +95,7 @@ export function parseAddress(
 	};
 }
 
-// Minimal surface of the posthog-js snippet loaded by the embedding page (see
-// index.html). `posthog` is undefined until the snippet runs, so callers reach
-// it through `?.` — this is client-only embed code, so `window` always exists.
+// Minimal surface of the window.posthog snippet the embedding page loads (see index.html); undefined until it runs, so callers reach it via `?.`.
 interface PostHogLike {
 	capture(event: string, properties?: Record<string, unknown>): void;
 	getFeatureFlag(
@@ -121,15 +119,7 @@ export const posthogCapture = (
 	window.posthog?.capture(eventName, properties);
 };
 
-/**
- * Read a PostHog feature flag / experiment variant client-side. Returns the
- * variant string (e.g. "control" / "test"), or `undefined` when PostHog is
- * unavailable or flags haven't loaded — callers should treat `undefined` as
- * the control/default behavior. Calling this also records the experiment
- * exposure ($feature_flag_called), so only call it once the user is eligible.
- *
- * Building block for experiment resolvers — see @/address-search/experiments.
- */
+// Reads a PostHog flag/experiment variant client-side; undefined when PostHog is absent or flags haven't loaded. Pass { send_event: false } to read without recording the $feature_flag_called exposure.
 export const posthogGetFeatureFlag = (
 	flagKey: string,
 	options?: { send_event?: boolean },
