@@ -4,10 +4,12 @@ import {
 	type AddressValidationResult,
 	requireSubpremise,
 } from "@/address-search/addressValidation";
+import { decorateRedirectUrl } from "@/address-search/decorateRedirectUrl";
 import { fetchHydration } from "@/address-search/fetch";
 import { AddressConfirmModal } from "@/address-search/modal/AddressConfirmModal";
 import { SelectionModal } from "@/address-search/modal/SelectionModal";
 import { UnitRequirementPromptModal } from "@/address-search/modal/UnitRequirementPromptModal";
+import { maybeWrapInPlanReveal } from "@/address-search/planReveal";
 import type {
 	AddressResult,
 	ParsedGoogleAddressComponents,
@@ -170,15 +172,31 @@ export function AddressSearchApp({
 						return;
 					}
 
+					// The component is the single source of truth for the funnel URL:
+					// decorate every redirect here (a host that also decorates just
+					// re-applies the same params idempotently). Then, for a deregulated
+					// (Oncor/CenterPoint) address in the test arm, divert to the
+					// /plan-reveal interstitial carrying this decorated URL as `next`;
+					// control / ineligible / flag-off / utility-absent stay on it.
+					const decorated = decorateRedirectUrl(
+						result.data.redirectUrl,
+						result.data.externalAddressId,
+					);
+					const redirectUrl = maybeWrapInPlanReveal({
+						utility: result.data.redirectStrategy.utility,
+						next: decorated,
+						city: detail.selection.address.city || undefined,
+					});
+
 					// Funnel parity with zip_search_redirect: captured before dispatch
 					// so the event isn't lost to the navigation.
 					posthogCapture("address_search_redirect", {
-						redirectUrl: result.data.redirectUrl,
+						redirectUrl,
 						externalAddressId: result.data.externalAddressId,
 						validationSessionId: detail.validationSessionId,
 					});
 					onResultEvent({
-						result: result.data,
+						result: { ...result.data, redirectUrl },
 						selection: detail.selection,
 						validationSessionId: detail.validationSessionId,
 					});
@@ -197,8 +215,16 @@ export function AddressSearchApp({
 	);
 
 	const handleRedirect = useCallback(
-		(redirectUrl: string) => {
+		(rawRedirectUrl: string) => {
 			if (!selection) return;
+			// Decorate here too, so every address redirect (single-utility, modal,
+			// and energy splash) carries the full funnel params from one source of
+			// truth. Plan-reveal doesn't apply to these paths (utility isn't known
+			// per-option here), so no wrap.
+			const redirectUrl = decorateRedirectUrl(
+				rawRedirectUrl,
+				externalAddressId ?? undefined,
+			);
 			// Funnel parity with zip_search_redirect (modal/splash paths): captured
 			// before dispatch so the event isn't lost to the navigation.
 			posthogCapture("address_search_redirect", {
