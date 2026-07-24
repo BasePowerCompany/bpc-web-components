@@ -100,7 +100,10 @@ export function parseAddress(
 // it through `?.` — this is client-only embed code, so `window` always exists.
 interface PostHogLike {
 	capture(event: string, properties?: Record<string, unknown>): void;
-	getFeatureFlag(key: string): string | boolean | undefined;
+	getFeatureFlag(
+		key: string,
+		options?: { send_event?: boolean },
+	): string | boolean | undefined;
 	onFeatureFlags(callback: () => void): void;
 	get_distinct_id?(): string | undefined;
 }
@@ -129,4 +132,6 @@ export const posthogCapture = (
  */
 export const posthogGetFeatureFlag = (
 	flagKey: string,
-): string | boolean | undefined => window.posthog?.getFeatureFlag(flagKey);
+	options?: { send_event?: boolean },
+): string | boolean | undefined =>
+	window.posthog?.getFeatureFlag(flagKey, options);
