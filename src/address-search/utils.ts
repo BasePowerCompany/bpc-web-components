@@ -102,6 +102,7 @@ interface PostHogLike {
 	capture(event: string, properties?: Record<string, unknown>): void;
 	getFeatureFlag(key: string): string | boolean | undefined;
 	onFeatureFlags(callback: () => void): void;
+	get_distinct_id?(): string | undefined;
 }
 
 declare global {

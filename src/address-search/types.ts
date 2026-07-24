@@ -42,6 +42,13 @@ export type RedirectStrategySingleUtility = {
 	redirectUrl: string;
 	isMultiple: false;
 	isMultipleAddresses: false;
+	/**
+	 * Serving utility for the address (e.g. "ONCOR", "CENTERPOINT"), when the
+	 * address-router returns it. Optional: absent on backends that don't yet
+	 * surface it, in which case deregulated-utility experiments (see
+	 * ./planReveal) treat the address as ineligible and behavior is unchanged.
+	 */
+	utility?: string;
 };
 
 export type RedirectStrategyMultipleUtility = {
