@@ -10,8 +10,8 @@ import { resolvePlanRevealArm } from "@/address-search/experiments";
 
 const PLAN_REVEAL_URL = "https://www.basepowercompany.com/plan-reveal";
 
-// Deregulated TDSPs with a battery offer + a /plan-reveal entry.
-const DEREGULATED_UTILITIES = new Set(["ONCOR", "CENTERPOINT"]);
+// Deregulated TDSPs with a /plan-reveal entry. "DEREG" is a TEMPORARY pre-deploy shim — remove once base-monorepo PR #31109 (backend TDSP swap) deploys.
+const DEREGULATED_UTILITIES = new Set(["ONCOR", "CENTERPOINT", "DEREG"]);
 
 // Uppercased utility if it's an eligible deregulated TDSP, else undefined.
 function normalizeDeregulatedUtility(
