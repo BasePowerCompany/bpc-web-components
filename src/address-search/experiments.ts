@@ -32,6 +32,8 @@
  * ───────────────────────────────────────────────────────────────────────────
  */
 
+import { posthogGetFeatureFlag } from "@/address-search/utils";
+
 /**
  * Run `callback` once PostHog's feature flags have loaded (immediately if they
  * already have). Returns `false` when PostHog isn't on the page, so callers
@@ -42,3 +44,20 @@ export const posthogOnFeatureFlags = (callback: () => void): boolean => {
 	window.posthog.onFeatureFlags(callback);
 	return true;
 };
+
+const PLAN_REVEAL_TEST_FLAG = "plan_reveal_test_0723";
+const PLAN_REVEAL_TEST_VARIANT = "test";
+
+/**
+ * Plan-reveal experiment arm (see ./planReveal). Reading the flag records the
+ * `$feature_flag_called` exposure, so call this ONLY at divert time for an
+ * already-known-eligible (deregulated address-mode) user — never at mount — so
+ * exposure stays scoped to the eligible population. `undefined` (PostHog absent
+ * / flag off / not yet loaded) and any other variant are treated as control.
+ */
+export function resolvePlanRevealArm(): "test" | "control" {
+	return posthogGetFeatureFlag(PLAN_REVEAL_TEST_FLAG) ===
+		PLAN_REVEAL_TEST_VARIANT
+		? "test"
+		: "control";
+}

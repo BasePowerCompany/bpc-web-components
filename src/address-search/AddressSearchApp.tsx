@@ -8,6 +8,7 @@ import { fetchHydration } from "@/address-search/fetch";
 import { AddressConfirmModal } from "@/address-search/modal/AddressConfirmModal";
 import { SelectionModal } from "@/address-search/modal/SelectionModal";
 import { UnitRequirementPromptModal } from "@/address-search/modal/UnitRequirementPromptModal";
+import { maybeRedirectToPlanReveal } from "@/address-search/planReveal";
 import type {
 	AddressResult,
 	ParsedGoogleAddressComponents,
@@ -170,15 +171,26 @@ export function AddressSearchApp({
 						return;
 					}
 
+					// Plan-reveal experiment: a deregulated (Oncor/CenterPoint) address
+					// in the test arm is diverted to the /plan-reveal interstitial,
+					// carrying the fully-decorated funnel URL as `next`. Control /
+					// ineligible / flag-off / utility-absent all pass through unchanged.
+					const redirectUrl = maybeRedirectToPlanReveal({
+						utility: result.data.redirectStrategy.utility,
+						redirectUrl: result.data.redirectUrl,
+						externalId: result.data.externalAddressId,
+						city: detail.selection.address.city || undefined,
+					});
+
 					// Funnel parity with zip_search_redirect: captured before dispatch
 					// so the event isn't lost to the navigation.
 					posthogCapture("address_search_redirect", {
-						redirectUrl: result.data.redirectUrl,
+						redirectUrl,
 						externalAddressId: result.data.externalAddressId,
 						validationSessionId: detail.validationSessionId,
 					});
 					onResultEvent({
-						result: result.data,
+						result: { ...result.data, redirectUrl },
 						selection: detail.selection,
 						validationSessionId: detail.validationSessionId,
 					});
