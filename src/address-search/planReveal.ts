@@ -6,10 +6,25 @@
 // base-marketing-website (currently productionEnabled:false). `next` is not
 // decorated here — the interstitial must forward UTM/attribution from its own URL.
 
-import { normalizeDeregulatedUtility } from "@/address-search/deregulatedUtilities";
+import { DEREGULATED_UTILITIES } from "@/address-search/deregulatedUtilities";
 import { resolvePlanRevealArm } from "@/address-search/experiments";
 
 const PLAN_REVEAL_URL = "https://www.basepowercompany.com/plan-reveal";
+
+// Utilities that divert to /plan-reveal: the canonical deregulated TDSPs plus a
+// TEMPORARY "DEREG" backward-compat shim — the router still returns the legacy
+// "DEREG" value until base-monorepo #31109 (TDSP swap) deploys. Scoped here on
+// purpose: the canonical set stays ONCOR/CENTERPOINT per #75. Drop "DEREG" once
+// the server deploy finishes.
+const PLAN_REVEAL_UTILITIES = new Set([...DEREGULATED_UTILITIES, "DEREG"]);
+
+// Uppercased utility if it's eligible for the /plan-reveal divert, else undefined.
+function normalizePlanRevealUtility(
+	utility: string | undefined,
+): string | undefined {
+	const u = utility?.trim().toUpperCase();
+	return u && PLAN_REVEAL_UTILITIES.has(u) ? u : undefined;
+}
 
 // Test-arm deregulated users get `next` wrapped into /plan-reveal; everyone else passes through. Eligibility is checked before the flag read so exposure stays scoped to the eligible population.
 export function maybeWrapInPlanReveal(params: {
@@ -17,7 +32,7 @@ export function maybeWrapInPlanReveal(params: {
 	next: string;
 	city?: string;
 }): string {
-	const utility = normalizeDeregulatedUtility(params.utility);
+	const utility = normalizePlanRevealUtility(params.utility);
 	if (!utility) return params.next;
 	if (resolvePlanRevealArm() !== "test") return params.next;
 
