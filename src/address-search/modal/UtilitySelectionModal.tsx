@@ -1,3 +1,4 @@
+import { DEREGULATED_UTILITIES } from "@/address-search/deregulatedUtilities";
 import { setUtilityUserConfirmed } from "@/address-search/fetch";
 import type { RedirectMultipleOption } from "@/address-search/types";
 import { posthogCapture } from "@/address-search/utils";
@@ -8,8 +9,6 @@ const UtilityValueToLogoMap: Record<string, string> = {
 	FARMERS:
 		"https://bpc-web-static-files.s3.us-east-2.amazonaws.com/Farmers-Logo.png",
 };
-
-const DeregulatedUtilityValue = "DEREG";
 
 export type UtilitySelectionModalProps = {
 	address: string;
@@ -54,7 +53,7 @@ export function UtilitySelectionModal({
 			return;
 		}
 
-		if (utility === DeregulatedUtilityValue) {
+		if (DEREGULATED_UTILITIES.has(utility)) {
 			posthogCapture("address_search_modal_selection_utility_other", {
 				addressSelected: address,
 				utility: utility,

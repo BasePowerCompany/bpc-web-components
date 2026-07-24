@@ -8,12 +8,12 @@ import { rebaseToZipFunnel } from "@/address-search/zipFunnel";
 };
 
 describe("rebaseToZipFunnel", () => {
-	test("rebases the canonical DEREG funnel URL, preserving host and query", () => {
+	test("rebases the canonical deregulated funnel URL, preserving host and query", () => {
 		assert.equal(
 			rebaseToZipFunnel(
-				"https://join.basepowercompany.com/join-now?postal_code=75201&utility=DEREG",
+				"https://join.basepowercompany.com/join-now?postal_code=75201&utility=ONCOR",
 			),
-			"https://join.basepowercompany.com/join-now-zip?postal_code=75201&utility=DEREG",
+			"https://join.basepowercompany.com/join-now-zip?postal_code=75201&utility=ONCOR",
 		);
 	});
 
