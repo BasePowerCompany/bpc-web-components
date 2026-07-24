@@ -4,6 +4,7 @@ import {
 	type AddressValidationResult,
 	requireSubpremise,
 } from "@/address-search/addressValidation";
+import { decorateRedirectUrl } from "@/address-search/decorateRedirectUrl";
 import { fetchHydration } from "@/address-search/fetch";
 import { AddressConfirmModal } from "@/address-search/modal/AddressConfirmModal";
 import { SelectionModal } from "@/address-search/modal/SelectionModal";
@@ -171,12 +172,19 @@ export function AddressSearchApp({
 						return;
 					}
 
-					// Deregulated single-utility results divert to /plan-reveal in the test arm; everyone else stays on the funnel URL.
-					const redirectUrl = maybeWrapInPlanReveal({
-						utility: result.data.redirectStrategy.utility,
-						next: result.data.redirectUrl,
-						city: detail.selection.address.city || undefined,
-					});
+					// Component owns URL decoration (embeds navigate only); deregulated test-arm results divert to /plan-reveal.
+					const next = decorateRedirectUrl(
+						result.data.redirectUrl,
+						result.data.externalAddressId,
+					);
+					const redirectUrl = decorateRedirectUrl(
+						maybeWrapInPlanReveal({
+							utility: result.data.redirectStrategy.utility,
+							next,
+							city: detail.selection.address.city || undefined,
+						}),
+						result.data.externalAddressId,
+					);
 
 					// Funnel parity with zip_search_redirect: captured before dispatch
 					// so the event isn't lost to the navigation.
@@ -207,8 +215,11 @@ export function AddressSearchApp({
 	const handleRedirect = useCallback(
 		(rawRedirectUrl: string) => {
 			if (!selection) return;
-			// Modal/splash paths dispatch directly — plan-reveal is single-utility only.
-			const redirectUrl = rawRedirectUrl;
+			// Modal/splash paths: decorate and dispatch — plan-reveal is single-utility only.
+			const redirectUrl = decorateRedirectUrl(
+				rawRedirectUrl,
+				externalAddressId ?? undefined,
+			);
 			// Funnel parity with zip_search_redirect (modal/splash paths): captured
 			// before dispatch so the event isn't lost to the navigation.
 			posthogCapture("address_search_redirect", {
