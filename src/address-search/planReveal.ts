@@ -1,22 +1,21 @@
 /**
- * Plan-reveal experiment (address mode only). Deregulated (Oncor / CenterPoint)
- * addresses in the test arm are diverted to an offer interstitial before the
- * funnel; the hypothesis is that the upfront reveal lifts funnel conversion.
- * Control / ineligible users continue straight to the funnel as today.
+ * Plan-reveal experiment. Deregulated (Oncor / CenterPoint) single-utility
+ * results — from either address or zip entry — in the test arm are diverted to
+ * an offer interstitial before the funnel; the hypothesis is that the upfront
+ * reveal lifts funnel conversion. Control / ineligible users continue straight
+ * to the funnel as today.
  *
  * The page (base-marketing-website, PR #542) reads `utility` + `next` and, on
- * Continue, forwards to `next`. This wraps an ALREADY-decorated funnel URL: the
- * component decorates every address redirect at the call site (single source of
- * truth — see AddressSearchApp), so `next` and the control URL share one
- * decoration path and can't drift. This mirrors zip mode's zipFunnel.ts: a small
- * pure transform applied once at redirect time.
+ * Continue, forwards to `next`. This is a small pure transform applied once at
+ * redirect time, mirroring zip mode's zipFunnel.ts.
  *
  * NOTE — before launch:
  *   • Confirm PLAN_REVEAL_URL's production origin.
  *   • /plan-reveal is currently `preview` / `productionEnabled: false` in
  *     base-marketing-website; it must be enabled in production.
- *   • A host embed script that also decorates will re-decorate the OUTER
- *     plan-reveal URL — that's harmless; `next` is already decorated.
+ *   • `next` is not decorated with UTM/attribution params here (decoration is
+ *     handled via a coordinated base-marketing-website change); the interstitial
+ *     must forward those from its own URL to `next` on Continue.
  */
 
 import { resolvePlanRevealArm } from "@/address-search/experiments";
@@ -36,8 +35,7 @@ function normalizeDeregulatedUtility(
 }
 
 /**
- * For a deregulated address-mode user in the test arm, wraps the (already
- * decorated) funnel URL `next` into a
+ * For a deregulated user in the test arm, wraps the funnel URL `next` into a
  * `/plan-reveal?utility=&next=<next>&city=` URL. Otherwise returns `next`
  * unchanged (control / ineligible / flag off / utility absent — e.g. a backend
  * that doesn't yet return `utility`).

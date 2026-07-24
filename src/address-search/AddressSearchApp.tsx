@@ -4,7 +4,6 @@ import {
 	type AddressValidationResult,
 	requireSubpremise,
 } from "@/address-search/addressValidation";
-import { decorateRedirectUrl } from "@/address-search/decorateRedirectUrl";
 import { fetchHydration } from "@/address-search/fetch";
 import { AddressConfirmModal } from "@/address-search/modal/AddressConfirmModal";
 import { SelectionModal } from "@/address-search/modal/SelectionModal";
@@ -172,19 +171,12 @@ export function AddressSearchApp({
 						return;
 					}
 
-					// The component is the single source of truth for the funnel URL:
-					// decorate every redirect here (a host that also decorates just
-					// re-applies the same params idempotently). Then, for a deregulated
-					// (Oncor/CenterPoint) address in the test arm, divert to the
-					// /plan-reveal interstitial carrying this decorated URL as `next`;
-					// control / ineligible / flag-off / utility-absent stay on it.
-					const decorated = decorateRedirectUrl(
-						result.data.redirectUrl,
-						result.data.externalAddressId,
-					);
+					// For a deregulated (Oncor/CenterPoint) address in the test arm,
+					// divert to the /plan-reveal interstitial carrying the funnel URL
+					// as `next`; control / ineligible / flag-off / utility-absent stay on it.
 					const redirectUrl = maybeWrapInPlanReveal({
 						utility: result.data.redirectStrategy.utility,
-						next: decorated,
+						next: result.data.redirectUrl,
 						city: detail.selection.address.city || undefined,
 					});
 
@@ -217,14 +209,9 @@ export function AddressSearchApp({
 	const handleRedirect = useCallback(
 		(rawRedirectUrl: string) => {
 			if (!selection) return;
-			// Decorate here too, so every address redirect (single-utility, modal,
-			// and energy splash) carries the full funnel params from one source of
-			// truth. Plan-reveal doesn't apply to these paths (utility isn't known
-			// per-option here), so no wrap.
-			const redirectUrl = decorateRedirectUrl(
-				rawRedirectUrl,
-				externalAddressId ?? undefined,
-			);
+			// Plan-reveal does not apply to these paths (utility is not known
+			// per-option here), so dispatch the funnel URL directly.
+			const redirectUrl = rawRedirectUrl;
 			// Funnel parity with zip_search_redirect (modal/splash paths): captured
 			// before dispatch so the event isn't lost to the navigation.
 			posthogCapture("address_search_redirect", {
