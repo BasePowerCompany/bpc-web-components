@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CtaButton } from "@/address-search/CtaButton";
 import { fetchZipRouting } from "@/address-search/fetch";
+import { maybeWrapInPlanReveal } from "@/address-search/planReveal";
 import type { RedirectMultipleOption } from "@/address-search/types";
 import { posthogCapture } from "@/address-search/utils";
 import { rebaseToZipFunnel } from "@/address-search/zipFunnel";
@@ -58,25 +59,32 @@ export function ZipSearchApp({
 		posthogCapture("zip_search_opened", {});
 	}, []);
 
-	// Funnel step 3 ("zip entry redirecting"): rebase to the zip funnel, capture
-	// before dispatch so the event isn't lost to the navigation, then hand the
-	// URL to the host page. Shared by the single-result and utility-modal paths.
-	const emitRedirect = useCallback(
-		(redirectUrl: string, utility?: string) => {
+	// Funnel step 3 ("zip entry redirecting"): capture before dispatch so the
+	// event isn't lost to the navigation, then hand the final URL to the host.
+	const dispatchRedirect = useCallback(
+		(finalUrl: string, utility?: string) => {
 			const normalized = normalizeZip(zip);
-			const rebased = rebaseToZipFunnel(redirectUrl);
 			posthogCapture("zip_search_redirect", {
 				zip: normalized,
 				utility,
-				redirectUrl: rebased,
+				redirectUrl: finalUrl,
 			});
 			onResultEvent({
-				result: { redirectUrl: rebased },
+				result: { redirectUrl: finalUrl },
 				zip: normalized,
 				utility,
 			});
 		},
 		[onResultEvent, zip],
+	);
+
+	// Utility-selection modal path: rebase to the zip funnel and dispatch. No
+	// plan-reveal — a multi-utility zip is not a single deregulated result.
+	const emitRedirect = useCallback(
+		(redirectUrl: string, utility?: string) => {
+			dispatchRedirect(rebaseToZipFunnel(redirectUrl), utility);
+		},
+		[dispatchRedirect],
 	);
 
 	const submit = useCallback(async () => {
@@ -123,8 +131,15 @@ export function ZipSearchApp({
 			zip: normalized,
 			utility: strategy.utility,
 		});
-		emitRedirect(result.data.redirectUrl, strategy.utility);
-	}, [zip, loading, emitRedirect, onErrorEvent]);
+		// Single-utility result: rebase to the zip funnel, then for a deregulated
+		// (Oncor/CenterPoint) zip in the test arm divert to /plan-reveal carrying
+		// the funnel URL as `next`; control / ineligible stay on it.
+		const next = rebaseToZipFunnel(result.data.redirectUrl);
+		dispatchRedirect(
+			maybeWrapInPlanReveal({ utility: strategy.utility, next }),
+			strategy.utility,
+		);
+	}, [zip, loading, dispatchRedirect, onErrorEvent]);
 
 	const handleBack = useCallback(() => {
 		setUtilityOptions(undefined);

@@ -45,13 +45,13 @@ export const posthogOnFeatureFlags = (callback: () => void): boolean => {
 	return true;
 };
 
-const PLAN_REVEAL_TEST_FLAG = "plan_reveal_test_0723";
+const PLAN_REVEAL_TEST_FLAG = "dereg_plan_reveal_0724";
 const PLAN_REVEAL_TEST_VARIANT = "test";
 
 /**
  * Plan-reveal experiment arm (see ./planReveal). Reading the flag records the
  * `$feature_flag_called` exposure, so call this ONLY at divert time for an
- * already-known-eligible (deregulated address-mode) user — never at mount — so
+ * already-known-eligible (deregulated) user — never at mount — so
  * exposure stays scoped to the eligible population. `undefined` (PostHog absent
  * / flag off / not yet loaded) and any other variant are treated as control.
  */
