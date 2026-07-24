@@ -82,6 +82,8 @@ export function ComboBoxOverlay({
 }: ComboBoxOverlayProps) {
 	const resultsRef = useRef<HTMLDivElement>(null);
 	const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
+	// One-shot "type your address here" ring, replayed on each empty activation.
+	const [pulsing, setPulsing] = useState(false);
 
 	const listboxId = useId(); // unique id for aria-controls
 
@@ -89,6 +91,15 @@ export function ComboBoxOverlay({
 	useEffect(() => {
 		setHighlightedIndex(0);
 	}, [results]);
+
+	// Pulse the box as a nudge whenever it activates while empty (e.g. opened via
+	// the CTA button). Reading the ref avoids retriggering on every keystroke.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: only the activation edge should fire the nudge
+	useEffect(() => {
+		if (!isActivated) return;
+		if (inputRef.current?.value) return;
+		setPulsing(true);
+	}, [isActivated]);
 
 	const expanded = isActivated && results.length > 0;
 	const activeDescendant = useMemo(() => {
@@ -218,7 +229,13 @@ export function ComboBoxOverlay({
 						})}
 					</div>
 				)}
-				<div className={styles.inputContainer}>
+				<div
+					className={cx(
+						styles.inputContainer,
+						pulsing && styles.inputContainerPulse,
+					)}
+					onAnimationEnd={() => setPulsing(false)}
+				>
 					<input
 						name="address-search"
 						ref={inputRef}
