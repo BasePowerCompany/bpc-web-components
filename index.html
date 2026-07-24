@@ -15,14 +15,36 @@
     </script>
 
     <style>
+      /* Preview-only: load Base's brand font so this demo host provides
+         "PP Neue Montreal" the way the real Webflow site does. The component
+         itself sets no font — it inherits from the host. Files live in the
+         git-ignored demo-fonts/ dir and are not shipped or redistributed. */
+      @font-face {
+        font-family: "PP Neue Montreal";
+        src: url("/demo-fonts/PPNeueMontreal-Regular.woff2") format("woff2");
+        font-weight: 400;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "PP Neue Montreal";
+        src: url("/demo-fonts/PPNeueMontreal-Medium.woff2") format("woff2");
+        font-weight: 500;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "PP Neue Montreal";
+        src: url("/demo-fonts/PPNeueMontreal-SemiBold.woff2") format("woff2");
+        font-weight: 600;
+        font-display: swap;
+      }
       html,
       body {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
         font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          "Helvetica Neue", Arial, sans-serif;
+          "PP Neue Montreal", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, "Helvetica Neue", Arial, sans-serif;
       }
       .container {
         padding: 30vh 5vw 6vh 5vw;
