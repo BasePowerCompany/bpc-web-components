@@ -32,6 +32,8 @@
  * ───────────────────────────────────────────────────────────────────────────
  */
 
+import { posthogCapture, posthogGetFeatureFlag } from "@/address-search/utils";
+
 /**
  * Run `callback` once PostHog's feature flags have loaded (immediately if they
  * already have). Returns `false` when PostHog isn't on the page, so callers
@@ -42,3 +44,25 @@ export const posthogOnFeatureFlags = (callback: () => void): boolean => {
 	window.posthog.onFeatureFlags(callback);
 	return true;
 };
+
+const PLAN_REVEAL_TEST_FLAG = "dereg_plan_reveal_0724";
+
+/**
+ * Plan-reveal experiment arm (see ./planReveal). Reads the flag WITHOUT sending
+ * the built-in exposure, then records `$feature_flag_called` only for a user
+ * actually assigned a variant — a user outside the rollout population
+ * (`unassigned`) logs no exposure. Call this ONLY at divert time for an
+ * already-known-eligible (deregulated) user so exposure stays scoped to the
+ * eligible, assigned population.
+ */
+export function resolvePlanRevealArm(): "test" | "control" | "unassigned" {
+	const variant = posthogGetFeatureFlag(PLAN_REVEAL_TEST_FLAG, {
+		send_event: false,
+	});
+	if (variant !== "test" && variant !== "control") return "unassigned";
+	posthogCapture("$feature_flag_called", {
+		$feature_flag: PLAN_REVEAL_TEST_FLAG,
+		$feature_flag_response: variant,
+	});
+	return variant;
+}

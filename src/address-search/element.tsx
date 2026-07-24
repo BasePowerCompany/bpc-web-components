@@ -48,6 +48,15 @@ class AddressSearchElement extends HTMLElement {
 			this.dispatchEvent(new CustomEvent(eventName, { detail }));
 	}
 
+	// Forward host focus() to the real text input inside the shadow root, so a
+	// host page's `getElementById(id).focus()` reaches the encapsulated input.
+	// Focusing it triggers the input's onFocus (open/activation). No-op until
+	// the app has mounted and the input exists.
+	focus(options?: FocusOptions) {
+		const input = this.shadowRootRef?.querySelector("input");
+		input?.focus(options);
+	}
+
 	connectedCallback() {
 		if (!this.shadowRootRef) {
 			this.shadowRootRef = this.attachShadow({ mode: "open" });

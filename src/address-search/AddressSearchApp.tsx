@@ -8,6 +8,7 @@ import { fetchHydration } from "@/address-search/fetch";
 import { AddressConfirmModal } from "@/address-search/modal/AddressConfirmModal";
 import { SelectionModal } from "@/address-search/modal/SelectionModal";
 import { UnitRequirementPromptModal } from "@/address-search/modal/UnitRequirementPromptModal";
+import { maybeWrapInPlanReveal } from "@/address-search/planReveal";
 import type {
 	AddressResult,
 	ParsedGoogleAddressComponents,
@@ -170,15 +171,22 @@ export function AddressSearchApp({
 						return;
 					}
 
+					// Deregulated single-utility results divert to /plan-reveal in the test arm; everyone else stays on the funnel URL.
+					const redirectUrl = maybeWrapInPlanReveal({
+						utility: result.data.redirectStrategy.utility,
+						next: result.data.redirectUrl,
+						city: detail.selection.address.city || undefined,
+					});
+
 					// Funnel parity with zip_search_redirect: captured before dispatch
 					// so the event isn't lost to the navigation.
 					posthogCapture("address_search_redirect", {
-						redirectUrl: result.data.redirectUrl,
+						redirectUrl,
 						externalAddressId: result.data.externalAddressId,
 						validationSessionId: detail.validationSessionId,
 					});
 					onResultEvent({
-						result: result.data,
+						result: { ...result.data, redirectUrl },
 						selection: detail.selection,
 						validationSessionId: detail.validationSessionId,
 					});
@@ -197,8 +205,10 @@ export function AddressSearchApp({
 	);
 
 	const handleRedirect = useCallback(
-		(redirectUrl: string) => {
+		(rawRedirectUrl: string) => {
 			if (!selection) return;
+			// Modal/splash paths dispatch directly — plan-reveal is single-utility only.
+			const redirectUrl = rawRedirectUrl;
 			// Funnel parity with zip_search_redirect (modal/splash paths): captured
 			// before dispatch so the event isn't lost to the navigation.
 			posthogCapture("address_search_redirect", {
