@@ -95,9 +95,10 @@ export function parseAddress(
 	};
 }
 
-// posthog-js capture options we rely on. `sendBeacon` hands the event straight to the browser's unload-safe queue instead of posthog's batching poll.
+// Subset of posthog-js CaptureOptions we rely on: `send_instantly` skips the batched queue, `transport` picks the unload-safe one.
 export interface PostHogCaptureOptions {
-	transport?: "sendBeacon";
+	send_instantly?: boolean;
+	transport?: "XHR" | "fetch" | "sendBeacon";
 }
 
 // Minimal surface of the window.posthog snippet the embedding page loads (see index.html); undefined until it runs, so callers reach it via `?.`.

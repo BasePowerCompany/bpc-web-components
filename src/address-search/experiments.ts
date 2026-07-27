@@ -7,27 +7,19 @@
  * UI a visitor sees. To add one:
  *
  *  1. Write a resolver that reads the flag and maps its variant to a UI arm.
- *     Read the flag with `posthogGetFeatureFlag` (from ./utils); treat
- *     `undefined` (PostHog absent / flag off / not yet loaded) and any
- *     unexpected variant as the control/default arm.
- *  2. Gate the render in `element.tsx`: wait for flags with
- *     `posthogOnFeatureFlags` (below), then call the resolver — only on the
- *     element that opts into the experiment, so reading the flag records the
- *     `$feature_flag_called` exposure for eligible visitors only.
+ *     Read it with `posthogGetFeatureFlag(key, { send_event: false })` so the
+ *     built-in exposure stays off, and treat `undefined` (PostHog absent / flag
+ *     off / not yet loaded) and any unexpected variant as the default arm.
+ *  2. Record the exposure with `captureExposure` (below) — never by capturing
+ *     `$feature_flag_called` yourself. Call it only once the visitor is known
+ *     eligible AND assigned a real variant, so the denominator is the
+ *     population the experiment can actually affect. A test asserts this file
+ *     is the only place that emits the event.
+ *  3. Gate the render or the divert: for render-time arms, wait for flags with
+ *     `posthogOnFeatureFlags` (below) and resolve only on the element that opts
+ *     into the experiment. For navigation-time arms, resolve at divert time.
  *
- * The concluded `zip_entry_test_0701` experiment resolved like this (kept as a
- * reference for the next one — remove/replace when you add a real resolver):
- *
- *     import { posthogGetFeatureFlag } from "@/address-search/utils";
- *
- *     const ZIP_ENTRY_TEST_FLAG = "zip_entry_test_0701";
- *     const ZIP_ENTRY_TEST_VARIANT = "test";
- *
- *     export function resolveZipEntryArm(): "zip" | "address" {
- *       return posthogGetFeatureFlag(ZIP_ENTRY_TEST_FLAG) === ZIP_ENTRY_TEST_VARIANT
- *         ? "zip"
- *         : "address";
- *     }
+ * `resolvePlanRevealArm` (below) is the reference implementation.
  *
  * ───────────────────────────────────────────────────────────────────────────
  */
@@ -45,6 +37,28 @@ export const posthogOnFeatureFlags = (callback: () => void): boolean => {
 	return true;
 };
 
+/**
+ * Record an experiment exposure.
+ *
+ * ALWAYS use this instead of capturing `$feature_flag_called` by hand. An arm
+ * that changes where the user goes fires its exposure microseconds before the
+ * page unloads, so the default batched queue loses it — and because only the
+ * diverting arm navigates, the loss is one-sided and shows up as a sample-ratio
+ * mismatch rather than as missing volume. `send_instantly` skips the batch and
+ * `sendBeacon` is the transport that survives unload.
+ *
+ * Pair it with `getFeatureFlag(key, { send_event: false })` and call it only
+ * once the visitor is known eligible and assigned, so the exposure denominator
+ * stays the population the experiment can actually affect.
+ */
+export function captureExposure(flagKey: string, variant: string): void {
+	posthogCapture(
+		"$feature_flag_called",
+		{ $feature_flag: flagKey, $feature_flag_response: variant },
+		{ send_instantly: true, transport: "sendBeacon" },
+	);
+}
+
 const PLAN_REVEAL_TEST_FLAG = "dereg_plan_reveal_0724";
 
 /**
@@ -55,22 +69,12 @@ const PLAN_REVEAL_TEST_FLAG = "dereg_plan_reveal_0724";
  * already-known-eligible (deregulated) user so exposure stays scoped to the
  * eligible, assigned population.
  *
- * The caller navigates in the same task, so the exposure goes out over
- * `sendBeacon` rather than posthog's batching queue — without it the event is
- * still pending when the page unloads and the assignment is lost.
  */
 export function resolvePlanRevealArm(): "test" | "control" | "unassigned" {
 	const variant = posthogGetFeatureFlag(PLAN_REVEAL_TEST_FLAG, {
 		send_event: false,
 	});
 	if (variant !== "test" && variant !== "control") return "unassigned";
-	posthogCapture(
-		"$feature_flag_called",
-		{
-			$feature_flag: PLAN_REVEAL_TEST_FLAG,
-			$feature_flag_response: variant,
-		},
-		{ transport: "sendBeacon" },
-	);
+	captureExposure(PLAN_REVEAL_TEST_FLAG, variant);
 	return variant;
 }
