@@ -54,15 +54,23 @@ const PLAN_REVEAL_TEST_FLAG = "dereg_plan_reveal_0724";
  * (`unassigned`) logs no exposure. Call this ONLY at divert time for an
  * already-known-eligible (deregulated) user so exposure stays scoped to the
  * eligible, assigned population.
+ *
+ * The caller navigates in the same task, so the exposure goes out over
+ * `sendBeacon` rather than posthog's batching queue — without it the event is
+ * still pending when the page unloads and the assignment is lost.
  */
 export function resolvePlanRevealArm(): "test" | "control" | "unassigned" {
 	const variant = posthogGetFeatureFlag(PLAN_REVEAL_TEST_FLAG, {
 		send_event: false,
 	});
 	if (variant !== "test" && variant !== "control") return "unassigned";
-	posthogCapture("$feature_flag_called", {
-		$feature_flag: PLAN_REVEAL_TEST_FLAG,
-		$feature_flag_response: variant,
-	});
+	posthogCapture(
+		"$feature_flag_called",
+		{
+			$feature_flag: PLAN_REVEAL_TEST_FLAG,
+			$feature_flag_response: variant,
+		},
+		{ transport: "sendBeacon" },
+	);
 	return variant;
 }

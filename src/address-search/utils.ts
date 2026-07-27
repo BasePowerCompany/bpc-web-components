@@ -95,9 +95,18 @@ export function parseAddress(
 	};
 }
 
+// posthog-js capture options we rely on. `sendBeacon` hands the event straight to the browser's unload-safe queue instead of posthog's batching poll.
+export interface PostHogCaptureOptions {
+	transport?: "sendBeacon";
+}
+
 // Minimal surface of the window.posthog snippet the embedding page loads (see index.html); undefined until it runs, so callers reach it via `?.`.
 interface PostHogLike {
-	capture(event: string, properties?: Record<string, unknown>): void;
+	capture(
+		event: string,
+		properties?: Record<string, unknown>,
+		options?: PostHogCaptureOptions,
+	): void;
 	getFeatureFlag(
 		key: string,
 		options?: { send_event?: boolean },
@@ -115,8 +124,9 @@ declare global {
 export const posthogCapture = (
 	eventName: string,
 	properties: Record<string, unknown>,
+	options?: PostHogCaptureOptions,
 ) => {
-	window.posthog?.capture(eventName, properties);
+	window.posthog?.capture(eventName, properties, options);
 };
 
 // Reads a PostHog flag/experiment variant client-side; undefined when PostHog is absent or flags haven't loaded. Pass { send_event: false } to read without recording the $feature_flag_called exposure.
