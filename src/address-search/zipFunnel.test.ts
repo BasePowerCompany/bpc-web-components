@@ -28,10 +28,63 @@ describe("rebaseToZipFunnel", () => {
 		for (const url of [
 			"/farmers/join?postal_code=76226&utility=FARMERS",
 			"/gvec/join?postal_code=78155&utility=GVEC",
-			"https://www.basepowercompany.com/illinois/join?postal_code=60601",
 		]) {
 			assert.equal(rebaseToZipFunnel(url), url);
 		}
+	});
+
+	test("rebases the ComEd/Illinois canonical URL to a different origin, preserving query", () => {
+		assert.equal(
+			rebaseToZipFunnel(
+				"https://www.basepowercompany.com/illinois/join?postal_code=60601",
+			),
+			"https://join.basepowercompany.com/illinois/join-zip?postal_code=60601",
+		);
+	});
+
+	test("rebases a relative /illinois/join, resolved against window.location.origin", () => {
+		assert.equal(
+			rebaseToZipFunnel("/illinois/join?postal_code=60601"),
+			"https://join.basepowercompany.com/illinois/join-zip?postal_code=60601",
+		);
+	});
+
+	// Origin-agnostic on purpose: the router's response may be relative, and a
+	// staging/apex host must still get the zip arm. Pinning the canonical origin
+	// would silently serve control everywhere but one host.
+	test("rebases a relative /join-now, resolved against window.location.origin", () => {
+		assert.equal(
+			rebaseToZipFunnel("/join-now?postal_code=75201"),
+			"https://www.basepowercompany.com/join-now-zip?postal_code=75201",
+		);
+	});
+
+	test("rebases /illinois/join regardless of which host served it", () => {
+		assert.equal(
+			rebaseToZipFunnel(
+				"https://join.basepowercompany.com/illinois/join?postal_code=60601",
+			),
+			"https://join.basepowercompany.com/illinois/join-zip?postal_code=60601",
+		);
+	});
+
+	test("carries a fragment across the rebase", () => {
+		assert.equal(
+			rebaseToZipFunnel("https://join.basepowercompany.com/join-now?a=1#form"),
+			"https://join.basepowercompany.com/join-now-zip?a=1#form",
+		);
+		assert.equal(
+			rebaseToZipFunnel(
+				"https://www.basepowercompany.com/illinois/join?a=1#form",
+			),
+			"https://join.basepowercompany.com/illinois/join-zip?a=1#form",
+		);
+	});
+
+	test("does not re-rebase an already-zip-first Illinois URL", () => {
+		const url =
+			"https://join.basepowercompany.com/illinois/join-zip?postal_code=60601";
+		assert.equal(rebaseToZipFunnel(url), url);
 	});
 
 	test("leaves the waitlist redirect untouched", () => {

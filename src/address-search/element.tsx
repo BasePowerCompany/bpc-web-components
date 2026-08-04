@@ -1,6 +1,13 @@
 import { StrictMode } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
+import {
+	posthogOnFeatureFlags,
+	resolveZipEntryComedArm,
+	ZIP_ENTRY_COMED_FLAG,
+} from "@/address-search/experiments";
+import { createFlagGate } from "@/address-search/flagGate";
+import { posthogCapture } from "@/address-search/utils";
 import { bootstrap } from "@/utils/googleMaps";
 import { AddressSearchApp } from "./AddressSearchApp";
 import modalStyleSheet from "./modal/styles.module.css?inline";
@@ -12,7 +19,13 @@ function parseProps(el: HTMLElement) {
 	const placeholder = el.getAttribute("placeholder") || undefined;
 	const cta = el.getAttribute("cta") || undefined;
 	const isEnergyOnly = el.getAttribute("is-energy-only") === "true";
-	const mode = el.getAttribute("mode") === "zip" ? "zip" : "address";
+	const modeAttr = el.getAttribute("mode");
+	const mode =
+		modeAttr === "zip"
+			? "zip"
+			: modeAttr === "zip-comed"
+				? "zip-comed"
+				: "address";
 	return { publicApiKey, placeholder, cta, isEnergyOnly, mode };
 }
 
@@ -37,6 +50,20 @@ class AddressSearchElement extends HTMLElement {
 	private overlayRoot?: ShadowRoot;
 	private overlayWrapper?: HTMLElement;
 	private reactRoot?: Root;
+	// mode="zip-comed" is experiment-gated (zip_entry_comed_0803): the arm can't
+	// be known until PostHog's flags load, so the gate holds the render until
+	// then and memoizes the arm (one exposure per element). Plain mode="zip" —
+	// the concluded, fully-rolled-out dereg zip-first test — never touches it.
+	private readonly comedGate = createFlagGate({
+		onFeatureFlags: posthogOnFeatureFlags,
+		resolveArm: resolveZipEntryComedArm,
+		onTimeout: () =>
+			posthogCapture("zip_entry_flags_timeout", {
+				// Named so a ComEd timeout is separable from the historical TX ones
+				// this event name already carries, and from any later experiment's.
+				flag: ZIP_ENTRY_COMED_FLAG,
+			}),
+	});
 	// `mode` is intentionally not observed: it is a static embed attribute, so
 	// runtime flips are unsupported.
 	static get observedAttributes() {
@@ -104,7 +131,23 @@ class AddressSearchElement extends HTMLElement {
 		const props = parseProps(this);
 		const zIndex = getZIndex(this.shadowRootRef?.host as HTMLElement);
 
-		if (props.mode === "zip") {
+		// Render the placeholder BEFORE requesting flags: posthog-js calls back
+		// synchronously when they have already loaded, which re-enters renderApp,
+		// and a render(null) afterwards would overwrite the arm it just rendered.
+		if (props.mode === "zip-comed" && !this.comedGate.isReady()) {
+			this.reactRoot.render(null);
+			this.comedGate.request(() => this.renderApp());
+			return;
+		}
+
+		// One decision, one call site: the zip entry is either the unconditional
+		// dereg mode or the ComEd test arm. Control and unassigned fall through to
+		// the identical address entry below.
+		const renderZipEntry =
+			props.mode === "zip" ||
+			(props.mode === "zip-comed" && this.comedGate.arm() === "test");
+
+		if (renderZipEntry) {
 			this.reactRoot.render(
 				<StrictMode>
 					<ZipSearchApp
