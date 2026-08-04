@@ -6,56 +6,62 @@ export const FLAG_WAIT_TIMEOUT_MS = 1500;
 export type FlagGateDeps<TArm> = {
 	/** False when PostHog isn't on the page — nothing to wait for. */
 	onFeatureFlags: (callback: () => void) => boolean;
-	/** Resolves the arm AND records its exposure, so call it once. */
+	/** Also records the exposure, so the gate calls it at most once. */
 	resolveArm: () => TArm;
+	/** Waited and gave up, with PostHog present. */
 	onTimeout: () => void;
+	/** Test seam; defaults to window.setTimeout. */
 	schedule?: (callback: () => void, ms: number) => void;
 };
 
 export type FlagGate<TArm> = {
-	isReady: () => boolean;
-	/** Idempotent, and may complete synchronously — render the placeholder first. */
-	request: (onReady: () => void) => void;
-	arm: () => TArm;
+	/**
+	 * The arm, or undefined while flags are still loading — render a placeholder.
+	 * `onReady` fires only when a wait was needed, never before this returns.
+	 */
+	arm: (onReady: () => void) => TArm | undefined;
 };
 
 export function createFlagGate<TArm>(deps: FlagGateDeps<TArm>): FlagGate<TArm> {
 	const schedule =
-		deps.schedule ??
-		((callback: () => void, ms: number) => {
-			window.setTimeout(callback, ms);
-		});
-	let ready = false;
-	let requested = false;
+		deps.schedule ?? ((callback, ms) => window.setTimeout(callback, ms));
+	// A box, not a bare arm: keeps "resolved?" true even for a falsy TArm.
 	let resolved: { arm: TArm } | undefined;
+	let waiting = false;
 
 	return {
-		isReady: () => ready,
+		arm(onReady) {
+			// Already resolved, or a wait is already in flight: fall through to the
+			// single return, which is the arm once known and undefined until then.
+			if (!resolved && !waiting) {
+				waiting = true;
 
-		request(onReady) {
-			if (requested) return;
-			requested = true;
-			const markReady = () => {
-				if (ready) return;
-				ready = true;
-				onReady();
-			};
-			const subscribed = deps.onFeatureFlags(markReady);
-			schedule(
-				() => {
-					// Slow, not absent: posthog-js may still tag later events with the
-					// test variant, so the mislabeling risk stays measurable.
-					if (subscribed && !ready) deps.onTimeout();
-					markReady();
-				},
-				// PostHog absent: nothing to wait for, defer only to stay async.
-				subscribed ? FLAG_WAIT_TIMEOUT_MS : 0,
-			);
-		},
+				let handedBack = false;
+				const settle = () => {
+					if (resolved) return;
+					resolved = { arm: deps.resolveArm() };
+					// Until we hand back, the return below delivers the arm; notifying
+					// now would re-enter and erase what the caller just rendered.
+					if (handedBack) onReady();
+				};
 
-		arm() {
-			resolved ??= { arm: deps.resolveArm() };
-			return resolved.arm;
+				const subscribed = deps.onFeatureFlags(settle);
+				// Flags already loaded — settle() ran synchronously, so no timer.
+				if (!resolved) {
+					schedule(
+						() => {
+							if (subscribed && !resolved) deps.onTimeout();
+							settle();
+						},
+						// Nothing to wait for without PostHog; defer only to stay async.
+						subscribed ? FLAG_WAIT_TIMEOUT_MS : 0,
+					);
+				}
+
+				handedBack = true;
+			}
+
+			return resolved?.arm;
 		},
 	};
 }

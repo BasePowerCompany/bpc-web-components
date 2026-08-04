@@ -5,173 +5,159 @@ import {
 	FLAG_WAIT_TIMEOUT_MS,
 } from "@/address-search/flagGate";
 
-type Harness = {
-	gate: ReturnType<typeof createFlagGate<string>>;
-	readyCalls: number;
-	resolveCalls: number;
-	timeouts: number;
-	/** Run the pending scheduled callback, asserting one was scheduled. */
-	runScheduled: () => void;
-	scheduledMs: number | undefined;
-};
-
 // onFeatureFlags is the whole variable: synchronous when flags are already
 // loaded, async when they aren't, never when PostHog is absent.
-function harness(options: {
-	flags: "loaded" | "pending" | "absent";
-	arm?: string;
-}): Harness {
-	let scheduled: (() => void) | undefined;
-	const state = { readyCalls: 0, resolveCalls: 0, timeouts: 0 };
-	let fireFlags: (() => void) | undefined;
+type FlagState = "loaded" | "pending" | "absent";
+
+/** Reusable harness — any future gated experiment can drive its arm through this. */
+function harness({ flags, arm = "test" }: { flags: FlagState; arm?: string }) {
+	const calls = { resolveArm: 0, onReady: 0, onTimeout: 0, subscribe: 0 };
+	const timers: { callback: () => void; ms: number }[] = [];
+	let loadFlags: (() => void) | undefined;
 
 	const gate = createFlagGate<string>({
 		onFeatureFlags: (callback) => {
-			if (options.flags === "absent") return false;
-			if (options.flags === "loaded") callback();
-			else fireFlags = callback;
+			calls.subscribe += 1;
+			if (flags === "absent") return false;
+			if (flags === "loaded") callback();
+			else loadFlags = callback;
 			return true;
 		},
 		resolveArm: () => {
-			state.resolveCalls += 1;
-			return options.arm ?? "test";
+			calls.resolveArm += 1;
+			return arm;
 		},
 		onTimeout: () => {
-			state.timeouts += 1;
+			calls.onTimeout += 1;
 		},
-		schedule: (callback, ms) => {
-			scheduled = callback;
-			harnessObject.scheduledMs = ms;
-		},
+		schedule: (callback, ms) => timers.push({ callback, ms }),
 	});
 
-	const harnessObject: Harness = {
-		gate,
-		get readyCalls() {
-			return state.readyCalls;
+	return {
+		calls,
+		timers,
+		/** Ask for the arm, counting how often the gate had to notify us. */
+		requestArm: () =>
+			gate.arm(() => {
+				calls.onReady += 1;
+			}),
+		/** PostHog resolves its flags (only meaningful for `pending`). */
+		loadFlags: () => {
+			assert.ok(loadFlags, "expected a flag subscription");
+			loadFlags();
 		},
-		get resolveCalls() {
-			return state.resolveCalls;
-		},
-		get timeouts() {
-			return state.timeouts;
-		},
-		scheduledMs: undefined,
-		runScheduled: () => {
-			assert.ok(scheduled, "expected a scheduled timeout");
-			scheduled();
+		/** Fire the single pending timer. */
+		runTimer: () => {
+			assert.equal(timers.length, 1, "expected exactly one timer");
+			timers[0].callback();
 		},
 	};
-
-	// `request` is always driven through this so the ready count is observable.
-	const request = gate.request;
-	gate.request = (onReady) =>
-		request(() => {
-			state.readyCalls += 1;
-			onReady();
-		});
-
-	// Expose the async trigger by name for the pending case.
-	(harnessObject as Harness & { fireFlags: () => void }).fireFlags = () => {
-		assert.ok(fireFlags, "expected a flag subscription");
-		fireFlags();
-	};
-
-	return harnessObject;
 }
 
 describe("createFlagGate", () => {
-	// Guards a real defect: a caller that renders its placeholder after requesting
-	// would erase the arm this already resolved, blanking the widget for good.
-	test("already-loaded flags become ready during request(), not after", () => {
-		const h = harness({ flags: "loaded" });
-		assert.equal(h.gate.isReady(), false, "not ready before requesting");
-		h.gate.request(() => {});
-		assert.equal(h.gate.isReady(), true);
-		assert.equal(h.readyCalls, 1);
-	});
-
-	test("pending flags stay un-ready until they load", () => {
-		const h = harness({ flags: "pending" }) as ReturnType<typeof harness> & {
-			fireFlags: () => void;
-		};
-		h.gate.request(() => {});
-		assert.equal(h.gate.isReady(), false);
-		assert.equal(h.readyCalls, 0);
-
-		h.fireFlags();
-		assert.equal(h.gate.isReady(), true);
-		assert.equal(h.readyCalls, 1);
-	});
-
-	test("waits 1500ms when subscribed, and reports a timeout that fires first", () => {
-		const h = harness({ flags: "pending" });
-		h.gate.request(() => {});
-		assert.equal(h.scheduledMs, FLAG_WAIT_TIMEOUT_MS);
-		assert.equal(h.timeouts, 0);
-
-		h.runScheduled();
-		assert.equal(h.timeouts, 1, "timed out with PostHog present");
-		assert.equal(h.gate.isReady(), true, "falls through to the default arm");
-		assert.equal(h.readyCalls, 1);
-	});
-
-	test("flags that load before the timeout do not report one", () => {
-		const h = harness({ flags: "pending" }) as ReturnType<typeof harness> & {
-			fireFlags: () => void;
-		};
-		h.gate.request(() => {});
-		h.fireFlags();
-		h.runScheduled();
-
-		assert.equal(h.timeouts, 0);
-		assert.equal(h.readyCalls, 1, "ready is reported once, not twice");
-	});
-
-	// PostHog absent is not a timeout — there was never anything to wait for.
-	test("absent PostHog resolves on a zero delay and reports no timeout", () => {
-		const h = harness({ flags: "absent" });
-		h.gate.request(() => {});
-		assert.equal(h.scheduledMs, 0);
-		assert.equal(h.gate.isReady(), false, "deferred, not synchronous");
-
-		h.runScheduled();
-		assert.equal(h.gate.isReady(), true);
-		assert.equal(h.timeouts, 0, "nothing to time out on");
-	});
-
-	test("request is idempotent across repeated renders", () => {
-		const h = harness({ flags: "pending" });
-		h.gate.request(() => {});
-		h.gate.request(() => {});
-		h.gate.request(() => {});
-		h.runScheduled();
-		assert.equal(h.readyCalls, 1);
-	});
-
-	// Guards a real defect: resolving records the exposure and send_event:false
-	// disables posthog-js's dedup, so per-render resolves inflate arm volume.
-	test("the arm is resolved once and memoized across calls", () => {
+	// The reason the interface is one method: returning the arm instead of calling
+	// back means the caller cannot be re-entered mid-render.
+	test("already-loaded flags return the arm without ever notifying", () => {
 		const h = harness({ flags: "loaded", arm: "control" });
-		h.gate.request(() => {});
 
-		assert.equal(h.gate.arm(), "control");
-		assert.equal(h.gate.arm(), "control");
-		assert.equal(h.gate.arm(), "control");
-		assert.equal(h.resolveCalls, 1, "exactly one exposure per element");
+		assert.equal(h.requestArm(), "control");
+		assert.equal(h.calls.onReady, 0, "no callback — the return delivered it");
+		assert.equal(h.timers.length, 0, "no timer armed once already resolved");
 	});
 
-	// Positive control: proves the counter can exceed one, so the memo assertion
-	// above isn't just measuring a resolver that never runs.
-	test("two gates resolve independently (the memo is per element)", () => {
+	test("pending flags withhold the arm, then notify once loaded", () => {
+		const h = harness({ flags: "pending" });
+
+		assert.equal(h.requestArm(), undefined, "nothing to render yet");
+		assert.equal(h.calls.onReady, 0);
+		assert.equal(h.calls.resolveArm, 0, "no exposure while still waiting");
+
+		h.loadFlags();
+		assert.equal(h.calls.onReady, 1);
+		assert.equal(h.requestArm(), "test");
+	});
+
+	test("a timeout reports itself and still yields an arm", () => {
+		const h = harness({ flags: "pending" });
+		h.requestArm();
+		assert.equal(h.timers[0].ms, FLAG_WAIT_TIMEOUT_MS);
+
+		h.runTimer();
+		assert.equal(h.calls.onTimeout, 1, "timed out with PostHog present");
+		assert.equal(h.calls.onReady, 1);
+		assert.equal(h.requestArm(), "test");
+	});
+
+	test("flags that beat the timeout report no timeout", () => {
+		const h = harness({ flags: "pending" });
+		h.requestArm();
+
+		h.loadFlags();
+		h.runTimer();
+
+		assert.equal(h.calls.onTimeout, 0);
+		assert.equal(h.calls.onReady, 1, "notified once, not twice");
+		assert.equal(h.calls.resolveArm, 1);
+	});
+
+	// Absent is not a timeout — there was never anything to wait for.
+	test("absent PostHog settles on a zero delay with no timeout reported", () => {
+		const h = harness({ flags: "absent", arm: "unassigned" });
+
+		assert.equal(h.requestArm(), undefined, "deferred, not synchronous");
+		assert.equal(h.timers[0].ms, 0);
+
+		h.runTimer();
+		assert.equal(h.calls.onTimeout, 0);
+		assert.equal(h.requestArm(), "unassigned");
+	});
+
+	// renderApp runs on connect, on every attribute change, and on reconnect.
+	test("repeat calls while waiting subscribe and arm a timer only once", () => {
+		const h = harness({ flags: "pending" });
+
+		assert.equal(h.requestArm(), undefined);
+		assert.equal(h.requestArm(), undefined);
+		assert.equal(h.requestArm(), undefined);
+
+		assert.equal(h.calls.subscribe, 1);
+		assert.equal(h.timers.length, 1);
+	});
+
+	// Hygiene rather than correctness: PostHog scores exposure per person, so
+	// duplicates collapse — but each one is its own unbatched sendBeacon.
+	test("the arm resolves once and is memoized across calls", () => {
+		const h = harness({ flags: "loaded" });
+
+		assert.equal(h.requestArm(), "test");
+		assert.equal(h.requestArm(), "test");
+		assert.equal(h.requestArm(), "test");
+		assert.equal(h.calls.resolveArm, 1);
+	});
+
+	// Positive control: proves the counter can exceed one, so the assertion above
+	// measures memoization rather than a resolver that never runs.
+	test("separate gates resolve independently — the memo is per instance", () => {
 		const first = harness({ flags: "loaded" });
 		const second = harness({ flags: "loaded" });
-		first.gate.request(() => {});
-		second.gate.request(() => {});
-		first.gate.arm();
-		second.gate.arm();
 
-		assert.equal(first.resolveCalls, 1);
-		assert.equal(second.resolveCalls, 1);
+		first.requestArm();
+		second.requestArm();
+
+		assert.equal(first.calls.resolveArm, 1);
+		assert.equal(second.calls.resolveArm, 1);
+	});
+
+	// A falsy arm must not read as "unresolved" to the memo.
+	test("an empty-string arm is still treated as resolved", () => {
+		const h = harness({ flags: "loaded", arm: "" });
+
+		assert.equal(h.requestArm(), "");
+		assert.equal(h.requestArm(), "");
+		assert.equal(
+			h.calls.resolveArm,
+			1,
+			"the box, not the value, marks resolved",
+		);
 	});
 });

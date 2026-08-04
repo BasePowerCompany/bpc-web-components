@@ -126,18 +126,18 @@ class AddressSearchElement extends HTMLElement {
 		const props = parseProps(this);
 		const zIndex = getZIndex(this.shadowRootRef?.host as HTMLElement);
 
-		// Placeholder first: an already-loaded flag calls back synchronously and
-		// re-enters renderApp, so a later render(null) would erase the real arm.
-		if (props.mode === "zip-comed" && !this.comedGate.isReady()) {
-			this.reactRoot.render(null);
-			this.comedGate.request(() => this.renderApp());
-			return;
+		let comedArm: ReturnType<typeof resolveZipEntryComedArm> | undefined;
+		if (props.mode === "zip-comed") {
+			comedArm = this.comedGate.arm(() => this.renderApp());
+			// Arm unknown until flags load: render nothing rather than the wrong entry.
+			if (!comedArm) {
+				this.reactRoot.render(null);
+				return;
+			}
 		}
 
 		// One call site for both zip arms; control/unassigned fall through to address.
-		const renderZipEntry =
-			props.mode === "zip" ||
-			(props.mode === "zip-comed" && this.comedGate.arm() === "test");
+		const renderZipEntry = props.mode === "zip" || comedArm === "test";
 
 		if (renderZipEntry) {
 			this.reactRoot.render(
