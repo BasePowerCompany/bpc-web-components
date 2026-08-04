@@ -2,7 +2,6 @@ import { StrictMode } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import {
-	posthogOnFeatureFlags,
 	resolveZipEntryComedArm,
 	ZIP_ENTRY_COMED_FLAG,
 } from "@/address-search/experiments";
@@ -53,7 +52,6 @@ class AddressSearchElement extends HTMLElement {
 	// Only mode="zip-comed" is gated; plain mode="zip" is fully rolled out and
 	// never touches this. Memoized, so one exposure per element.
 	private readonly comedGate = createFlagGate({
-		onFeatureFlags: posthogOnFeatureFlags,
 		resolveArm: resolveZipEntryComedArm,
 		// Tagged: this event name also carries the concluded TX experiment's timeouts.
 		onTimeout: () =>

@@ -1,16 +1,19 @@
+import { posthogOnFeatureFlags } from "@/address-search/experiments";
+
 // Holds a render-time experiment arm until PostHog's flags load, so neither arm
 // flashes the other's entry. Deps injected to keep it testable without a DOM.
 
 export const FLAG_WAIT_TIMEOUT_MS = 1500;
 
+// Required deps are per-experiment; the optional ones are ambient capabilities
+// that default to the real thing and exist so tests can drive them.
 export type FlagGateDeps<TArm> = {
-	/** False when PostHog isn't on the page — nothing to wait for. */
-	onFeatureFlags: (callback: () => void) => boolean;
 	/** Also records the exposure, so the gate calls it at most once. */
 	resolveArm: () => TArm;
 	/** Waited and gave up, with PostHog present. */
 	onTimeout: () => void;
-	/** Test seam; defaults to window.setTimeout. */
+	/** Must report false when PostHog is absent — that drives the timeout length. */
+	onFeatureFlags?: (callback: () => void) => boolean;
 	schedule?: (callback: () => void, ms: number) => void;
 };
 
@@ -23,6 +26,7 @@ export type FlagGate<TArm> = {
 };
 
 export function createFlagGate<TArm>(deps: FlagGateDeps<TArm>): FlagGate<TArm> {
+	const onFeatureFlags = deps.onFeatureFlags ?? posthogOnFeatureFlags;
 	const schedule =
 		deps.schedule ?? ((callback, ms) => window.setTimeout(callback, ms));
 	// A box, not a bare arm: keeps "resolved?" true even for a falsy TArm.
@@ -45,7 +49,7 @@ export function createFlagGate<TArm>(deps: FlagGateDeps<TArm>): FlagGate<TArm> {
 					if (handedBack) onReady();
 				};
 
-				const subscribed = deps.onFeatureFlags(settle);
+				const subscribed = onFeatureFlags(settle);
 				// Flags already loaded — settle() ran synchronously, so no timer.
 				if (!resolved) {
 					schedule(
