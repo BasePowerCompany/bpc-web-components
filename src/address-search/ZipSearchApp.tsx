@@ -148,7 +148,7 @@ export function ZipSearchApp({
 			),
 			strategy.utility,
 		);
-	}, [zip, loading, dispatchRedirect, onErrorEvent]);
+	}, [zip, loading, dispatchRedirect, onErrorEvent, comedArm]);
 
 	const handleBack = useCallback(() => {
 		setUtilityOptions(undefined);
