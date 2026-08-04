@@ -16,6 +16,8 @@ export type ZipSearchAppProps = {
 	portalRoot: ShadowRoot;
 	/** CTA label; defaults to "Check Availability" when the embed omits `cta`. */
 	cta?: string;
+	/** ComEd experiment test arm: opt into rewriting the Illinois destination. */
+	comedArm?: boolean;
 	onResultEvent: (detail: {
 		result: { redirectUrl: string };
 		zip: string;
@@ -42,6 +44,7 @@ const DEFAULT_ZIP_CTA = "Check Availability";
 export function ZipSearchApp({
 	portalRoot,
 	cta = DEFAULT_ZIP_CTA,
+	comedArm = false,
 	onResultEvent,
 	onErrorEvent,
 }: ZipSearchAppProps) {
@@ -82,11 +85,13 @@ export function ZipSearchApp({
 	const emitRedirect = useCallback(
 		(redirectUrl: string, utility?: string) => {
 			dispatchRedirect(
-				decorateRedirectUrl(rebaseToZipFunnel(redirectUrl)),
+				decorateRedirectUrl(
+					rebaseToZipFunnel(redirectUrl, { comed: comedArm }),
+				),
 				utility,
 			);
 		},
-		[dispatchRedirect],
+		[dispatchRedirect, comedArm],
 	);
 
 	const submit = useCallback(async () => {
@@ -135,7 +140,7 @@ export function ZipSearchApp({
 		});
 		// Single-utility result: rebase + decorate, then divert deregulated test-arm zips to /plan-reveal.
 		const next = decorateRedirectUrl(
-			rebaseToZipFunnel(result.data.redirectUrl),
+			rebaseToZipFunnel(result.data.redirectUrl, { comed: comedArm }),
 		);
 		dispatchRedirect(
 			decorateRedirectUrl(
@@ -143,7 +148,7 @@ export function ZipSearchApp({
 			),
 			strategy.utility,
 		);
-	}, [zip, loading, dispatchRedirect, onErrorEvent]);
+	}, [zip, loading, dispatchRedirect, onErrorEvent, comedArm]);
 
 	const handleBack = useCallback(() => {
 		setUtilityOptions(undefined);

@@ -78,3 +78,18 @@ export function resolvePlanRevealArm(): "test" | "control" | "unassigned" {
 	captureExposure(PLAN_REVEAL_TEST_FLAG, variant);
 	return variant;
 }
+
+export const ZIP_ENTRY_COMED_FLAG = "zip_entry_comed_0803";
+
+/**
+ * ComEd/Illinois zip-entry arm. Render-time, so call it only behind element.tsx's
+ * flag gate; `control` and `unassigned` both keep the address entry.
+ */
+export function resolveZipEntryComedArm(): "test" | "control" | "unassigned" {
+	const variant = posthogGetFeatureFlag(ZIP_ENTRY_COMED_FLAG, {
+		send_event: false,
+	});
+	if (variant !== "test" && variant !== "control") return "unassigned";
+	captureExposure(ZIP_ENTRY_COMED_FLAG, variant);
+	return variant;
+}

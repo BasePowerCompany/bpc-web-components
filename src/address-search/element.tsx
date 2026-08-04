@@ -1,6 +1,12 @@
 import { StrictMode } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
+import {
+	resolveZipEntryComedArm,
+	ZIP_ENTRY_COMED_FLAG,
+} from "@/address-search/experiments";
+import { createFlagGate } from "@/address-search/flagGate";
+import { posthogCapture } from "@/address-search/utils";
 import { bootstrap } from "@/utils/googleMaps";
 import { AddressSearchApp } from "./AddressSearchApp";
 import modalStyleSheet from "./modal/styles.module.css?inline";
@@ -12,7 +18,13 @@ function parseProps(el: HTMLElement) {
 	const placeholder = el.getAttribute("placeholder") || undefined;
 	const cta = el.getAttribute("cta") || undefined;
 	const isEnergyOnly = el.getAttribute("is-energy-only") === "true";
-	const mode = el.getAttribute("mode") === "zip" ? "zip" : "address";
+	const modeAttr = el.getAttribute("mode");
+	const mode =
+		modeAttr === "zip"
+			? "zip"
+			: modeAttr === "zip-comed"
+				? "zip-comed"
+				: "address";
 	return { publicApiKey, placeholder, cta, isEnergyOnly, mode };
 }
 
@@ -37,6 +49,14 @@ class AddressSearchElement extends HTMLElement {
 	private overlayRoot?: ShadowRoot;
 	private overlayWrapper?: HTMLElement;
 	private reactRoot?: Root;
+	// Only mode="zip-comed" is gated; plain mode="zip" is fully rolled out and
+	// never touches this. Memoized, so one exposure per element.
+	private readonly comedGate = createFlagGate({
+		resolveArm: resolveZipEntryComedArm,
+		// Tagged: this event name also carries the concluded TX experiment's timeouts.
+		onTimeout: () =>
+			posthogCapture("zip_entry_flags_timeout", { flag: ZIP_ENTRY_COMED_FLAG }),
+	});
 	// `mode` is intentionally not observed: it is a static embed attribute, so
 	// runtime flips are unsupported.
 	static get observedAttributes() {
@@ -104,12 +124,29 @@ class AddressSearchElement extends HTMLElement {
 		const props = parseProps(this);
 		const zIndex = getZIndex(this.shadowRootRef?.host as HTMLElement);
 
-		if (props.mode === "zip") {
+		let comedArm: ReturnType<typeof resolveZipEntryComedArm> | undefined;
+		if (props.mode === "zip-comed") {
+			comedArm = this.comedGate.arm(() => this.renderApp());
+			// Arm unknown until flags load: render nothing rather than the wrong entry.
+			if (!comedArm) {
+				this.reactRoot.render(null);
+				return;
+			}
+		}
+
+		// One call site for both zip arms; control/unassigned fall through to address.
+		const isComedTestArm = comedArm === "test";
+		const renderZipEntry = props.mode === "zip" || isComedTestArm;
+
+		if (renderZipEntry) {
 			this.reactRoot.render(
 				<StrictMode>
 					<ZipSearchApp
 						portalRoot={this.overlayRoot}
 						cta={props.cta}
+						// Only this arm rewrites the Illinois destination; a rolled-out
+						// zip embed must leave an Illinois zip on its canonical page.
+						comedArm={isComedTestArm}
 						onResultEvent={this.emit("result")}
 						onErrorEvent={this.emit("error")}
 					/>

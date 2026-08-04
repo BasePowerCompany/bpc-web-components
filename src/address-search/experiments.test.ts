@@ -6,6 +6,7 @@ import {
 	captureExposure,
 	posthogOnFeatureFlags,
 	resolvePlanRevealArm,
+	resolveZipEntryComedArm,
 } from "@/address-search/experiments";
 
 type CaptureOptions = { send_instantly?: boolean; transport?: string };
@@ -116,6 +117,58 @@ describe("resolvePlanRevealArm", () => {
 	test("logs no exposure for a user outside the rollout", () => {
 		stubFlag(false);
 		assert.equal(resolvePlanRevealArm(), "unassigned");
+		assert.equal(captures.length, 0);
+	});
+});
+
+describe("resolveZipEntryComedArm", () => {
+	let captures: CaptureCall[] = [];
+
+	const stubFlag = (variant: string | boolean | undefined) => {
+		captures = [];
+		stub.posthog = {
+			getFeatureFlag: () => variant,
+			capture: (event, properties, options) => {
+				captures.push({ event, properties, options });
+			},
+		};
+	};
+
+	beforeEach(() => {
+		captures = [];
+		stub.posthog = undefined;
+	});
+
+	// Routed through captureExposure, so it inherits the unload-safe options.
+	test("records the exposure for an assigned visitor", () => {
+		stubFlag("test");
+		assert.equal(resolveZipEntryComedArm(), "test");
+		assert.equal(captures.length, 1);
+		assert.equal(captures[0].event, "$feature_flag_called");
+		assert.equal(captures[0].properties?.$feature_flag, "zip_entry_comed_0803");
+		assert.equal(captures[0].properties?.$feature_flag_response, "test");
+		assert.equal(captures[0].options?.transport, "sendBeacon");
+		assert.equal(captures[0].options?.send_instantly, true);
+	});
+
+	// Reading with the built-in exposure on would log every visitor, not just assigned ones.
+	test("reads the flag without posthog's built-in exposure", () => {
+		let seen: { send_event?: boolean } | undefined;
+		stub.posthog = {
+			getFeatureFlag: (_key, options) => {
+				seen = options;
+				return "control";
+			},
+			capture: () => {},
+		};
+		resolveZipEntryComedArm();
+		assert.equal(seen?.send_event, false);
+	});
+
+	// Exposure must stay scoped to assigned users, or the experiment denominator inflates.
+	test("logs no exposure for a user outside the rollout", () => {
+		stubFlag(false);
+		assert.equal(resolveZipEntryComedArm(), "unassigned");
 		assert.equal(captures.length, 0);
 	});
 });
