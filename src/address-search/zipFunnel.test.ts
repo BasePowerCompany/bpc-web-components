@@ -33,10 +33,24 @@ describe("rebaseToZipFunnel", () => {
 		}
 	});
 
+	// The regression this guards: an Illinois zip typed into a rolled-out zip
+	// widget must stay on its canonical page. Rewriting it there would divert a
+	// visitor onto the experiment's test destination with no flag read, so no
+	// exposure — live routing changed for a market outside the experiment.
+	test("leaves Illinois untouched unless the ComEd arm opts in", () => {
+		for (const url of [
+			"https://www.basepowercompany.com/illinois/join?postal_code=60601",
+			"/illinois/join?postal_code=60601",
+		]) {
+			assert.equal(rebaseToZipFunnel(url), url);
+		}
+	});
+
 	test("rebases the ComEd/Illinois canonical URL to a different origin, preserving query", () => {
 		assert.equal(
 			rebaseToZipFunnel(
 				"https://www.basepowercompany.com/illinois/join?postal_code=60601",
+				{ comed: true },
 			),
 			"https://join.basepowercompany.com/illinois/join-zip?postal_code=60601",
 		);
@@ -44,9 +58,23 @@ describe("rebaseToZipFunnel", () => {
 
 	test("rebases a relative /illinois/join, resolved against window.location.origin", () => {
 		assert.equal(
-			rebaseToZipFunnel("/illinois/join?postal_code=60601"),
+			rebaseToZipFunnel("/illinois/join?postal_code=60601", { comed: true }),
 			"https://join.basepowercompany.com/illinois/join-zip?postal_code=60601",
 		);
+	});
+
+	// Texas is unconditional — /join-now-zip is the rolled-out destination, not an
+	// arm — so it rebases with or without the ComEd opt-in.
+	test("rebases Texas whether or not the ComEd arm opted in", () => {
+		for (const options of [undefined, { comed: true }]) {
+			assert.equal(
+				rebaseToZipFunnel(
+					"https://join.basepowercompany.com/join-now?postal_code=75201",
+					options,
+				),
+				"https://join.basepowercompany.com/join-now-zip?postal_code=75201",
+			);
+		}
 	});
 
 	// Origin-agnostic on purpose: responses may be relative, and pinning an origin
@@ -62,6 +90,7 @@ describe("rebaseToZipFunnel", () => {
 		assert.equal(
 			rebaseToZipFunnel(
 				"https://join.basepowercompany.com/illinois/join?postal_code=60601",
+				{ comed: true },
 			),
 			"https://join.basepowercompany.com/illinois/join-zip?postal_code=60601",
 		);
@@ -75,6 +104,7 @@ describe("rebaseToZipFunnel", () => {
 		assert.equal(
 			rebaseToZipFunnel(
 				"https://www.basepowercompany.com/illinois/join?a=1#form",
+				{ comed: true },
 			),
 			"https://join.basepowercompany.com/illinois/join-zip?a=1#form",
 		);

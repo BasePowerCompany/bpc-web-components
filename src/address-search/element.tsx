@@ -135,7 +135,8 @@ class AddressSearchElement extends HTMLElement {
 		}
 
 		// One call site for both zip arms; control/unassigned fall through to address.
-		const renderZipEntry = props.mode === "zip" || comedArm === "test";
+		const isComedTestArm = comedArm === "test";
+		const renderZipEntry = props.mode === "zip" || isComedTestArm;
 
 		if (renderZipEntry) {
 			this.reactRoot.render(
@@ -143,6 +144,9 @@ class AddressSearchElement extends HTMLElement {
 					<ZipSearchApp
 						portalRoot={this.overlayRoot}
 						cta={props.cta}
+						// Only this arm rewrites the Illinois destination; a rolled-out
+						// zip embed must leave an Illinois zip on its canonical page.
+						comedArm={isComedTestArm}
 						onResultEvent={this.emit("result")}
 						onErrorEvent={this.emit("error")}
 					/>
