@@ -7,10 +7,16 @@
 
     <script>
       !function(t,e){var o,n,p,r;e.__SV||(window.posthog && window.posthog.__loaded)||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="rn sn init kn Qr wn Cn yn capture calculateEventProperties Rn register register_once register_for_session unregister unregister_for_session An getFeatureFlag getFeatureFlagPayload getFeatureFlagResult isFeatureEnabled reloadFeatureFlags updateFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys renderSurvey displaySurvey cancelPendingSurvey canRenderSurvey canRenderSurveyAsync Fn identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset setIdentity clearIdentity get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException addExceptionStep captureLog startExceptionAutocapture stopExceptionAutocapture loadToolbar get_property getSessionProperty On En createPersonProfile setInternalOrTestUser Ln gn $n opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing get_explicit_consent_status is_capturing clear_opt_in_out_capturing In debug Kr Pn getPageViewId captureTraceFeedback captureTraceMetric vn".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+      // Preview-only: force an experiment arm. Bootstrapped at init because it must
+      // be readable synchronously, before any component resolves its flag.
+      var bpcForcedArm = localStorage.getItem('bpc_demo_arm') || '';
       posthog.init('phc_ssiyTsEfL4xKeTRE8PnQTB1AwuiQ8q0eRk3jeHZUEDq', {
         api_host: 'https://us.i.posthog.com',
         defaults: '2026-05-30',
         person_profiles: 'identified_only', // or 'always' to create profiles for anonymous users as well
+        ...(bpcForcedArm
+          ? { bootstrap: { featureFlags: { zip_entry_comed_0803: bpcForcedArm } } }
+          : {}),
       })
     </script>
 
@@ -125,8 +131,8 @@
     </div>
     <!-- mode="zip-comed": experiment-gated (zip_entry_comed_0803). Renders nothing
          until flags resolve — zip entry for `test`, address entry otherwise. The
-         switcher writes PostHog's own override and reloads, since the arm is
-         memoized per element and cannot flip after mount. -->
+         switcher reloads because the arm is memoized per element and the flag is
+         bootstrapped at posthog.init, before anything can read it. -->
     <div class="container light" style="padding-top: 6vh">
       <div style="max-width: 540px">
         <div
@@ -150,45 +156,41 @@
         ></bpc-address-search>
         <script>
           (() => {
-            const FLAG = "zip_entry_comed_0803";
-            const STORE = "bpc_demo_arm";
-            const forced = localStorage.getItem(STORE) || "";
-
-            // Must run before the component reads the flag; works even though the
-            // flag does not exist server-side yet.
-            if (forced) {
-              posthog.featureFlags.overrideFeatureFlags({
-                flags: { [FLAG]: forced },
-              });
-            }
-            document.getElementById("arm-state").textContent = `arm: ${
-              forced || "unassigned (no override)"
-            }`;
-
-            for (const button of document.querySelectorAll("[data-arm]")) {
-              button.addEventListener("click", () => {
-                const arm = button.dataset.arm;
-                if (arm) localStorage.setItem(STORE, arm);
-                else {
-                  localStorage.removeItem(STORE);
-                  posthog.featureFlags.overrideFeatureFlags(false);
-                }
-                location.reload();
-              });
-            }
-
+            // Listeners first: anything that throws below must not strand them.
             const el = document.currentScript.previousElementSibling;
             el.addEventListener("result", (e) => {
-              console.log("zip-comed result", e.detail);
-              console.log(
-                "Would redirect to:",
+              const url = new URL(
                 e.detail.result.redirectUrl,
-                "\n(rebased to the zip funnel already — check the path)",
+                window.location.origin,
               );
+              url.searchParams.set("utm_source", "bpc-web-components");
+              url.searchParams.set("utm_medium", "address-search");
+              url.searchParams.set("utm_campaign", "bpc-web-components");
+
+              // window.location.href = url.href;
+              console.log("zip-comed result", e.detail);
+              console.log("Would redirect to:", url.href);
             });
             el.addEventListener("error", (e) =>
               console.log("zip-comed error", e.detail),
             );
+
+            const STORE = "bpc_demo_arm";
+            const forced = localStorage.getItem(STORE) || "";
+            document.getElementById("arm-state").textContent = `arm: ${
+              forced || "unassigned (no override)"
+            }`;
+
+            // The arm is bootstrapped at posthog.init in <head>, so switching it
+            // is just localStorage plus a reload.
+            for (const button of document.querySelectorAll("[data-arm]")) {
+              button.addEventListener("click", () => {
+                const arm = button.dataset.arm;
+                if (arm) localStorage.setItem(STORE, arm);
+                else localStorage.removeItem(STORE);
+                location.reload();
+              });
+            }
           })();
         </script>
       </div>
