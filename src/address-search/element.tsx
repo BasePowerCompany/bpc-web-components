@@ -50,19 +50,14 @@ class AddressSearchElement extends HTMLElement {
 	private overlayRoot?: ShadowRoot;
 	private overlayWrapper?: HTMLElement;
 	private reactRoot?: Root;
-	// mode="zip-comed" is experiment-gated (zip_entry_comed_0803): the arm can't
-	// be known until PostHog's flags load, so the gate holds the render until
-	// then and memoizes the arm (one exposure per element). Plain mode="zip" —
-	// the concluded, fully-rolled-out dereg zip-first test — never touches it.
+	// Only mode="zip-comed" is gated; plain mode="zip" is fully rolled out and
+	// never touches this. Memoized, so one exposure per element.
 	private readonly comedGate = createFlagGate({
 		onFeatureFlags: posthogOnFeatureFlags,
 		resolveArm: resolveZipEntryComedArm,
+		// Tagged: this event name also carries the concluded TX experiment's timeouts.
 		onTimeout: () =>
-			posthogCapture("zip_entry_flags_timeout", {
-				// Named so a ComEd timeout is separable from the historical TX ones
-				// this event name already carries, and from any later experiment's.
-				flag: ZIP_ENTRY_COMED_FLAG,
-			}),
+			posthogCapture("zip_entry_flags_timeout", { flag: ZIP_ENTRY_COMED_FLAG }),
 	});
 	// `mode` is intentionally not observed: it is a static embed attribute, so
 	// runtime flips are unsupported.
@@ -131,18 +126,15 @@ class AddressSearchElement extends HTMLElement {
 		const props = parseProps(this);
 		const zIndex = getZIndex(this.shadowRootRef?.host as HTMLElement);
 
-		// Render the placeholder BEFORE requesting flags: posthog-js calls back
-		// synchronously when they have already loaded, which re-enters renderApp,
-		// and a render(null) afterwards would overwrite the arm it just rendered.
+		// Placeholder first: an already-loaded flag calls back synchronously and
+		// re-enters renderApp, so a later render(null) would erase the real arm.
 		if (props.mode === "zip-comed" && !this.comedGate.isReady()) {
 			this.reactRoot.render(null);
 			this.comedGate.request(() => this.renderApp());
 			return;
 		}
 
-		// One decision, one call site: the zip entry is either the unconditional
-		// dereg mode or the ComEd test arm. Control and unassigned fall through to
-		// the identical address entry below.
+		// One call site for both zip arms; control/unassigned fall through to address.
 		const renderZipEntry =
 			props.mode === "zip" ||
 			(props.mode === "zip-comed" && this.comedGate.arm() === "test");

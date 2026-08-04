@@ -15,9 +15,8 @@ type Harness = {
 	scheduledMs: number | undefined;
 };
 
-// PostHog's `onFeatureFlags` behavior is the whole variable: it fires
-// synchronously when flags are already loaded, asynchronously when they aren't,
-// and never (returning false) when PostHog is absent.
+// onFeatureFlags is the whole variable: synchronous when flags are already
+// loaded, async when they aren't, never when PostHog is absent.
 function harness(options: {
 	flags: "loaded" | "pending" | "absent";
 	arm?: string;
@@ -82,9 +81,8 @@ function harness(options: {
 }
 
 describe("createFlagGate", () => {
-	// The defect this guards: `onFeatureFlags` calling back synchronously means
-	// `request()` finishes ready. A caller that renders its placeholder AFTER
-	// requesting would overwrite the real arm and leave the widget blank forever.
+	// Guards a real defect: a caller that renders its placeholder after requesting
+	// would erase the arm this already resolved, blanking the widget for good.
 	test("already-loaded flags become ready during request(), not after", () => {
 		const h = harness({ flags: "loaded" });
 		assert.equal(h.gate.isReady(), false, "not ready before requesting");
@@ -151,10 +149,8 @@ describe("createFlagGate", () => {
 		assert.equal(h.readyCalls, 1);
 	});
 
-	// The defect this guards: resolving records the exposure, and the flag is read
-	// with send_event:false so posthog-js does not dedupe it. renderApp runs on
-	// connect, on every attribute change and on reconnect — resolving per render
-	// would multiply exposures and show up as inflated per-arm event volume.
+	// Guards a real defect: resolving records the exposure and send_event:false
+	// disables posthog-js's dedup, so per-render resolves inflate arm volume.
 	test("the arm is resolved once and memoized across calls", () => {
 		const h = harness({ flags: "loaded", arm: "control" });
 		h.gate.request(() => {});
@@ -165,8 +161,8 @@ describe("createFlagGate", () => {
 		assert.equal(h.resolveCalls, 1, "exactly one exposure per element");
 	});
 
-	// Positive control: the counter can report more than one, so the assertion
-	// above is measuring memoization rather than a resolver that never runs.
+	// Positive control: proves the counter can exceed one, so the memo assertion
+	// above isn't just measuring a resolver that never runs.
 	test("two gates resolve independently (the memo is per element)", () => {
 		const first = harness({ flags: "loaded" });
 		const second = harness({ flags: "loaded" });

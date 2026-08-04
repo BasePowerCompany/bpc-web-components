@@ -49,9 +49,8 @@ describe("rebaseToZipFunnel", () => {
 		);
 	});
 
-	// Origin-agnostic on purpose: the router's response may be relative, and a
-	// staging/apex host must still get the zip arm. Pinning the canonical origin
-	// would silently serve control everywhere but one host.
+	// Origin-agnostic on purpose: responses may be relative, and pinning an origin
+	// would silently serve control on staging and apex hosts.
 	test("rebases a relative /join-now, resolved against window.location.origin", () => {
 		assert.equal(
 			rebaseToZipFunnel("/join-now?postal_code=75201"),

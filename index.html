@@ -123,6 +123,76 @@
         </script>
       </div>
     </div>
+    <!-- mode="zip-comed": experiment-gated (zip_entry_comed_0803). Renders nothing
+         until flags resolve — zip entry for `test`, address entry otherwise. The
+         switcher writes PostHog's own override and reloads, since the arm is
+         memoized per element and cannot flip after mount. -->
+    <div class="container light" style="padding-top: 6vh">
+      <div style="max-width: 540px">
+        <div
+          style="
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 16px;
+            font-size: 14px;
+          "
+        >
+          <strong id="arm-state">arm: …</strong>
+          <button type="button" data-arm="test">force test</button>
+          <button type="button" data-arm="control">force control</button>
+          <button type="button" data-arm="">clear</button>
+        </div>
+        <bpc-address-search
+          mode="zip-comed"
+          public-key="%VITE_GOOGLE_MAPS_API_KEY%"
+          cta="See if my home qualifies"
+        ></bpc-address-search>
+        <script>
+          (() => {
+            const FLAG = "zip_entry_comed_0803";
+            const STORE = "bpc_demo_arm";
+            const forced = localStorage.getItem(STORE) || "";
+
+            // Must run before the component reads the flag; works even though the
+            // flag does not exist server-side yet.
+            if (forced) {
+              posthog.featureFlags.overrideFeatureFlags({
+                flags: { [FLAG]: forced },
+              });
+            }
+            document.getElementById("arm-state").textContent = `arm: ${
+              forced || "unassigned (no override)"
+            }`;
+
+            for (const button of document.querySelectorAll("[data-arm]")) {
+              button.addEventListener("click", () => {
+                const arm = button.dataset.arm;
+                if (arm) localStorage.setItem(STORE, arm);
+                else {
+                  localStorage.removeItem(STORE);
+                  posthog.featureFlags.overrideFeatureFlags(false);
+                }
+                location.reload();
+              });
+            }
+
+            const el = document.currentScript.previousElementSibling;
+            el.addEventListener("result", (e) => {
+              console.log("zip-comed result", e.detail);
+              console.log(
+                "Would redirect to:",
+                e.detail.result.redirectUrl,
+                "\n(rebased to the zip funnel already — check the path)",
+              );
+            });
+            el.addEventListener("error", (e) =>
+              console.log("zip-comed error", e.detail),
+            );
+          })();
+        </script>
+      </div>
+    </div>
     <div class="container light">
       <div style="max-width: 540px">
         <bpc-address-search

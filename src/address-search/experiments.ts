@@ -82,11 +82,8 @@ export function resolvePlanRevealArm(): "test" | "control" | "unassigned" {
 export const ZIP_ENTRY_COMED_FLAG = "zip_entry_comed_0803";
 
 /**
- * ComEd/Illinois zip-entry experiment arm. Render-time, not navigation-time —
- * gate the render in element.tsx with `posthogOnFeatureFlags` first (see
- * `mode="zip-comed"`), and resolve only once flags have loaded so neither arm
- * flashes the other's UI. `test` renders the zip entry; `control` and
- * `unassigned` (not in the rollout / PostHog absent) keep the address entry.
+ * ComEd/Illinois zip-entry arm. Render-time, so call it only behind element.tsx's
+ * flag gate; `control` and `unassigned` both keep the address entry.
  */
 export function resolveZipEntryComedArm(): "test" | "control" | "unassigned" {
 	const variant = posthogGetFeatureFlag(ZIP_ENTRY_COMED_FLAG, {
