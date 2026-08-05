@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import {
+	ctaForComedArm,
 	resolveZipEntryComedArm,
 	ZIP_ENTRY_COMED_FLAG,
 } from "@/address-search/experiments";
@@ -143,7 +144,7 @@ class AddressSearchElement extends HTMLElement {
 				<StrictMode>
 					<ZipSearchApp
 						portalRoot={this.overlayRoot}
-						cta={props.cta}
+						cta={ctaForComedArm("zip", props.mode === "zip-comed", props.cta)}
 						// Only this arm rewrites the Illinois destination; a rolled-out
 						// zip embed must leave an Illinois zip on its canonical page.
 						comedArm={isComedTestArm}
@@ -167,7 +168,7 @@ class AddressSearchElement extends HTMLElement {
 			<StrictMode>
 				<AddressSearchApp
 					placeholder={props.placeholder}
-					cta={props.cta}
+					cta={ctaForComedArm("address", props.mode === "zip-comed", props.cta)}
 					isEnergyOnly={props.isEnergyOnly}
 					portalRoot={this.overlayRoot}
 					zIndex={zIndex}

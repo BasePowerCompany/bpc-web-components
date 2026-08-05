@@ -4,6 +4,7 @@ import path from "node:path";
 import { beforeEach, describe, test } from "node:test";
 import {
 	captureExposure,
+	ctaForComedArm,
 	posthogOnFeatureFlags,
 	resolvePlanRevealArm,
 	resolveZipEntryComedArm,
@@ -170,6 +171,50 @@ describe("resolveZipEntryComedArm", () => {
 		stubFlag(false);
 		assert.equal(resolveZipEntryComedArm(), "unassigned");
 		assert.equal(captures.length, 0);
+	});
+});
+
+describe("ctaForComedArm", () => {
+	// A host cta reaching the zip arm makes the arms differ in CTA copy as well as
+	// in entry — a second variable the experiment never meant to test.
+	test("the test arm ignores the host cta so it keeps the zip copy", () => {
+		assert.equal(
+			ctaForComedArm("zip", true, "See if your home qualifies"),
+			undefined,
+		);
+	});
+
+	test("the address arm keeps the host cta", () => {
+		assert.equal(
+			ctaForComedArm("address", true, "See if your home qualifies"),
+			"See if your home qualifies",
+		);
+	});
+
+	// The whole point: the address entry has no CTA default of its own, so an embed
+	// omitting `cta` would give the zip arm a button and the control arm none —
+	// making CTA presence the variable rather than zip entry.
+	test("neither arm is button-less when the embed omits cta", () => {
+		assert.equal(ctaForComedArm("zip", true, undefined), undefined);
+		assert.ok(
+			ctaForComedArm("address", true, undefined),
+			"the address arm must fall back to a label of its own",
+		);
+	});
+
+	// mode="zip" is rolled out, not an arm: it must keep honoring its own label.
+	test("a rolled-out zip embed still honors its own cta", () => {
+		assert.equal(ctaForComedArm("zip", false, "Check my zip"), "Check my zip");
+	});
+
+	// Regression guard for every non-experiment embed on the marketing site: an
+	// address embed without `cta` must stay button-less exactly as before.
+	test("a plain address embed is unchanged, absent cta included", () => {
+		assert.equal(ctaForComedArm("address", false, undefined), undefined);
+		assert.equal(
+			ctaForComedArm("address", false, "See if your home qualifies"),
+			"See if your home qualifies",
+		);
 	});
 });
 
