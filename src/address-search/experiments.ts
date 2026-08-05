@@ -94,16 +94,26 @@ export function resolveZipEntryComedArm(): "test" | "control" | "unassigned" {
 	return variant;
 }
 
+// The address entry has no CTA default of its own (Autocomplete gates the button
+// on a truthy cta), so mode="zip-comed" supplies one rather than letting a host
+// that omits `cta` leave the control arm the only arm without a button.
+const COMED_ADDRESS_ARM_CTA = "See if your home qualifies";
+
 /**
- * Which CTA label the zip-comed test arm renders. One `cta` attribute cannot
- * carry copy for both arms, so the host's value is the ADDRESS arm's and the zip
- * arm keeps its own default — otherwise the arms differ in CTA text as well as
- * in entry, which is a second variable the experiment never meant to test.
- * Plain `mode="zip"` is unaffected: it is rolled out, not an arm.
+ * Which CTA label each zip-comed arm renders. One `cta` attribute cannot carry
+ * copy for both arms, so the zip arm keeps its own "Check Availability" default
+ * and the host's value belongs to the address arm — and neither arm may end up
+ * button-less, or CTA presence becomes a second variable the experiment never
+ * meant to test. Every other embed is untouched: without `mode="zip-comed"` the
+ * host's value passes through exactly as before, absent included.
  */
-export function zipCtaForComedArm(
-	isComedTestArm: boolean,
+export function ctaForComedArm(
+	entry: "zip" | "address",
+	isZipComedMode: boolean,
 	hostCta: string | undefined,
 ): string | undefined {
-	return isComedTestArm ? undefined : hostCta;
+	if (!isZipComedMode) return hostCta;
+	// undefined lets ZipSearchApp apply its own zip-appropriate default.
+	if (entry === "zip") return undefined;
+	return hostCta ?? COMED_ADDRESS_ARM_CTA;
 }
