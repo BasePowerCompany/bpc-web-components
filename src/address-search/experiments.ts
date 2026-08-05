@@ -93,3 +93,17 @@ export function resolveZipEntryComedArm(): "test" | "control" | "unassigned" {
 	captureExposure(ZIP_ENTRY_COMED_FLAG, variant);
 	return variant;
 }
+
+/**
+ * Which CTA label the zip-comed test arm renders. One `cta` attribute cannot
+ * carry copy for both arms, so the host's value is the ADDRESS arm's and the zip
+ * arm keeps its own default — otherwise the arms differ in CTA text as well as
+ * in entry, which is a second variable the experiment never meant to test.
+ * Plain `mode="zip"` is unaffected: it is rolled out, not an arm.
+ */
+export function zipCtaForComedArm(
+	isComedTestArm: boolean,
+	hostCta: string | undefined,
+): string | undefined {
+	return isComedTestArm ? undefined : hostCta;
+}

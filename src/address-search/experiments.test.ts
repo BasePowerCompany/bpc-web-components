@@ -7,6 +7,7 @@ import {
 	posthogOnFeatureFlags,
 	resolvePlanRevealArm,
 	resolveZipEntryComedArm,
+	zipCtaForComedArm,
 } from "@/address-search/experiments";
 
 type CaptureOptions = { send_instantly?: boolean; transport?: string };
@@ -170,6 +171,37 @@ describe("resolveZipEntryComedArm", () => {
 		stubFlag(false);
 		assert.equal(resolveZipEntryComedArm(), "unassigned");
 		assert.equal(captures.length, 0);
+	});
+});
+
+describe("zipCtaForComedArm", () => {
+	// A host cta reaching the zip arm makes the arms differ in CTA copy as well as
+	// in entry — a second variable the experiment never meant to test.
+	test("the test arm ignores the host cta so it keeps the zip copy", () => {
+		assert.equal(
+			zipCtaForComedArm(true, "See if your home qualifies"),
+			undefined,
+		);
+	});
+
+	// The address arm has no CTA default, so dropping the host value there would
+	// leave the control arm with no button at all against the test arm's.
+	test("the address arm keeps the host cta", () => {
+		assert.equal(
+			zipCtaForComedArm(false, "See if your home qualifies"),
+			"See if your home qualifies",
+		);
+	});
+
+	// mode="zip" is rolled out, not an arm: it reaches here with isComedTestArm
+	// false and must keep honoring an embed's own label.
+	test("a rolled-out zip embed still honors its own cta", () => {
+		assert.equal(zipCtaForComedArm(false, "Check my zip"), "Check my zip");
+	});
+
+	test("an absent host cta stays absent on either arm", () => {
+		assert.equal(zipCtaForComedArm(true, undefined), undefined);
+		assert.equal(zipCtaForComedArm(false, undefined), undefined);
 	});
 });
 

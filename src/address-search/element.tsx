@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import {
 	resolveZipEntryComedArm,
 	ZIP_ENTRY_COMED_FLAG,
+	zipCtaForComedArm,
 } from "@/address-search/experiments";
 import { createFlagGate } from "@/address-search/flagGate";
 import { posthogCapture } from "@/address-search/utils";
@@ -143,7 +144,7 @@ class AddressSearchElement extends HTMLElement {
 				<StrictMode>
 					<ZipSearchApp
 						portalRoot={this.overlayRoot}
-						cta={props.cta}
+						cta={zipCtaForComedArm(isComedTestArm, props.cta)}
 						// Only this arm rewrites the Illinois destination; a rolled-out
 						// zip embed must leave an Illinois zip on its canonical page.
 						comedArm={isComedTestArm}
