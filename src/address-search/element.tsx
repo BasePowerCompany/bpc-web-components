@@ -145,9 +145,6 @@ class AddressSearchElement extends HTMLElement {
 					<ZipSearchApp
 						portalRoot={this.overlayRoot}
 						cta={ctaForComedArm("zip", props.mode === "zip-comed", props.cta)}
-						// Only this arm rewrites the Illinois destination; a rolled-out
-						// zip embed must leave an Illinois zip on its canonical page.
-						comedArm={isComedTestArm}
 						onResultEvent={this.emit("result")}
 						onErrorEvent={this.emit("error")}
 					/>
