@@ -19,9 +19,11 @@ export function rebaseToZipFunnel(redirectUrl: string): string {
 		return redirectUrl;
 	}
 
-	// Pathname only, never origin: responses may be relative, and pinning an
-	// origin would silently serve control on staging and apex hosts.
+	// Match on pathname only: responses may be relative or come from any host, so
+	// matching on origin would silently skip the rebase on staging and apex hosts.
 	if (url.pathname === COMED_CANONICAL_PATH) {
+		// The destination origin, unlike the match, is pinned: Illinois lives on the
+		// join host, so this replaces the origin outright rather than swapping a path.
 		const rebased = new URL(COMED_ZIP_URL);
 		rebased.search = url.search;
 		rebased.hash = url.hash;
