@@ -24,13 +24,46 @@ describe("rebaseToZipFunnel", () => {
 		);
 	});
 
-	test("leaves other utility destinations untouched", () => {
+	// Every market with a live zip flow rebases, not just the deregulated one.
+	// These responses come back relative, so they resolve against the serving
+	// origin — the visitor stays on the host they are already on.
+	test("rebases each co-op market to its zip twin", () => {
+		for (const [canonical, expected] of [
+			[
+				"/farmers/join?postal_code=76226&utility=FARMERS",
+				"https://www.basepowercompany.com/farmers/join-zip?postal_code=76226&utility=FARMERS",
+			],
+			[
+				"/austinenergy/join?postal_code=78701",
+				"https://www.basepowercompany.com/austinenergy/join-zip?postal_code=78701",
+			],
+			[
+				"/coserv/join?postal_code=75068",
+				"https://www.basepowercompany.com/coserv/join-zip?postal_code=75068",
+			],
+			[
+				"/gvec/join?postal_code=78155&utility=GVEC",
+				"https://www.basepowercompany.com/gvec/join-zip?postal_code=78155&utility=GVEC",
+			],
+		]) {
+			assert.equal(rebaseToZipFunnel(canonical), expected);
+		}
+	});
+
+	// The rebase must stay opt-in per market: a destination with no zip twin has
+	// to fall through, or a live zip visitor lands on a route nothing serves.
+	test("leaves markets without a zip twin untouched", () => {
 		for (const url of [
-			"/farmers/join?postal_code=76226&utility=FARMERS",
-			"/gvec/join?postal_code=78155&utility=GVEC",
+			"/epelectric/waitlist?postal_code=79936",
+			"/somefuturemarket/join?postal_code=75201",
 		]) {
 			assert.equal(rebaseToZipFunnel(url), url);
 		}
+	});
+
+	test("does not re-rebase an already-zip-first co-op URL", () => {
+		const url = "/farmers/join-zip?postal_code=76226";
+		assert.equal(rebaseToZipFunnel(url), url);
 	});
 
 	// Unconditional on purpose: an Illinois zip typed into ANY zip widget belongs
