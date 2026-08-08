@@ -15,11 +15,14 @@ const ZIP_ROUTES: Record<string, string> = {
 	"/austinenergy/join": "/austinenergy/join-zip",
 	"/coserv/join": "/coserv/join-zip",
 	"/gvec/join": "/gvec/join-zip",
+	// UNKNOWN utility. A zip cannot answer serviceability, so the twin collects an
+	// address — without it the record can never be re-checked when a market opens.
+	"/join-waitlist": "/join-waitlist-zip",
 };
 
 // Deliberately absent from ZIP_ROUTES: /epelectric/waitlist (intake paused — the
 // zip route is pinned to the waitlist, and epelectric/join-zip has nothing
-// routing to it) and /join-waitlist (UNKNOWN utility, address entry only).
+// routing to it).
 
 // ComEd crosses origins (www → join host), so it can't be the pathname swap the
 // other markets use.

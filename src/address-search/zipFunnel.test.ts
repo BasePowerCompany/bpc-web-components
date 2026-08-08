@@ -122,11 +122,19 @@ describe("rebaseToZipFunnel", () => {
 		assert.equal(rebaseToZipFunnel(url), url);
 	});
 
-	test("leaves the waitlist redirect untouched", () => {
+	// A pathname swap, not an origin pin: the response is relative, and the www
+	// redirect sends /join-waitlist-zip to the join host. Without the rebase the
+	// visitor lands on the www Typeform and never supplies an address.
+	test("rebases the waitlist redirect to its zip twin", () => {
 		assert.equal(
 			rebaseToZipFunnel("/join-waitlist?postal_code=79936"),
-			"/join-waitlist?postal_code=79936",
+			"https://www.basepowercompany.com/join-waitlist-zip?postal_code=79936",
 		);
+	});
+
+	test("does not re-rebase an already-zip-first waitlist URL", () => {
+		const url = "/join-waitlist-zip?postal_code=79936";
+		assert.equal(rebaseToZipFunnel(url), url);
 	});
 
 	test("does not prefix-match paths that merely start with /join-now", () => {
