@@ -124,6 +124,16 @@ export function ZipSearchApp({
 		}
 
 		const strategy = result.data.redirectStrategy;
+		// Before the auto-select, so this keeps meaning "the zip had multiple options".
+		// Skipping it on an auto-select would open a submit-vs-result gap that the daily
+		// activity insight reads as a router error.
+		if (strategy.isMultiple) {
+			posthogCapture("zip_search_multiple_utility_result", {
+				zip: normalized,
+				utilityOptions: strategy.multiple.options,
+			});
+		}
+
 		if (
 			autoSelectPreferredUtility({
 				strategy,
@@ -136,10 +146,6 @@ export function ZipSearchApp({
 		}
 
 		if (strategy.isMultiple) {
-			posthogCapture("zip_search_multiple_utility_result", {
-				zip: normalized,
-				utilityOptions: strategy.multiple.options,
-			});
 			setUtilityOptions(strategy.multiple.options);
 			return;
 		}
