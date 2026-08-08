@@ -19,6 +19,7 @@ function parseProps(el: HTMLElement) {
 	const placeholder = el.getAttribute("placeholder") || undefined;
 	const cta = el.getAttribute("cta") || undefined;
 	const isEnergyOnly = el.getAttribute("is-energy-only") === "true";
+	const preferredUtility = el.getAttribute("preferred-utility") || undefined;
 	const modeAttr = el.getAttribute("mode");
 	const mode =
 		modeAttr === "zip"
@@ -26,7 +27,14 @@ function parseProps(el: HTMLElement) {
 			: modeAttr === "zip-comed"
 				? "zip-comed"
 				: "address";
-	return { publicApiKey, placeholder, cta, isEnergyOnly, mode };
+	return {
+		publicApiKey,
+		placeholder,
+		cta,
+		isEnergyOnly,
+		preferredUtility,
+		mode,
+	};
 }
 
 function getZIndex(el: HTMLElement) {
@@ -61,7 +69,13 @@ class AddressSearchElement extends HTMLElement {
 	// `mode` is intentionally not observed: it is a static embed attribute, so
 	// runtime flips are unsupported.
 	static get observedAttributes() {
-		return ["public-key", "placeholder", "cta", "is-energy-only"];
+		return [
+			"public-key",
+			"placeholder",
+			"cta",
+			"is-energy-only",
+			"preferred-utility",
+		];
 	}
 
 	private emit(eventName: string) {
@@ -145,6 +159,7 @@ class AddressSearchElement extends HTMLElement {
 					<ZipSearchApp
 						portalRoot={this.overlayRoot}
 						cta={ctaForComedArm("zip", props.mode === "zip-comed", props.cta)}
+						preferredUtility={props.preferredUtility}
 						onResultEvent={this.emit("result")}
 						onErrorEvent={this.emit("error")}
 					/>
