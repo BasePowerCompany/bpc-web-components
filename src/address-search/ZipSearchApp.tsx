@@ -4,6 +4,7 @@ import { CtaButton } from "@/address-search/CtaButton";
 import { decorateRedirectUrl } from "@/address-search/decorateRedirectUrl";
 import { fetchZipRouting } from "@/address-search/fetch";
 import { maybeWrapInPlanReveal } from "@/address-search/planReveal";
+import { autoSelectPreferredUtility } from "@/address-search/preferredUtility";
 import type { RedirectMultipleOption } from "@/address-search/types";
 import { posthogCapture } from "@/address-search/utils";
 import { rebaseToZipFunnel } from "@/address-search/zipFunnel";
@@ -16,6 +17,8 @@ export type ZipSearchAppProps = {
 	portalRoot: ShadowRoot;
 	/** CTA label; defaults to "Check Availability" when the embed omits `cta`. */
 	cta?: string;
+	/** Utility `value` to take without showing the picker; unset keeps the picker. */
+	preferredUtility?: string;
 	onResultEvent: (detail: {
 		result: { redirectUrl: string };
 		zip: string;
@@ -42,6 +45,7 @@ const DEFAULT_ZIP_CTA = "Check Availability";
 export function ZipSearchApp({
 	portalRoot,
 	cta = DEFAULT_ZIP_CTA,
+	preferredUtility,
 	onResultEvent,
 	onErrorEvent,
 }: ZipSearchAppProps) {
@@ -120,11 +124,28 @@ export function ZipSearchApp({
 		}
 
 		const strategy = result.data.redirectStrategy;
+		// Before the auto-select, so this keeps meaning "the zip had multiple options".
+		// Skipping it on an auto-select would open a submit-vs-result gap that the daily
+		// activity insight reads as a router error.
 		if (strategy.isMultiple) {
 			posthogCapture("zip_search_multiple_utility_result", {
 				zip: normalized,
 				utilityOptions: strategy.multiple.options,
 			});
+		}
+
+		if (
+			autoSelectPreferredUtility({
+				strategy,
+				preferred: preferredUtility,
+				zip: normalized,
+				emitRedirect,
+			})
+		) {
+			return;
+		}
+
+		if (strategy.isMultiple) {
 			setUtilityOptions(strategy.multiple.options);
 			return;
 		}
@@ -143,7 +164,14 @@ export function ZipSearchApp({
 			),
 			strategy.utility,
 		);
-	}, [zip, loading, dispatchRedirect, onErrorEvent]);
+	}, [
+		zip,
+		loading,
+		dispatchRedirect,
+		emitRedirect,
+		preferredUtility,
+		onErrorEvent,
+	]);
 
 	const handleBack = useCallback(() => {
 		setUtilityOptions(undefined);
