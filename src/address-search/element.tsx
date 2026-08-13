@@ -83,12 +83,17 @@ class AddressSearchElement extends HTMLElement {
 			this.dispatchEvent(new CustomEvent(eventName, { detail }));
 	}
 
-	// Forward host focus() to the real text input inside the shadow root, so a
-	// host page's `getElementById(id).focus()` reaches the encapsulated input.
-	// Focusing it triggers the input's onFocus (open/activation). No-op until
-	// the app has mounted and the input exists.
+	// Forward host focus() to the real text input, so a host page's
+	// `getElementById(id).focus()` reaches the encapsulated input and triggers
+	// its onFocus (open/activation). Zip entry keeps its input in the host
+	// shadow root; address entry portals it into the overlay root, leaving only
+	// a visibility:hidden measuring proxy behind — which is not focusable.
 	focus(options?: FocusOptions) {
-		const input = this.shadowRootRef?.querySelector("input");
+		const input =
+			this.shadowRootRef?.querySelector("input") ??
+			this.overlayRoot?.querySelector<HTMLInputElement>(
+				'input[name="address-search"]',
+			);
 		input?.focus(options);
 	}
 
