@@ -30,8 +30,10 @@ try {
 	await esbuild.build({
 		entryPoints: [
 			path.join(rootDir, "src/address-search/addressValidation.test.ts"),
+			path.join(rootDir, "src/address-search/energyFunnel.test.ts"),
 			path.join(rootDir, "src/address-search/experiments.test.ts"),
 			path.join(rootDir, "src/address-search/flagGate.test.ts"),
+			path.join(rootDir, "src/address-search/focusTarget.test.ts"),
 			path.join(rootDir, "src/address-search/preferredUtility.test.ts"),
 			path.join(rootDir, "src/address-search/zipFunnel.test.ts"),
 		],
@@ -50,8 +52,10 @@ try {
 		[
 			"--test",
 			path.join(tempDir, "addressValidation.test.mjs"),
+			path.join(tempDir, "energyFunnel.test.mjs"),
 			path.join(tempDir, "experiments.test.mjs"),
 			path.join(tempDir, "flagGate.test.mjs"),
+			path.join(tempDir, "focusTarget.test.mjs"),
 			path.join(tempDir, "preferredUtility.test.mjs"),
 			path.join(tempDir, "zipFunnel.test.mjs"),
 		],

@@ -19,6 +19,12 @@ export type ZipSearchAppProps = {
 	cta?: string;
 	/** Utility `value` to take without showing the picker; unset keeps the picker. */
 	preferredUtility?: string;
+	/**
+	 * Builds the redirect from the zip alone, skipping the zip router entirely.
+	 * Set only by the energy-only arms, whose market the router's data does not
+	 * cover (see ./energyFunnel).
+	 */
+	resolveDestination?: (zip: string) => string;
 	onResultEvent: (detail: {
 		result: { redirectUrl: string };
 		zip: string;
@@ -46,6 +52,7 @@ export function ZipSearchApp({
 	portalRoot,
 	cta = DEFAULT_ZIP_CTA,
 	preferredUtility,
+	resolveDestination,
 	onResultEvent,
 	onErrorEvent,
 }: ZipSearchAppProps) {
@@ -103,8 +110,15 @@ export function ZipSearchApp({
 		}
 
 		setError(undefined);
-		setLoading(true);
 		posthogCapture("zip_search_submit", { zip: normalized });
+
+		// No router call to make, so no loading state and no utility to disambiguate.
+		if (resolveDestination) {
+			dispatchRedirect(decorateRedirectUrl(resolveDestination(normalized)));
+			return;
+		}
+
+		setLoading(true);
 
 		let result: Awaited<ReturnType<typeof fetchZipRouting>>;
 		try {
@@ -170,6 +184,7 @@ export function ZipSearchApp({
 		dispatchRedirect,
 		emitRedirect,
 		preferredUtility,
+		resolveDestination,
 		onErrorEvent,
 	]);
 
