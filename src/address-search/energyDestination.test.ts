@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, test } from "node:test";
+import { decorateRedirectUrl } from "@/address-search/decorateRedirectUrl";
 import { resolveEnergyDestination } from "@/address-search/energyDestination";
 import { fetchEnergyOnlyUtilities } from "@/address-search/fetch";
 
@@ -10,13 +11,17 @@ type Call = { url: string; body: unknown };
 type CaptureCall = { event: string; properties?: Record<string, unknown> };
 
 const captured: CaptureCall[] = [];
-(globalThis as { window?: unknown }).window = {
+const stubWindow = {
+	location: { origin: "https://www.basepowercompany.com", search: "" },
 	posthog: {
 		capture: (event: string, properties?: Record<string, unknown>) => {
 			captured.push({ event, properties });
 		},
+		get_distinct_id: () => undefined as string | undefined,
 	},
 };
+(globalThis as { window?: unknown }).window = stubWindow;
+(globalThis as { document?: unknown }).document = { cookie: "" };
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
@@ -234,5 +239,123 @@ describe("resolveEnergyDestination", () => {
 				`eo_zip_entry_0813:${arm}`,
 			);
 		}
+	});
+});
+
+/**
+ * The question this answers: does the energy zip redirect carry the same
+ * attribution as address mode? Both go through the one `decorateRedirectUrl`, so
+ * parity is structural — but nothing proved it, and `decorateRedirectUrl` has no
+ * direct test of its own. These pin it for the energy path specifically.
+ */
+describe("energy zip attribution parity with address mode", () => {
+	// Every source decorateRedirectUrl reads: cookies, the localStorage `urchin`
+	// blob, and the current URL — plus base_vid and the PostHog distinct id.
+	function seedAttribution() {
+		(globalThis as { document?: unknown }).document = {
+			cookie:
+				"utm_source=google; gclid=gclid-1; promo_code=SAVE10; base_vid=vid-cookie; ttclid=tt-1",
+		};
+		(globalThis as { localStorage?: unknown }).localStorage = {
+			getItem: (key: string) =>
+				key === "urchin"
+					? JSON.stringify({ utm_medium: "cpc", referrer_name: "partner" })
+					: null,
+		};
+		stubWindow.location.search = "?utm_campaign=summer&utm_term=battery";
+		stubWindow.posthog.get_distinct_id = () => "person-xyz";
+	}
+
+	function clearAttribution() {
+		(globalThis as { document?: unknown }).document = { cookie: "" };
+		(globalThis as { localStorage?: unknown }).localStorage = undefined;
+		stubWindow.location.search = "";
+		stubWindow.posthog.get_distinct_id = () => undefined;
+	}
+
+	afterEach(clearAttribution);
+
+	// What ZipSearchApp actually does with the resolved destination.
+	async function decoratedEnergyUrl(zip: string, utilities: string[]) {
+		stubFetch(utilitiesReply(...utilities));
+		return new URL(
+			decorateRedirectUrl(await resolveEnergyDestination({ arm: "t1", zip })),
+		);
+	}
+
+	// Every key from all three sources must survive, or a paid click that converts
+	// through the zip arm is attributed to nothing.
+	test("the funnel redirect carries every attribution param", async () => {
+		seedAttribution();
+		const url = await decoratedEnergyUrl("75001", ["ONCOR"]);
+		assert.deepEqual(Object.fromEntries(url.searchParams), {
+			// the energy path's own params
+			postal_code: "75001",
+			utility: "ONCOR",
+			experiment_flag: "eo_zip_entry_0813:t1",
+			// cookies
+			utm_source: "google",
+			gclid: "gclid-1",
+			promo_code: "SAVE10",
+			ttclid: "tt-1",
+			// localStorage `urchin`
+			utm_medium: "cpc",
+			referrer_name: "partner",
+			// the current URL
+			utm_campaign: "summer",
+			utm_term: "battery",
+			// identity
+			base_vid: "vid-cookie",
+			person_id: "person-xyz",
+		});
+	});
+
+	// The waitlist is a redirect like any other. Losing attribution here would
+	// undercount exactly the visitors whose market Base wants to prioritise.
+	test("the waitlist redirect carries the same attribution", async () => {
+		seedAttribution();
+		const url = await decoratedEnergyUrl("99999", []);
+		assert.equal(url.pathname, "/energy-soon");
+		for (const [key, value] of [
+			["utm_source", "google"],
+			["utm_medium", "cpc"],
+			["utm_campaign", "summer"],
+			["gclid", "gclid-1"],
+			["promo_code", "SAVE10"],
+			["base_vid", "vid-cookie"],
+			["person_id", "person-xyz"],
+		] as const) {
+			assert.equal(url.searchParams.get(key), value, `waitlist lost ${key}`);
+		}
+	});
+
+	// Same decorator, same environment, same result — with one documented
+	// exception: address mode also sets external_id, which zip entry has no
+	// address to produce.
+	test("address mode adds external_id and nothing else the zip path lacks", async () => {
+		seedAttribution();
+		const energy = await decoratedEnergyUrl("75001", ["ONCOR"]);
+		const address = new URL(
+			decorateRedirectUrl(
+				"https://join.basepowercompany.com/join-now?postal_code=75001&utility=ONCOR",
+				"ext-addr-1",
+			),
+		);
+
+		const attribution = (url: URL) => {
+			const keys = [...url.searchParams.keys()].filter(
+				(k) => !["postal_code", "utility", "experiment_flag"].includes(k),
+			);
+			return Object.fromEntries(
+				keys.sort().map((k) => [k, url.searchParams.get(k)]),
+			);
+		};
+
+		const energyKeys = attribution(energy);
+		const addressKeys = attribution(address);
+		assert.equal(addressKeys.external_id, "ext-addr-1");
+		assert.equal(energyKeys.external_id, undefined);
+		delete addressKeys.external_id;
+		assert.deepEqual(energyKeys, addressKeys);
 	});
 });
