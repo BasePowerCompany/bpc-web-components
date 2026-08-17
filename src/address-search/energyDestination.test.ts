@@ -116,17 +116,62 @@ describe("resolveEnergyDestination", () => {
 		assert.equal(url.searchParams.has("utility"), false);
 	});
 
+	// Closes the submit-vs-result gap that "Zip entry activity (daily)" reads as a
+	// lookup failure. utilityCount is also the only count of how often a zip
+	// straddles a TDSP boundary — the data the multi-utility decision needs.
+	test("a resolved lookup reports its count and first utility", async () => {
+		for (const [codes, count, first] of [
+			[["ONCOR"], 1, "ONCOR"],
+			[[], 0, undefined],
+			[["ONCOR", "TNMP"], 2, "ONCOR"],
+		] as const) {
+			captured.length = 0;
+			stubFetch(utilitiesReply(...codes));
+			await resolveEnergyDestination({ arm: "t1", zip: "75001" });
+			const result = captured.find(
+				(c) => c.event === "zip_search_energy_result",
+			);
+			assert.deepEqual(result?.properties, {
+				zip: "75001",
+				arm: "t1",
+				utilityCount: count,
+				utility: first,
+			});
+		}
+	});
+
+	// A lookup that broke reported nothing, so it must not claim a result. The
+	// remaining gap is exactly what tells a broken endpoint from a served market.
+	test("a failed lookup reports no result event", async () => {
+		for (const reply of [
+			{ throws: new Error("network down") },
+			{ ok: false, status: 500 },
+			{ json: async () => ({ success: true, data: {} }) },
+		]) {
+			captured.length = 0;
+			stubFetch(reply);
+			await resolveEnergyDestination({ arm: "t1", zip: "75001" });
+			assert.deepEqual(
+				captured.map((c) => c.event),
+				[],
+			);
+		}
+	});
+
 	// The waitlist page sets `analytics: "none"` and reads no query params, so this
 	// event is the only record that the zip was entered and found unserved.
 	test("the waitlist emits zip_search_energy_waitlist with the zip and arm", async () => {
 		stubFetch(utilitiesReply());
 		await resolveEnergyDestination({ arm: "t2", zip: "99999" });
-		assert.deepEqual(captured, [
-			{
-				event: "zip_search_energy_waitlist",
-				properties: { zip: "99999", arm: "t2" },
-			},
-		]);
+		assert.deepEqual(
+			captured.filter((c) => c.event === "zip_search_energy_waitlist"),
+			[
+				{
+					event: "zip_search_energy_waitlist",
+					properties: { zip: "99999", arm: "t2" },
+				},
+			],
+		);
 	});
 
 	// The distinction that matters: a lookup that broke says nothing about the
@@ -144,7 +189,10 @@ describe("resolveEnergyDestination", () => {
 				await resolveEnergyDestination({ arm: "t1", zip: "75001" }),
 			);
 			assert.equal(url.pathname, "/join-energy-plan");
-			assert.deepEqual(captured, []);
+			assert.deepEqual(
+				captured.filter((c) => c.event === "zip_search_energy_waitlist"),
+				[],
+			);
 		}
 	});
 
@@ -156,7 +204,10 @@ describe("resolveEnergyDestination", () => {
 			await resolveEnergyDestination({ arm: "t1", zip: "78681" }),
 		);
 		assert.equal(url.pathname, "/join-energy-plan");
-		assert.deepEqual(captured, []);
+		assert.deepEqual(
+			captured.filter((c) => c.event === "zip_search_energy_waitlist"),
+			[],
+		);
 	});
 
 	// ~90 of 1,358 zips straddle a TDSP boundary. Picking the first would show ~6.6%

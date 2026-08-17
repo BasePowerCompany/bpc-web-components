@@ -26,6 +26,21 @@ export async function resolveEnergyDestination(params: {
 }): Promise<string> {
 	const result = await fetchEnergyOnlyUtilities(params.zip);
 
+	// Parity with the zip router's own *_result events. The "Zip entry activity
+	// (daily)" insight reads a submit with no matching result as a lookup failure,
+	// so a lookup that answered must say so whatever it found. A failed lookup
+	// deliberately stays silent — that gap is the signal the insight exists to show.
+	if (result.success) {
+		posthogCapture("zip_search_energy_result", {
+			zip: params.zip,
+			arm: params.arm,
+			utilityCount: result.utilities.length,
+			// First of possibly several, NOT necessarily what was sent to the funnel:
+			// a straddling zip sends no utility at all. Do not read it as "served by".
+			utility: result.utilities[0],
+		});
+	}
+
 	if (result.success && result.utilities.length === 0) {
 		// The waitlist page carries no analytics of its own, so this is the only
 		// record that the zip was entered and found unserved.
