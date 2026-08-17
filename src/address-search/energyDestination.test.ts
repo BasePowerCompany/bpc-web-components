@@ -7,10 +7,21 @@ import { fetchEnergyOnlyUtilities } from "@/address-search/fetch";
 const HOST = "https://dashboard.test";
 
 type Call = { url: string; body: unknown };
+type CaptureCall = { event: string; properties?: Record<string, unknown> };
+
+const captured: CaptureCall[] = [];
+(globalThis as { window?: unknown }).window = {
+	posthog: {
+		capture: (event: string, properties?: Record<string, unknown>) => {
+			captured.push({ event, properties });
+		},
+	},
+};
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
 	globalThis.fetch = realFetch;
+	captured.length = 0;
 });
 
 /** Stub `fetch` with a fixed reply, recording what the client sent. */
@@ -82,15 +93,65 @@ describe("resolveEnergyDestination", () => {
 		assert.deepEqual(calls[0].body, { zip_code: "75001" });
 	});
 
-	// Zero means the zip is outside the energy-only footprint. Continuing into the
-	// arm is provisional, not settled — but it must not throw or hang.
-	test("zero utilities still yields a destination, without a utility", async () => {
+	// Zero utilities is the one unambiguous "we do not serve this zip", so the
+	// visitor goes to the waitlist instead of into a funnel that would quote a rate
+	// for a market Base cannot serve.
+	test("zero utilities routes to the waitlist, not the funnel", async () => {
 		stubFetch(utilitiesReply());
 		const url = new URL(
 			await resolveEnergyDestination({ arm: "t1", zip: "99999" }),
 		);
+		assert.equal(url.origin, "https://www.basepowercompany.com");
+		assert.equal(url.pathname, "/energy-soon");
+		assert.equal(url.searchParams.get("postal_code"), "99999");
+		assert.equal(
+			url.searchParams.get("experiment_flag"),
+			"eo_zip_entry_0813:t1",
+		);
 		assert.equal(url.searchParams.has("utility"), false);
+	});
+
+	// The waitlist page sets `analytics: "none"` and reads no query params, so this
+	// event is the only record that the zip was entered and found unserved.
+	test("the waitlist emits zip_search_energy_waitlist with the zip and arm", async () => {
+		stubFetch(utilitiesReply());
+		await resolveEnergyDestination({ arm: "t2", zip: "99999" });
+		assert.deepEqual(captured, [
+			{
+				event: "zip_search_energy_waitlist",
+				properties: { zip: "99999", arm: "t2" },
+			},
+		]);
+	});
+
+	// The distinction that matters: a lookup that broke says nothing about the
+	// market. Waitlisting on a timeout would tell a serviceable visitor we do not
+	// serve them, and it is silent — they never see an error.
+	test("a failed lookup goes to the funnel, never the waitlist", async () => {
+		for (const reply of [
+			{ throws: new Error("network down") },
+			{ ok: false, status: 500 },
+			{ json: async () => ({ success: true, data: {} }) },
+		]) {
+			captured.length = 0;
+			stubFetch(reply);
+			const url = new URL(
+				await resolveEnergyDestination({ arm: "t1", zip: "75001" }),
+			);
+			assert.equal(url.pathname, "/join-energy-plan");
+			assert.deepEqual(captured, []);
+		}
+	});
+
+	// A straddling zip IS served — it just cannot be pinned to one TDSP from a zip
+	// alone. Waitlisting it would turn ~6.6% of a live market away.
+	test("a multi-utility zip goes to the funnel, never the waitlist", async () => {
+		stubFetch(utilitiesReply("ONCOR", "TNMP"));
+		const url = new URL(
+			await resolveEnergyDestination({ arm: "t1", zip: "78681" }),
+		);
 		assert.equal(url.pathname, "/join-energy-plan");
+		assert.deepEqual(captured, []);
 	});
 
 	// ~90 of 1,358 zips straddle a TDSP boundary. Picking the first would show ~6.6%

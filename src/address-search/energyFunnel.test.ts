@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { energyFunnelUrl } from "@/address-search/energyFunnel";
+import {
+	energyFunnelUrl,
+	energyWaitlistUrl,
+} from "@/address-search/energyFunnel";
 
 describe("energyFunnelUrl", () => {
 	// The arm→route mapping IS the experiment: swapping these silently gives both
@@ -69,6 +72,31 @@ describe("energyFunnelUrl", () => {
 			assert.ok(
 				path.startsWith("/join-energy-"),
 				`${arm} must stay on an energy-only route, got ${path}`,
+			);
+		}
+	});
+});
+
+describe("energyWaitlistUrl", () => {
+	// The opposite pin from the funnel: /energy-soon is a marketing page on www, so
+	// inheriting the join origin — the easy copy-paste error — would 404.
+	test("the waitlist is pinned to www, not the funnel host", () => {
+		for (const arm of ["t1", "t2"] as const) {
+			const url = new URL(energyWaitlistUrl({ arm, zip: "99999" }));
+			assert.equal(url.origin, "https://www.basepowercompany.com");
+			assert.equal(url.pathname, "/energy-soon");
+		}
+	});
+
+	// Both arms waitlist to the same page, so the stamp is the only thing that says
+	// which arm the visitor was in when they were turned away.
+	test("both arms carry the zip and their own experiment_flag", () => {
+		for (const arm of ["t1", "t2"] as const) {
+			const url = new URL(energyWaitlistUrl({ arm, zip: "99999" }));
+			assert.equal(url.searchParams.get("postal_code"), "99999");
+			assert.equal(
+				url.searchParams.get("experiment_flag"),
+				`eo_zip_entry_0813:${arm}`,
 			);
 		}
 	});

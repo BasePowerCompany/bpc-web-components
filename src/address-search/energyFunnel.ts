@@ -15,12 +15,25 @@ import { ZIP_ENTRY_ENERGY_FLAG } from "@/address-search/experiments";
 
 const ENERGY_FUNNEL_ORIGIN = "https://join.basepowercompany.com";
 
+// The waitlist is a marketing page, so it sits on www rather than the join host.
+const ENERGY_WAITLIST_ORIGIN = "https://www.basepowercompany.com";
+const ENERGY_WAITLIST_PATH = "/energy-soon";
+
 // One route per arm: t1 reveals a plan, t2 reveals a rate calculator. Both are
 // zip-scoped, so neither takes an external_address_id.
 const ENERGY_ARM_ROUTES = {
 	t1: "/join-energy-plan",
 	t2: "/join-energy-calculator",
 } as const;
+
+// Every destination this experiment emits carries its arm, the waitlist included:
+// a visitor who never reaches the funnel is otherwise unattributable to an arm,
+// and the waitlist rate per arm is exactly what tells the two apart.
+function stampArm(url: URL, arm: "t1" | "t2"): void {
+	// `<flagKey>:<variant>`, matching what marketing-ui emits for the dereg test.
+	// Not a UTM, so decorateRedirectUrl does not carry it — it is set here.
+	url.searchParams.set("experiment_flag", `${ZIP_ENTRY_ENERGY_FLAG}:${arm}`);
+}
 
 /**
  * Funnel URL for an energy zip arm. `utility` is optional because a zip alone
@@ -41,11 +54,24 @@ export function energyFunnelUrl(params: {
 	const url = new URL(ENERGY_ARM_ROUTES[params.arm], ENERGY_FUNNEL_ORIGIN);
 	url.searchParams.set("postal_code", params.zip);
 	if (params.utility) url.searchParams.set("utility", params.utility);
-	// `<flagKey>:<variant>`, matching what marketing-ui emits for the dereg test.
-	// Not a UTM, so decorateRedirectUrl does not carry it — it is set here.
-	url.searchParams.set(
-		"experiment_flag",
-		`${ZIP_ENTRY_ENERGY_FLAG}:${params.arm}`,
-	);
+	stampArm(url, params.arm);
+	return url.toString();
+}
+
+/**
+ * Waitlist destination for a zip the energy-only footprint does not serve.
+ *
+ * Reserved for a *successful* lookup that returned no utilities. A failed lookup
+ * means the market is unknown, not unserved, and must continue into the arm
+ * instead — waitlisting on a timeout would tell a serviceable visitor we do not
+ * serve them.
+ */
+export function energyWaitlistUrl(params: {
+	arm: "t1" | "t2";
+	zip: string;
+}): string {
+	const url = new URL(ENERGY_WAITLIST_PATH, ENERGY_WAITLIST_ORIGIN);
+	url.searchParams.set("postal_code", params.zip);
+	stampArm(url, params.arm);
 	return url.toString();
 }
