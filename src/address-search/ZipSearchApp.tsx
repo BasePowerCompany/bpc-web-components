@@ -22,9 +22,10 @@ export type ZipSearchAppProps = {
 	/**
 	 * Builds the redirect from the zip alone, skipping the zip router entirely.
 	 * Set only by the energy-only arms, whose market the router's data does not
-	 * cover (see ./energyFunnel).
+	 * cover (see ./energyFunnel). Async: it still makes a call of its own, for the
+	 * serving utility.
 	 */
-	resolveDestination?: (zip: string) => string;
+	resolveDestination?: (zip: string) => Promise<string>;
 	onResultEvent: (detail: {
 		result: { redirectUrl: string };
 		zip: string;
@@ -112,9 +113,17 @@ export function ZipSearchApp({
 		setError(undefined);
 		posthogCapture("zip_search_submit", { zip: normalized });
 
-		// No router call to make, so no loading state and no utility to disambiguate.
+		// No zip router and no utility to disambiguate, but its own utility lookup
+		// to wait on, so it takes the loading state and the double-submit guard.
 		if (resolveDestination) {
-			dispatchRedirect(decorateRedirectUrl(resolveDestination(normalized)));
+			setLoading(true);
+			let destination: string;
+			try {
+				destination = await resolveDestination(normalized);
+			} finally {
+				setLoading(false);
+			}
+			dispatchRedirect(decorateRedirectUrl(destination));
 			return;
 		}
 

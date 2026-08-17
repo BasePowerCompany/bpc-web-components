@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
-import { energyFunnelUrl } from "@/address-search/energyFunnel";
+import { resolveEnergyDestination } from "@/address-search/energyDestination";
 import {
 	ctaForComedArm,
 	ctaForEnergyArm,
@@ -180,11 +180,12 @@ class AddressSearchElement extends HTMLElement {
 			props.mode === "zip" || isComedTestArm || isEnergyTestArm;
 
 		if (renderZipEntry) {
-			// Energy arms build their own destination; every other zip entry asks the
-			// zip router. See ./energyFunnel for why they cannot share it.
+			// Energy arms resolve their own destination (utility lookup + funnel URL);
+			// every other zip entry asks the zip router. See ./energyFunnel for why
+			// they cannot share it.
 			const energyDestination =
 				energyArm === "t1" || energyArm === "t2"
-					? (zip: string) => energyFunnelUrl({ arm: energyArm, zip })
+					? (zip: string) => resolveEnergyDestination({ arm: energyArm, zip })
 					: undefined;
 			this.reactRoot.render(
 				<StrictMode>

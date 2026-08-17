@@ -8,12 +8,25 @@ describe("energyFunnelUrl", () => {
 	test("t1 reveals a plan and t2 a calculator", () => {
 		assert.equal(
 			energyFunnelUrl({ arm: "t1", zip: "75001" }),
-			"https://join.basepowercompany.com/join-energy-plan?postal_code=75001",
+			"https://join.basepowercompany.com/join-energy-plan?postal_code=75001&experiment_flag=eo_zip_entry_0813%3At1",
 		);
 		assert.equal(
 			energyFunnelUrl({ arm: "t2", zip: "75001" }),
-			"https://join.basepowercompany.com/join-energy-calculator?postal_code=75001",
+			"https://join.basepowercompany.com/join-energy-calculator?postal_code=75001&experiment_flag=eo_zip_entry_0813%3At2",
 		);
+	});
+
+	// Inert until this embed emits it: nothing else records which arm a visitor was
+	// in, because these flows write no lead. The colon-joined `<flagKey>:<variant>`
+	// shape is what the funnel's hidden-param parser splits on.
+	test("each arm stamps its own experiment_flag", () => {
+		for (const arm of ["t1", "t2"] as const) {
+			const url = new URL(energyFunnelUrl({ arm, zip: "75001" }));
+			assert.equal(
+				url.searchParams.get("experiment_flag"),
+				`eo_zip_entry_0813:${arm}`,
+			);
+		}
 	});
 
 	// The reveal screen selects its rate from `utility`, so the name must be exact.

@@ -11,6 +11,8 @@
 // render on www, so this is an origin swap, not the pathname swap the
 // same-origin markets use in ./zipFunnel.
 
+import { ZIP_ENTRY_ENERGY_FLAG } from "@/address-search/experiments";
+
 const ENERGY_FUNNEL_ORIGIN = "https://join.basepowercompany.com";
 
 // One route per arm: t1 reveals a plan, t2 reveals a rate calculator. Both are
@@ -26,6 +28,10 @@ const ENERGY_ARM_ROUTES = {
  * straddle a TDSP boundary. Omitting it is the deliberate fallback — the reveal
  * screen renders a utility-agnostic rate and records `reason: "unknown_utility"`,
  * so the gap is measurable rather than silent.
+ *
+ * The arm is stamped as `experiment_flag` here, in the sole builder, so no
+ * caller can emit an unstamped URL. Nothing else records which arm a visitor
+ * was in: these flows write no lead.
  */
 export function energyFunnelUrl(params: {
 	arm: "t1" | "t2";
@@ -35,5 +41,11 @@ export function energyFunnelUrl(params: {
 	const url = new URL(ENERGY_ARM_ROUTES[params.arm], ENERGY_FUNNEL_ORIGIN);
 	url.searchParams.set("postal_code", params.zip);
 	if (params.utility) url.searchParams.set("utility", params.utility);
+	// `<flagKey>:<variant>`, matching what marketing-ui emits for the dereg test.
+	// Not a UTM, so decorateRedirectUrl does not carry it — it is set here.
+	url.searchParams.set(
+		"experiment_flag",
+		`${ZIP_ENTRY_ENERGY_FLAG}:${params.arm}`,
+	);
 	return url.toString();
 }
