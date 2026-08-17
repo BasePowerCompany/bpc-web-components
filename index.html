@@ -158,6 +158,42 @@
         </script>
       </div>
     </div>
+    <!-- mode="zip-energy": experiment-gated (eo_zip_entry_0813). Renders nothing
+         until flags resolve — zip entry for `t1`/`t2`, address entry otherwise.
+         Force an arm from the console, then reload (memoized per element):
+           posthog.featureFlags.overrideFeatureFlags({ flags: { eo_zip_entry_0813: "t1" } })
+           posthog.featureFlags.overrideFeatureFlags(false)   // clear
+         t1 → /join-energy-plan, t2 → /join-energy-calculator. The utility comes
+         from /api/energy-only-utility; 75001 is single-utility (ONCOR) and 78681
+         straddles a TDSP boundary, so it should carry no `utility` param. -->
+    <div class="container dark" style="padding-top: 6vh">
+      <div style="max-width: 540px">
+        <bpc-address-search
+          mode="zip-energy"
+          public-key="%VITE_GOOGLE_MAPS_API_KEY%"
+          cta="See if my home qualifies"
+        ></bpc-address-search>
+        <script>
+          (() => {
+            const el = document.currentScript.previousElementSibling;
+            el.addEventListener("result", (e) => {
+              const url = new URL(e.detail.result.redirectUrl);
+              console.log("zip-energy result", e.detail);
+              console.log("  utility:", url.searchParams.get("utility"));
+              console.log("  postal_code:", url.searchParams.get("postal_code"));
+              console.log(
+                "  experiment_flag:",
+                url.searchParams.get("experiment_flag"),
+              );
+              console.log("Would redirect to:", url.href);
+            });
+            el.addEventListener("error", (e) =>
+              console.log("zip-energy error", e.detail),
+            );
+          })();
+        </script>
+      </div>
+    </div>
     <div class="container light">
       <div style="max-width: 540px">
         <bpc-address-search

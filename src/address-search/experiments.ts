@@ -94,6 +94,29 @@ export function resolveZipEntryComedArm(): "test" | "control" | "unassigned" {
 	return variant;
 }
 
+export const ZIP_ENTRY_ENERGY_FLAG = "eo_zip_entry_0813";
+
+/**
+ * Energy-only zip-entry arms. Render-time, so call it only behind element.tsx's
+ * flag gate; `control` and `unassigned` both keep the address entry. Unlike the
+ * ComEd experiment the two test arms differ in destination as well as entry —
+ * see ./energyFunnel.
+ */
+export function resolveZipEntryEnergyArm():
+	| "t1"
+	| "t2"
+	| "control"
+	| "unassigned" {
+	const variant = posthogGetFeatureFlag(ZIP_ENTRY_ENERGY_FLAG, {
+		send_event: false,
+	});
+	if (variant !== "t1" && variant !== "t2" && variant !== "control") {
+		return "unassigned";
+	}
+	captureExposure(ZIP_ENTRY_ENERGY_FLAG, variant);
+	return variant;
+}
+
 // The address entry has no CTA default of its own (Autocomplete gates the button
 // on a truthy cta), so mode="zip-comed" supplies one rather than letting a host
 // that omits `cta` leave the control arm the only arm without a button.
@@ -116,4 +139,25 @@ export function ctaForComedArm(
 	// undefined lets ZipSearchApp apply its own zip-appropriate default.
 	if (entry === "zip") return undefined;
 	return hostCta ?? COMED_ADDRESS_ARM_CTA;
+}
+
+// Each energy zip arm names what its own destination reveals, so the CTA is per
+// arm rather than per entry. Kept a sibling of ctaForComedArm rather than folded
+// into it: this is the second instance of the pattern, not yet a third.
+const ENERGY_ARM_CTAS = {
+	t1: "See my plan",
+	t2: "Get my exact rate",
+} as const;
+
+/**
+ * Which CTA label each eo_zip_entry_0813 arm renders. The two zip arms name
+ * their own reveal; the address arms keep the host's label, so every
+ * non-experiment embed and the control arm are untouched, absent `cta` included.
+ */
+export function ctaForEnergyArm(
+	arm: "t1" | "t2" | "control" | "unassigned",
+	hostCta: string | undefined,
+): string | undefined {
+	if (arm === "t1" || arm === "t2") return ENERGY_ARM_CTAS[arm];
+	return hostCta;
 }

@@ -1,12 +1,17 @@
 import { StrictMode } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
+import { resolveEnergyDestination } from "@/address-search/energyDestination";
 import {
 	ctaForComedArm,
+	ctaForEnergyArm,
 	resolveZipEntryComedArm,
+	resolveZipEntryEnergyArm,
 	ZIP_ENTRY_COMED_FLAG,
+	ZIP_ENTRY_ENERGY_FLAG,
 } from "@/address-search/experiments";
 import { createFlagGate } from "@/address-search/flagGate";
+import { resolveFocusTarget } from "@/address-search/focusTarget";
 import { posthogCapture } from "@/address-search/utils";
 import { bootstrap } from "@/utils/googleMaps";
 import { AddressSearchApp } from "./AddressSearchApp";
@@ -26,7 +31,9 @@ function parseProps(el: HTMLElement) {
 			? "zip"
 			: modeAttr === "zip-comed"
 				? "zip-comed"
-				: "address";
+				: modeAttr === "zip-energy"
+					? "zip-energy"
+					: "address";
 	return {
 		publicApiKey,
 		placeholder,
@@ -66,6 +73,15 @@ class AddressSearchElement extends HTMLElement {
 		onTimeout: () =>
 			posthogCapture("zip_entry_flags_timeout", { flag: ZIP_ENTRY_COMED_FLAG }),
 	});
+	// Its own gate, so an energy embed's wait never resolves the ComEd arm (or the
+	// reverse) and each experiment memoizes one exposure independently.
+	private readonly energyGate = createFlagGate({
+		resolveArm: resolveZipEntryEnergyArm,
+		onTimeout: () =>
+			posthogCapture("zip_entry_flags_timeout", {
+				flag: ZIP_ENTRY_ENERGY_FLAG,
+			}),
+	});
 	// `mode` is intentionally not observed: it is a static embed attribute, so
 	// runtime flips are unsupported.
 	static get observedAttributes() {
@@ -83,13 +99,12 @@ class AddressSearchElement extends HTMLElement {
 			this.dispatchEvent(new CustomEvent(eventName, { detail }));
 	}
 
-	// Forward host focus() to the real text input inside the shadow root, so a
-	// host page's `getElementById(id).focus()` reaches the encapsulated input.
-	// Focusing it triggers the input's onFocus (open/activation). No-op until
-	// the app has mounted and the input exists.
+	// Forward host focus() to the real text input, so a host page's
+	// `getElementById(id).focus()` reaches the encapsulated input and triggers
+	// its onFocus (open/activation). See ./focusTarget for why address entry
+	// needs the overlay fallback.
 	focus(options?: FocusOptions) {
-		const input = this.shadowRootRef?.querySelector("input");
-		input?.focus(options);
+		resolveFocusTarget(this.shadowRootRef, this.overlayRoot)?.focus(options);
 	}
 
 	connectedCallback() {
@@ -149,17 +164,40 @@ class AddressSearchElement extends HTMLElement {
 			}
 		}
 
-		// One call site for both zip arms; control/unassigned fall through to address.
+		let energyArm: ReturnType<typeof resolveZipEntryEnergyArm> | undefined;
+		if (props.mode === "zip-energy") {
+			energyArm = this.energyGate.arm(() => this.renderApp());
+			if (!energyArm) {
+				this.reactRoot.render(null);
+				return;
+			}
+		}
+
+		// One call site for every zip arm; control/unassigned fall through to address.
 		const isComedTestArm = comedArm === "test";
-		const renderZipEntry = props.mode === "zip" || isComedTestArm;
+		const isEnergyTestArm = energyArm === "t1" || energyArm === "t2";
+		const renderZipEntry =
+			props.mode === "zip" || isComedTestArm || isEnergyTestArm;
 
 		if (renderZipEntry) {
+			// Energy arms resolve their own destination (utility lookup + funnel URL);
+			// every other zip entry asks the zip router. See ./energyFunnel for why
+			// they cannot share it.
+			const energyDestination =
+				energyArm === "t1" || energyArm === "t2"
+					? (zip: string) => resolveEnergyDestination({ arm: energyArm, zip })
+					: undefined;
 			this.reactRoot.render(
 				<StrictMode>
 					<ZipSearchApp
 						portalRoot={this.overlayRoot}
-						cta={ctaForComedArm("zip", props.mode === "zip-comed", props.cta)}
+						cta={
+							props.mode === "zip-energy"
+								? ctaForEnergyArm(energyArm ?? "unassigned", props.cta)
+								: ctaForComedArm("zip", props.mode === "zip-comed", props.cta)
+						}
 						preferredUtility={props.preferredUtility}
+						resolveDestination={energyDestination}
 						onResultEvent={this.emit("result")}
 						onErrorEvent={this.emit("error")}
 					/>
@@ -180,7 +218,11 @@ class AddressSearchElement extends HTMLElement {
 			<StrictMode>
 				<AddressSearchApp
 					placeholder={props.placeholder}
-					cta={ctaForComedArm("address", props.mode === "zip-comed", props.cta)}
+					cta={
+						props.mode === "zip-energy"
+							? ctaForEnergyArm(energyArm ?? "unassigned", props.cta)
+							: ctaForComedArm("address", props.mode === "zip-comed", props.cta)
+					}
 					isEnergyOnly={props.isEnergyOnly}
 					portalRoot={this.overlayRoot}
 					zIndex={zIndex}

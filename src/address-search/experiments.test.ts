@@ -5,9 +5,11 @@ import { beforeEach, describe, test } from "node:test";
 import {
 	captureExposure,
 	ctaForComedArm,
+	ctaForEnergyArm,
 	posthogOnFeatureFlags,
 	resolvePlanRevealArm,
 	resolveZipEntryComedArm,
+	resolveZipEntryEnergyArm,
 } from "@/address-search/experiments";
 
 type CaptureOptions = { send_instantly?: boolean; transport?: string };
@@ -171,6 +173,106 @@ describe("resolveZipEntryComedArm", () => {
 		stubFlag(false);
 		assert.equal(resolveZipEntryComedArm(), "unassigned");
 		assert.equal(captures.length, 0);
+	});
+});
+
+describe("resolveZipEntryEnergyArm", () => {
+	let captures: CaptureCall[] = [];
+
+	const stubFlag = (variant: string | boolean | undefined) => {
+		captures = [];
+		stub.posthog = {
+			getFeatureFlag: () => variant,
+			capture: (event, properties, options) => {
+				captures.push({ event, properties, options });
+			},
+		};
+	};
+
+	beforeEach(() => {
+		captures = [];
+		stub.posthog = undefined;
+	});
+
+	// Both treatment arms are real assignments, so both must log an exposure —
+	// a three-arm experiment that only counted one would skew its own split.
+	for (const arm of ["t1", "t2", "control"] as const) {
+		test(`records the exposure for an assigned ${arm} visitor`, () => {
+			stubFlag(arm);
+			assert.equal(resolveZipEntryEnergyArm(), arm);
+			assert.equal(captures.length, 1);
+			assert.equal(captures[0].event, "$feature_flag_called");
+			assert.equal(captures[0].properties?.$feature_flag, "eo_zip_entry_0813");
+			assert.equal(captures[0].properties?.$feature_flag_response, arm);
+			assert.equal(captures[0].options?.transport, "sendBeacon");
+			assert.equal(captures[0].options?.send_instantly, true);
+		});
+	}
+
+	// Reading with the built-in exposure on would log every visitor, not just assigned ones.
+	test("reads the flag without posthog's built-in exposure", () => {
+		let seen: { send_event?: boolean } | undefined;
+		stub.posthog = {
+			getFeatureFlag: (_key, options) => {
+				seen = options;
+				return "control";
+			},
+			capture: () => {},
+		};
+		resolveZipEntryEnergyArm();
+		assert.equal(seen?.send_event, false);
+	});
+
+	// Exposure must stay scoped to assigned users, or the experiment denominator inflates.
+	test("logs no exposure for a user outside the rollout", () => {
+		stubFlag(false);
+		assert.equal(resolveZipEntryEnergyArm(), "unassigned");
+		assert.equal(captures.length, 0);
+	});
+
+	// The ComEd flag's variant is "test"; reading it here would silently render zip
+	// entry for a visitor this experiment never assigned.
+	test("an unrecognized variant is unassigned, not a treatment arm", () => {
+		stubFlag("test");
+		assert.equal(resolveZipEntryEnergyArm(), "unassigned");
+		assert.equal(captures.length, 0);
+	});
+});
+
+describe("ctaForEnergyArm", () => {
+	// Each arm names its own reveal, so neither may inherit the host's address copy.
+	test("t1 promises the plan and t2 the rate", () => {
+		assert.equal(ctaForEnergyArm("t1", "Get savings estimate"), "See my plan");
+		assert.equal(
+			ctaForEnergyArm("t2", "Get savings estimate"),
+			"Get my exact rate",
+		);
+	});
+
+	// The two arms must not share a label, or CTA copy stops distinguishing them.
+	test("the two treatment arms differ", () => {
+		assert.notEqual(
+			ctaForEnergyArm("t1", undefined),
+			ctaForEnergyArm("t2", undefined),
+		);
+	});
+
+	// Zip arms own their copy outright: a host cta must not reach them.
+	test("a host cta cannot override a treatment arm", () => {
+		assert.equal(ctaForEnergyArm("t1", "Check availability"), "See my plan");
+	});
+
+	// Control renders the address entry, which is the untouched /energy embed.
+	test("control and unassigned keep the host cta verbatim", () => {
+		assert.equal(
+			ctaForEnergyArm("control", "Get savings estimate"),
+			"Get savings estimate",
+		);
+		assert.equal(
+			ctaForEnergyArm("unassigned", "Get savings estimate"),
+			"Get savings estimate",
+		);
+		assert.equal(ctaForEnergyArm("control", undefined), undefined);
 	});
 });
 

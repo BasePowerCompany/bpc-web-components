@@ -12,6 +12,10 @@ const rootDir = path.resolve(
 );
 const tempDir = await mkdtemp(path.join(tmpdir(), "bpc-address-tests-"));
 
+// Stands in for the Vite env var under test. Tests assert request URLs against
+// this literal, so keep it in step with energyDestination.test.ts.
+const DASHBOARD_WEB_HOST = "https://dashboard.test";
+
 const aliasPlugin = {
 	name: "local-alias",
 	setup(build) {
@@ -30,8 +34,11 @@ try {
 	await esbuild.build({
 		entryPoints: [
 			path.join(rootDir, "src/address-search/addressValidation.test.ts"),
+			path.join(rootDir, "src/address-search/energyDestination.test.ts"),
+			path.join(rootDir, "src/address-search/energyFunnel.test.ts"),
 			path.join(rootDir, "src/address-search/experiments.test.ts"),
 			path.join(rootDir, "src/address-search/flagGate.test.ts"),
+			path.join(rootDir, "src/address-search/focusTarget.test.ts"),
 			path.join(rootDir, "src/address-search/preferredUtility.test.ts"),
 			path.join(rootDir, "src/address-search/zipFunnel.test.ts"),
 		],
@@ -43,6 +50,12 @@ try {
 		target: "node22",
 		sourcemap: "inline",
 		plugins: [aliasPlugin],
+		// Vite substitutes these; esbuild leaves `import.meta.env` as-is and Node
+		// has no such object, so anything importing fetch.ts throws without this.
+		define: {
+			"import.meta.env.VITE_BPC_DASHBOARD_WEB_HOST":
+				JSON.stringify(DASHBOARD_WEB_HOST),
+		},
 	});
 
 	const result = spawnSync(
@@ -50,8 +63,11 @@ try {
 		[
 			"--test",
 			path.join(tempDir, "addressValidation.test.mjs"),
+			path.join(tempDir, "energyDestination.test.mjs"),
+			path.join(tempDir, "energyFunnel.test.mjs"),
 			path.join(tempDir, "experiments.test.mjs"),
 			path.join(tempDir, "flagGate.test.mjs"),
+			path.join(tempDir, "focusTarget.test.mjs"),
 			path.join(tempDir, "preferredUtility.test.mjs"),
 			path.join(tempDir, "zipFunnel.test.mjs"),
 		],
