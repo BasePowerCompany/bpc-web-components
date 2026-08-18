@@ -195,6 +195,17 @@ export function AddressSearchApp({
 							}),
 							result.data.externalAddressId,
 						),
+						// Stamped on the OUTERMOST url, which on the plan-reveal path is the
+						// interstitial rather than the funnel: maybeWrapInPlanReveal moves the
+						// funnel url into `next`, the interstitial forwards `next` verbatim, and
+						// it does not re-forward its own query — so the inner url arrives
+						// untagged. That is deliberate and sufficient, because the host copies
+						// experiment_flag into a cookie BEFORE navigating (marketing-ui
+						// address-cta.tsx / use-address-funnel.tsx), and the cookie is what
+						// checkout reads. Tagging `next` as well would add nothing and would
+						// duplicate the value on two hops. Reachable only if a zip-energy embed
+						// ran without is-energy-only on a deregulated address in the plan-reveal
+						// arm, which /energy does not produce today.
 						experimentFlag,
 					);
 
