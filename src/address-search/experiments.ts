@@ -145,8 +145,11 @@ export function ctaForComedArm(
 // arm rather than per entry. Kept a sibling of ctaForComedArm rather than folded
 // into it: this is the second instance of the pattern, not yet a third.
 const ENERGY_ARM_CTAS = {
-	t1: "See my plan",
-	t2: "Get my exact rate",
+	t1: "See available plans",
+	// Matches the hero CTA /energy itself ships, so there t2 changes the entry and
+	// the destination but not the button copy. Not universal: heroCtaLabel is
+	// per-surface CMS text, and energy-2 ships "Get savings estimate" today.
+	t2: "See how much you can save",
 } as const;
 
 /**
