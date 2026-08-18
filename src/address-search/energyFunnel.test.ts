@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, test } from "node:test";
 import {
+	energyControlExperimentFlag,
 	energyFunnelUrl,
 	energyWaitlistUrl,
+	stampExperimentFlag,
 } from "@/address-search/energyFunnel";
 
 describe("energyFunnelUrl", () => {
@@ -99,5 +103,113 @@ describe("energyWaitlistUrl", () => {
 				`eo_zip_entry_0813:${arm}`,
 			);
 		}
+	});
+});
+
+// A redirect as the address path hands it over: absolute, already decorated.
+const DECORATED =
+	"https://join.basepowercompany.com/join-now?external_id=ext-1&base_vid=vid-1";
+
+const stampedFor = (
+	isZipEnergyMode: boolean,
+	arm: Parameters<typeof energyControlExperimentFlag>[1],
+) =>
+	stampExperimentFlag(
+		DECORATED,
+		energyControlExperimentFlag(isZipEnergyMode, arm),
+	);
+
+describe("the control arm's stamp", () => {
+	// Checkout turns `experiment_flag` into a HubSpot property the same way for
+	// every arm, so an unstamped control conversion has no arm at all — a
+	// one-sided gap that credits the treatments with every conversion.
+	test("control's address redirect carries its arm", () => {
+		const url = new URL(stampedFor(true, "control"));
+		assert.equal(
+			url.searchParams.get("experiment_flag"),
+			"eo_zip_entry_0813:control",
+		);
+		// The attribution the funnel already reads must survive the stamp.
+		assert.equal(url.searchParams.get("external_id"), "ext-1");
+		assert.equal(url.searchParams.get("base_vid"), "vid-1");
+	});
+
+	// One parser in the funnel splits `<flagKey>:<variant>` for all three arms, so
+	// control's tag has to be the same shape the treatments already emit.
+	test("control's tag matches the shape the treatments emit", () => {
+		assert.equal(
+			new URL(energyFunnelUrl({ arm: "t1", zip: "75001" })).searchParams.get(
+				"experiment_flag",
+			),
+			"eo_zip_entry_0813:t1",
+		);
+		assert.equal(
+			energyControlExperimentFlag(true, "control"),
+			"eo_zip_entry_0813:control",
+		);
+	});
+
+	// No exposure fires for `unassigned` — flag off, PostHog absent, or the gate
+	// timed out (2.2% of persons on the live ComEd gate). Tagging them would add
+	// people to HubSpot's arm population that PostHog's denominator never counted.
+	test("an unassigned visitor is never stamped", () => {
+		assert.equal(energyControlExperimentFlag(true, "unassigned"), undefined);
+		assert.equal(stampedFor(true, "unassigned"), DECORATED);
+	});
+
+	// Regression guard for every other surface this element ships on: mode="address",
+	// "zip" and "zip-comed" must emit the URL they emit today, byte for byte.
+	test("no other mode is stamped, whatever arm is in scope", () => {
+		for (const arm of [
+			"t1",
+			"t2",
+			"control",
+			"unassigned",
+			undefined,
+		] as const) {
+			assert.equal(energyControlExperimentFlag(false, arm), undefined);
+			assert.equal(stampedFor(false, arm), DECORATED);
+		}
+	});
+
+	// The treatment arms never take this path: energyFunnelUrl stamps their URLs as
+	// it builds them, and stamping again here would be a second source of truth.
+	test("the treatment arms are not stamped on the address path", () => {
+		assert.equal(energyControlExperimentFlag(true, "t1"), undefined);
+		assert.equal(energyControlExperimentFlag(true, "t2"), undefined);
+		// Undefined is "the gate has not resolved" — nothing to attribute yet.
+		assert.equal(energyControlExperimentFlag(true, undefined), undefined);
+	});
+
+	// This runs microseconds before a navigation, so a URL it cannot parse must
+	// pass through, exactly as decorateRedirectUrl does with the same input.
+	test("a URL it cannot parse passes through unchanged", () => {
+		assert.equal(
+			stampExperimentFlag("://not a url", "eo_zip_entry_0813:control"),
+			"://not a url",
+		);
+	});
+});
+
+// Guard, not a behavior test: the arm has to ride out on every redirect the
+// address path emits (single result, utility modal, energy splash). A new
+// dispatch site that skipped the stamp would silently reopen the one-sided gap
+// this stamp exists to close, and no unit test here would notice.
+describe("every address redirect is stamped", () => {
+	test("each onResultEvent dispatch has its own stampExperimentFlag call", () => {
+		const source = readFileSync(
+			path.join(process.cwd(), "src/address-search/AddressSearchApp.tsx"),
+			"utf8",
+		);
+		const count = (pattern: RegExp) => source.match(pattern)?.length ?? 0;
+
+		const dispatches = count(/onResultEvent\(\{/g);
+		// Fail loud rather than vacuously pass if the component is restructured.
+		assert.ok(dispatches > 0, "no redirect dispatch found in AddressSearchApp");
+		assert.equal(
+			count(/stampExperimentFlag\(/g),
+			dispatches,
+			"every dispatched redirect must be stamped before it is captured",
+		);
 	});
 });

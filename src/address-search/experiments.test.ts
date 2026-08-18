@@ -395,4 +395,34 @@ describe("exposure capture stays centralized", () => {
 			`${EXPOSURE_EVENT} must be emitted only via captureExposure() in ${OWNER}`,
 		);
 	});
+
+	// The other half of "one exposure per visitor": these resolvers fire the
+	// exposure as a side effect, and element.tsx's flag gate memoizes exactly one
+	// call per element. A second call site anywhere is a second exposure for the
+	// same person, which skews the split the SRM check reads. Consumers that need
+	// the arm — the control arm's `experiment_flag` stamp included — must thread
+	// the value the gate already resolved.
+	for (const resolver of [
+		"resolveZipEntryEnergyArm",
+		"resolveZipEntryComedArm",
+	] as const) {
+		test(`nothing calls ${resolver}() outside its flag gate`, () => {
+			const srcDir = path.join(process.cwd(), "src");
+			const files = sourceFiles(srcDir);
+			assert.ok(files.length > 0, `no source files found under ${srcDir}`);
+
+			// The gate is handed the function, never a call, so any invocation is a
+			// second exposure. The declaration in experiments.ts is not one.
+			const called = new RegExp(`(?<!function )${resolver}\\(`);
+			const callers = files
+				.filter((file) => called.test(readFileSync(file, "utf8")))
+				.map((file) => path.relative(srcDir, file));
+
+			assert.deepEqual(
+				callers,
+				[],
+				`${resolver}() must be called only by the flag gate, via its resolveArm reference`,
+			);
+		});
+	}
 });
