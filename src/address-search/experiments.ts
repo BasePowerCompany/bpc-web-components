@@ -145,8 +145,10 @@ export function ctaForComedArm(
 // arm rather than per entry. Kept a sibling of ctaForComedArm rather than folded
 // into it: this is the second instance of the pattern, not yet a third.
 const ENERGY_ARM_CTAS = {
-	t1: "See my plan",
-	t2: "Get my exact rate",
+	t1: "See available plans",
+	// Deliberately the same label /energy already ships, so t2 changes the entry
+	// and the destination without also changing the button copy.
+	t2: "See how much you can save",
 } as const;
 
 /**

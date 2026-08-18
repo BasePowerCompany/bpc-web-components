@@ -241,11 +241,16 @@ describe("resolveZipEntryEnergyArm", () => {
 
 describe("ctaForEnergyArm", () => {
 	// Each arm names its own reveal, so neither may inherit the host's address copy.
-	test("t1 promises the plan and t2 the rate", () => {
-		assert.equal(ctaForEnergyArm("t1", "Get savings estimate"), "See my plan");
+	// t2's label matches /energy's own hero CTA (EnergyPage.tsx heroCtaLabel), which
+	// is what control renders — so between t2 and control only the entry changes.
+	test("t1 offers the plans and t2 the savings", () => {
+		assert.equal(
+			ctaForEnergyArm("t1", "Get savings estimate"),
+			"See available plans",
+		);
 		assert.equal(
 			ctaForEnergyArm("t2", "Get savings estimate"),
-			"Get my exact rate",
+			"See how much you can save",
 		);
 	});
 
@@ -259,7 +264,10 @@ describe("ctaForEnergyArm", () => {
 
 	// Zip arms own their copy outright: a host cta must not reach them.
 	test("a host cta cannot override a treatment arm", () => {
-		assert.equal(ctaForEnergyArm("t1", "Check availability"), "See my plan");
+		assert.equal(
+			ctaForEnergyArm("t1", "Check availability"),
+			"See available plans",
+		);
 	});
 
 	// Control renders the address entry, which is the untouched /energy embed.
