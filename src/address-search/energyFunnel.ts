@@ -26,13 +26,59 @@ const ENERGY_ARM_ROUTES = {
 	t2: "/join-energy-calculator",
 } as const;
 
+const EXPERIMENT_FLAG_PARAM = "experiment_flag";
+
+// `<flagKey>:<variant>`, matching what marketing-ui emits for the dereg test.
+// Not a UTM, so decorateRedirectUrl does not carry it — it is set here.
+const armFlagValue = (arm: "t1" | "t2" | "control") =>
+	`${ZIP_ENTRY_ENERGY_FLAG}:${arm}`;
+
 // Every destination this experiment emits carries its arm, the waitlist included:
 // a visitor who never reaches the funnel is otherwise unattributable to an arm,
 // and the waitlist rate per arm is exactly what tells the two apart.
 function stampArm(url: URL, arm: "t1" | "t2"): void {
-	// `<flagKey>:<variant>`, matching what marketing-ui emits for the dereg test.
-	// Not a UTM, so decorateRedirectUrl does not carry it — it is set here.
-	url.searchParams.set("experiment_flag", `${ZIP_ENTRY_ENERGY_FLAG}:${arm}`);
+	url.searchParams.set(EXPERIMENT_FLAG_PARAM, armFlagValue(arm));
+}
+
+/**
+ * `experiment_flag` for the redirect the *address* path emits, or undefined to
+ * leave that redirect exactly as it is today. Checkout turns this param into a
+ * HubSpot property the same way for every arm, so control has to carry its arm
+ * too — the treatments build their own stamped URLs above, and an unstamped
+ * control would reach HubSpot with no arm and make the treatments look like
+ * they own every conversion.
+ *
+ * Only `control` qualifies. `unassigned` fired no exposure — flag off, PostHog
+ * absent, or the gate timed out — so stamping it would put people in HubSpot's
+ * arm population that the PostHog denominator never counted. Every other mode
+ * is outside this experiment and keeps its URL byte for byte.
+ */
+export function energyControlExperimentFlag(
+	isZipEnergyMode: boolean,
+	arm: "t1" | "t2" | "control" | "unassigned" | undefined,
+): string | undefined {
+	if (!isZipEnergyMode || arm !== "control") return undefined;
+	return armFlagValue("control");
+}
+
+/**
+ * Set `flag` on an already-built redirect URL, or hand the URL back untouched
+ * when there is no flag to set. Takes the absolute URL decorateRedirectUrl
+ * returns; an unparseable one passes through rather than breaking the
+ * navigation, as it does there.
+ */
+export function stampExperimentFlag(
+	redirectUrl: string,
+	flag: string | undefined,
+): string {
+	if (!flag) return redirectUrl;
+	try {
+		const url = new URL(redirectUrl);
+		url.searchParams.set(EXPERIMENT_FLAG_PARAM, flag);
+		return url.toString();
+	} catch {
+		return redirectUrl;
+	}
 }
 
 /**

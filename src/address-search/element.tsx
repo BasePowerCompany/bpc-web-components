@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { resolveEnergyDestination } from "@/address-search/energyDestination";
+import { energyControlExperimentFlag } from "@/address-search/energyFunnel";
 import {
 	ctaForComedArm,
 	ctaForEnergyArm,
@@ -224,6 +225,13 @@ class AddressSearchElement extends HTMLElement {
 							: ctaForComedArm("address", props.mode === "zip-comed", props.cta)
 					}
 					isEnergyOnly={props.isEnergyOnly}
+					// The energy control arm renders this address entry, so its arm rides
+					// out on this path's redirect. `energyArm` is the gate's one
+					// resolution: resolving again would fire a second exposure.
+					experimentFlag={energyControlExperimentFlag(
+						props.mode === "zip-energy",
+						energyArm,
+					)}
 					portalRoot={this.overlayRoot}
 					zIndex={zIndex}
 					onSelectEvent={this.emit("select")}
