@@ -123,22 +123,20 @@ export function resolveZipEntryEnergyArm():
 const COMED_ADDRESS_ARM_CTA = "See if your home qualifies";
 
 /**
- * Which CTA label each zip-comed arm renders. One `cta` attribute cannot carry
- * copy for both arms, so the zip arm keeps its own "Check Availability" default
- * and the host's value belongs to the address arm — and neither arm may end up
- * button-less, or CTA presence becomes a second variable the experiment never
- * meant to test. Every other embed is untouched: without `mode="zip-comed"` the
- * host's value passes through exactly as before, absent included.
+ * Which CTA label each zip-comed arm renders. Every entry honors the host's
+ * `cta`; the zip-comed address arm alone gets a fallback, because the address
+ * entry has no default of its own and would otherwise render no button. The zip
+ * entry's default lives in ZipSearchApp, which `undefined` falls through to.
  */
 export function ctaForComedArm(
 	entry: "zip" | "address",
 	isZipComedMode: boolean,
 	hostCta: string | undefined,
 ): string | undefined {
-	if (!isZipComedMode) return hostCta;
-	// undefined lets ZipSearchApp apply its own zip-appropriate default.
-	if (entry === "zip") return undefined;
-	return hostCta ?? COMED_ADDRESS_ARM_CTA;
+	if (isZipComedMode && entry === "address") {
+		return hostCta ?? COMED_ADDRESS_ARM_CTA;
+	}
+	return hostCta;
 }
 
 // Each energy zip arm names what its own destination reveals, so the CTA is per

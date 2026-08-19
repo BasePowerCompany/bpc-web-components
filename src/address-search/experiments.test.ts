@@ -285,12 +285,12 @@ describe("ctaForEnergyArm", () => {
 });
 
 describe("ctaForComedArm", () => {
-	// A host cta reaching the zip arm makes the arms differ in CTA copy as well as
-	// in entry — a second variable the experiment never meant to test.
-	test("the test arm ignores the host cta so it keeps the zip copy", () => {
+	// zip_entry_comed_0803 ended 2026-08-12 pinned to `test`, so there is no second
+	// arm left to hold the copy steady against — the host owns the label again.
+	test("the zip arm honors the host cta", () => {
 		assert.equal(
 			ctaForComedArm("zip", true, "See if your home qualifies"),
-			undefined,
+			"See if your home qualifies",
 		);
 	});
 
@@ -301,9 +301,8 @@ describe("ctaForComedArm", () => {
 		);
 	});
 
-	// The whole point: the address entry has no CTA default of its own, so an embed
-	// omitting `cta` would give the zip arm a button and the control arm none —
-	// making CTA presence the variable rather than zip entry.
+	// The address entry has no CTA default of its own, so without this fallback an
+	// embed omitting `cta` renders an address arm with no button at all.
 	test("neither arm is button-less when the embed omits cta", () => {
 		assert.equal(ctaForComedArm("zip", true, undefined), undefined);
 		assert.ok(
