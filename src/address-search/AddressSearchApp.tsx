@@ -10,7 +10,6 @@ import { fetchHydration } from "@/address-search/fetch";
 import { AddressConfirmModal } from "@/address-search/modal/AddressConfirmModal";
 import { SelectionModal } from "@/address-search/modal/SelectionModal";
 import { UnitRequirementPromptModal } from "@/address-search/modal/UnitRequirementPromptModal";
-import { maybeWrapInPlanReveal } from "@/address-search/planReveal";
 import type {
 	AddressResult,
 	ParsedGoogleAddressComponents,
@@ -179,20 +178,10 @@ export function AddressSearchApp({
 						return;
 					}
 
-					// Component owns URL decoration (embeds navigate only); deregulated test-arm results divert to /plan-reveal.
-					const next = decorateRedirectUrl(
-						result.data.redirectUrl,
-						result.data.externalAddressId,
-					);
-					// Stamped last, on what the host actually navigates to, so the
-					// captured URL below is the one the arm is read from.
+					// Component owns URL decoration (embeds navigate only); deregulated results use the decorated redirect.
 					const redirectUrl = stampExperimentFlag(
 						decorateRedirectUrl(
-							maybeWrapInPlanReveal({
-								utility: result.data.redirectStrategy.utility,
-								next,
-								city: detail.selection.address.city || undefined,
-							}),
+							result.data.redirectUrl,
 							result.data.externalAddressId,
 						),
 						experimentFlag,
@@ -227,7 +216,7 @@ export function AddressSearchApp({
 	const handleRedirect = useCallback(
 		(rawRedirectUrl: string) => {
 			if (!selection) return;
-			// Modal/splash paths: decorate and dispatch — plan-reveal is single-utility only.
+			// Modal/splash paths: decorate and dispatch.
 			// The energy-only splash lands here, so this is where the control arm's
 			// stamp reaches /energy.
 			const redirectUrl = stampExperimentFlag(

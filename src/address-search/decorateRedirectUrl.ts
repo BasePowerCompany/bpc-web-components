@@ -1,6 +1,6 @@
 /**
- * Sole decorator for redirect URLs (mirrors the Webflow embed; embeds navigate only),
- * so control and the plan-reveal `next` share one path. Keep in sync with the embed's keys.
+ * Sole decorator for redirect URLs (mirrors the Webflow embed; embeds navigate only).
+ * Keep in sync with the embed's keys.
  */
 
 // UTM / referral keys persisted through the funnel handoff. Mirrors the embed script.

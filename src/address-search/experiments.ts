@@ -19,7 +19,7 @@
  *     `posthogOnFeatureFlags` (below) and resolve only on the element that opts
  *     into the experiment. For navigation-time arms, resolve at divert time.
  *
- * `resolvePlanRevealArm` (below) is the reference implementation.
+ * `resolveZipEntryComedArm` (below) is the reference implementation.
  *
  * ───────────────────────────────────────────────────────────────────────────
  */
@@ -57,26 +57,6 @@ export function captureExposure(flagKey: string, variant: string): void {
 		{ $feature_flag: flagKey, $feature_flag_response: variant },
 		{ send_instantly: true, transport: "sendBeacon" },
 	);
-}
-
-const PLAN_REVEAL_TEST_FLAG = "dereg_plan_reveal_0724";
-
-/**
- * Plan-reveal experiment arm (see ./planReveal). Reads the flag WITHOUT sending
- * the built-in exposure, then records `$feature_flag_called` only for a user
- * actually assigned a variant — a user outside the rollout population
- * (`unassigned`) logs no exposure. Call this ONLY at divert time for an
- * already-known-eligible (deregulated) user so exposure stays scoped to the
- * eligible, assigned population.
- *
- */
-export function resolvePlanRevealArm(): "test" | "control" | "unassigned" {
-	const variant = posthogGetFeatureFlag(PLAN_REVEAL_TEST_FLAG, {
-		send_event: false,
-	});
-	if (variant !== "test" && variant !== "control") return "unassigned";
-	captureExposure(PLAN_REVEAL_TEST_FLAG, variant);
-	return variant;
 }
 
 export const ZIP_ENTRY_COMED_FLAG = "zip_entry_comed_0803";
