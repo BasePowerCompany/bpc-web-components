@@ -3,7 +3,6 @@ import { createPortal } from "react-dom";
 import { CtaButton } from "@/address-search/CtaButton";
 import { decorateRedirectUrl } from "@/address-search/decorateRedirectUrl";
 import { fetchZipRouting } from "@/address-search/fetch";
-import { maybeWrapInPlanReveal } from "@/address-search/planReveal";
 import { autoSelectPreferredUtility } from "@/address-search/preferredUtility";
 import type { RedirectMultipleOption } from "@/address-search/types";
 import { posthogCapture } from "@/address-search/utils";
@@ -90,7 +89,7 @@ export function ZipSearchApp({
 		[onResultEvent, zip],
 	);
 
-	// Modal path: rebase and dispatch — no plan-reveal, a multi-utility zip is not a single deregulated result.
+	// Modal path: rebase and dispatch — a multi-utility zip is not a single deregulated result.
 	const emitRedirect = useCallback(
 		(redirectUrl: string, utility?: string) => {
 			dispatchRedirect(
@@ -177,16 +176,11 @@ export function ZipSearchApp({
 			zip: normalized,
 			utility: strategy.utility,
 		});
-		// Single-utility result: rebase + decorate, then divert deregulated test-arm zips to /plan-reveal.
+		// Single-utility result: rebase + decorate, then dispatch.
 		const next = decorateRedirectUrl(
 			rebaseToZipFunnel(result.data.redirectUrl),
 		);
-		dispatchRedirect(
-			decorateRedirectUrl(
-				maybeWrapInPlanReveal({ utility: strategy.utility, next }),
-			),
-			strategy.utility,
-		);
+		dispatchRedirect(next, strategy.utility);
 	}, [
 		zip,
 		loading,

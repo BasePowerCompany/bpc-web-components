@@ -118,8 +118,8 @@ describe("autoSelectPreferredUtility", () => {
 		assert.deepEqual(captures, []);
 	});
 
-	// A single-utility zip already has its route, and its own path wraps the
-	// redirect in plan-reveal — auto-selecting here would skip that.
+	// A single-utility zip already has its route, and its own path decorates
+	// the redirect — auto-selecting here would skip that.
 	test("a single-utility result is untouched, even when its utility matches", () => {
 		const { handled, emitted, captures } = run(single, "COSERV");
 		assert.equal(handled, false);
