@@ -6,7 +6,6 @@ import { fetchZipRouting } from "@/address-search/fetch";
 import { autoSelectPreferredUtility } from "@/address-search/preferredUtility";
 import type { RedirectMultipleOption } from "@/address-search/types";
 import { posthogCapture } from "@/address-search/utils";
-import { rebaseToZipFunnel } from "@/address-search/zipFunnel";
 import { cx } from "@/utils/cx";
 import MapPin from "./MapPin";
 import { UtilitySelectionModal } from "./modal/UtilitySelectionModal";
@@ -89,13 +88,10 @@ export function ZipSearchApp({
 		[onResultEvent, zip],
 	);
 
-	// Modal path: rebase and dispatch — a multi-utility zip is not a single deregulated result.
+	// Modal path: dispatch — a multi-utility zip is not a single deregulated result.
 	const emitRedirect = useCallback(
 		(redirectUrl: string, utility?: string) => {
-			dispatchRedirect(
-				decorateRedirectUrl(rebaseToZipFunnel(redirectUrl)),
-				utility,
-			);
+			dispatchRedirect(decorateRedirectUrl(redirectUrl), utility);
 		},
 		[dispatchRedirect],
 	);
@@ -176,10 +172,8 @@ export function ZipSearchApp({
 			zip: normalized,
 			utility: strategy.utility,
 		});
-		// Single-utility result: rebase + decorate, then dispatch.
-		const next = decorateRedirectUrl(
-			rebaseToZipFunnel(result.data.redirectUrl),
-		);
+		// Single-utility result: decorate, then dispatch.
+		const next = decorateRedirectUrl(result.data.redirectUrl);
 		dispatchRedirect(next, strategy.utility);
 	}, [
 		zip,

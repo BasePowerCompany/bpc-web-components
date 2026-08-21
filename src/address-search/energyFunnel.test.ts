@@ -68,7 +68,7 @@ describe("energyFunnelUrl", () => {
 		}
 	});
 
-	// Guard against a future edit reaching for zipFunnel's /join-now-zip family:
+	// Guard against a future edit reaching for battery zip funnel paths such as /join-now-zip:
 	// that data has no AEP or TNMP rows and would waitlist most of this market.
 	test("neither arm routes through a battery-footprint zip path", () => {
 		for (const arm of ["t1", "t2"] as const) {

@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { decorateRedirectUrl } from "@/address-search/decorateRedirectUrl";
 import { autoSelectPreferredUtility } from "@/address-search/preferredUtility";
 import type { ZipRedirectStrategy } from "@/address-search/types";
-import { rebaseToZipFunnel } from "@/address-search/zipFunnel";
 
 type Capture = { event: string; properties: Record<string, unknown> };
 const captures: Capture[] = [];
@@ -59,29 +57,11 @@ describe("autoSelectPreferredUtility", () => {
 	test("takes the matching option and emits its raw redirect URL", () => {
 		const { handled, emitted } = run(multiple, "COSERV");
 		assert.equal(handled, true);
-		// Raw, not pre-transformed: the caller's emitRedirect owns the rebase and the
-		// decoration, and transforming here would double-apply them.
+		// Raw, not pre-transformed: the caller's emitRedirect owns the
+		// decoration, and transforming here would double-apply it.
 		assert.deepEqual(emitted, [
 			{ redirectUrl: COSERV.redirectUrl, utility: "COSERV" },
 		]);
-	});
-
-	// What the caller's emitRedirect does with that URL. Without the rebase the
-	// auto-selected visitor lands on the address funnel; without the decoration
-	// they arrive with no attribution.
-	test("the emitted URL rebases to the zip funnel and carries attribution", () => {
-		const { emitted } = run(multiple, "COSERV");
-		(globalThis as { document?: unknown }).document = {
-			cookie: "utm_source=google; base_vid=abc123",
-		};
-		const final = decorateRedirectUrl(
-			rebaseToZipFunnel(emitted[0].redirectUrl),
-		);
-		(globalThis as { document?: unknown }).document = { cookie: "" };
-		assert.equal(
-			final,
-			"https://www.basepowercompany.com/coserv/join-zip?postal_code=75009&utility=COSERV&utm_source=google&base_vid=abc123",
-		);
 	});
 
 	test("captures the auto-select with the zip, chosen utility and options", () => {

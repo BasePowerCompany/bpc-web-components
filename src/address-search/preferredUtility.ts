@@ -12,8 +12,8 @@ export function autoSelectPreferredUtility({
 	strategy: ZipRedirectStrategy;
 	preferred: string | undefined;
 	zip: string;
-	// The caller's redirect path, so the option's URL still gets the zip-funnel
-	// rebase and the attribution decoration.
+	// The caller's redirect path, so the option's URL still gets the attribution
+	// decoration.
 	emitRedirect: (redirectUrl: string, utility?: string) => void;
 }): boolean {
 	if (!preferred || !strategy.isMultiple) return false;

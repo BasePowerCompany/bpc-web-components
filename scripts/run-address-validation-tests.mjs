@@ -40,7 +40,6 @@ try {
 			path.join(rootDir, "src/address-search/flagGate.test.ts"),
 			path.join(rootDir, "src/address-search/focusTarget.test.ts"),
 			path.join(rootDir, "src/address-search/preferredUtility.test.ts"),
-			path.join(rootDir, "src/address-search/zipFunnel.test.ts"),
 		],
 		outdir: tempDir,
 		outExtension: { ".js": ".mjs" },
@@ -69,7 +68,6 @@ try {
 			path.join(tempDir, "flagGate.test.mjs"),
 			path.join(tempDir, "focusTarget.test.mjs"),
 			path.join(tempDir, "preferredUtility.test.mjs"),
-			path.join(tempDir, "zipFunnel.test.mjs"),
 		],
 		{ stdio: "inherit" },
 	);
