@@ -16,6 +16,7 @@ const UTM_KEYS = [
 	"promo_code",
 	"heard_from",
 	"referral_plan",
+	"ref",
 	"sci_id",
 	"awc",
 	"ttclid",
