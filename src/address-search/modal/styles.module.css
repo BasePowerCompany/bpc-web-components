@@ -20,9 +20,16 @@
 
 .utilityModalImage {
 	width: 50%;
-	background-image: url("https://bpc-web-static-files.s3.us-east-2.amazonaws.com/Utility-Confirm-Hero-Desktop.jpg");
+	background-image: url("https://bpc-web-static-files.s3.us-east-2.amazonaws.com/Utility-Confirm-Hero-Bala-Family-1x.jpeg");
+	/* biome-ignore lint/suspicious/noDuplicateProperties: url() fallback for browsers without image-set support */
+	background-image: image-set(
+		url("https://bpc-web-static-files.s3.us-east-2.amazonaws.com/Utility-Confirm-Hero-Bala-Family-1x.jpeg")
+			1x,
+		url("https://bpc-web-static-files.s3.us-east-2.amazonaws.com/Utility-Confirm-Hero-Bala-Family-2x.jpeg")
+			2x
+	);
 	background-size: cover;
-	background-position: right center;
+	background-position: center;
 }
 
 .backButton {
