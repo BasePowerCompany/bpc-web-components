@@ -20,7 +20,11 @@
 
 .utilityModalImage {
 	width: 50%;
-	background-image: url("https://cdn.jsdelivr.net/gh/BasePowerCompany/bpc-web-components@dbdf365f6e4903539e3ea225680b61fd42177a00/assets/utility-confirm-hero-bala-family.jpg");
+	background-image: url("https://bpc-web-static-files.s3.us-east-2.amazonaws.com/Utility-Confirm-Hero-Bala-Family-1x.jpeg");
+	background-image: image-set(
+		url("https://bpc-web-static-files.s3.us-east-2.amazonaws.com/Utility-Confirm-Hero-Bala-Family-1x.jpeg") 1x,
+		url("https://bpc-web-static-files.s3.us-east-2.amazonaws.com/Utility-Confirm-Hero-Bala-Family-2x.jpeg") 2x
+	);
 	background-size: cover;
 	background-position: center;
 }
