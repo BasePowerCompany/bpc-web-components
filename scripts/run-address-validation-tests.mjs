@@ -12,8 +12,7 @@ const rootDir = path.resolve(
 );
 const tempDir = await mkdtemp(path.join(tmpdir(), "bpc-address-tests-"));
 
-// Stands in for the Vite env var under test. Tests assert request URLs against
-// this literal, so keep it in step with energyDestination.test.ts.
+// Provides the Vite environment value when tests import fetch.ts in Node.
 const DASHBOARD_WEB_HOST = "https://dashboard.test";
 
 const aliasPlugin = {
@@ -34,8 +33,6 @@ try {
 	await esbuild.build({
 		entryPoints: [
 			path.join(rootDir, "src/address-search/addressValidation.test.ts"),
-			path.join(rootDir, "src/address-search/energyDestination.test.ts"),
-			path.join(rootDir, "src/address-search/energyFunnel.test.ts"),
 			path.join(rootDir, "src/address-search/experiments.test.ts"),
 			path.join(rootDir, "src/address-search/flagGate.test.ts"),
 			path.join(rootDir, "src/address-search/focusTarget.test.ts"),
@@ -62,8 +59,6 @@ try {
 		[
 			"--test",
 			path.join(tempDir, "addressValidation.test.mjs"),
-			path.join(tempDir, "energyDestination.test.mjs"),
-			path.join(tempDir, "energyFunnel.test.mjs"),
 			path.join(tempDir, "experiments.test.mjs"),
 			path.join(tempDir, "flagGate.test.mjs"),
 			path.join(tempDir, "focusTarget.test.mjs"),

@@ -5,7 +5,6 @@ import {
 	requireSubpremise,
 } from "@/address-search/addressValidation";
 import { decorateRedirectUrl } from "@/address-search/decorateRedirectUrl";
-import { stampExperimentFlag } from "@/address-search/energyFunnel";
 import { fetchHydration } from "@/address-search/fetch";
 import { AddressConfirmModal } from "@/address-search/modal/AddressConfirmModal";
 import { SelectionModal } from "@/address-search/modal/SelectionModal";
@@ -23,11 +22,6 @@ export type AddressSearchAppProps = {
 	placeholder?: string;
 	cta?: string;
 	isEnergyOnly: boolean;
-	/**
-	 * `experiment_flag` to stamp on the redirect this path emits, undefined for
-	 * every embed that is not an experiment's address arm. See ./energyFunnel.
-	 */
-	experimentFlag?: string;
 	portalRoot: ShadowRoot;
 	zIndex: number;
 	onSelectEvent: (detail: {
@@ -47,7 +41,6 @@ export function AddressSearchApp({
 	placeholder,
 	cta,
 	isEnergyOnly,
-	experimentFlag,
 	portalRoot,
 	zIndex,
 	onSelectEvent,
@@ -179,12 +172,9 @@ export function AddressSearchApp({
 					}
 
 					// Component owns URL decoration (embeds navigate only); deregulated results use the decorated redirect.
-					const redirectUrl = stampExperimentFlag(
-						decorateRedirectUrl(
-							result.data.redirectUrl,
-							result.data.externalAddressId,
-						),
-						experimentFlag,
+					const redirectUrl = decorateRedirectUrl(
+						result.data.redirectUrl,
+						result.data.externalAddressId,
 					);
 
 					// Funnel parity with zip_search_redirect: captured before dispatch
@@ -210,18 +200,16 @@ export function AddressSearchApp({
 				onErrorEvent({ error: result.error });
 			}
 		},
-		[isEnergyOnly, experimentFlag, onSelectEvent, onResultEvent, onErrorEvent],
+		[isEnergyOnly, onSelectEvent, onResultEvent, onErrorEvent],
 	);
 
 	const handleRedirect = useCallback(
 		(rawRedirectUrl: string) => {
 			if (!selection) return;
 			// Modal/splash paths: decorate and dispatch.
-			// The energy-only splash lands here, so this is where the control arm's
-			// stamp reaches /energy.
-			const redirectUrl = stampExperimentFlag(
-				decorateRedirectUrl(rawRedirectUrl, externalAddressId ?? undefined),
-				experimentFlag,
+			const redirectUrl = decorateRedirectUrl(
+				rawRedirectUrl,
+				externalAddressId ?? undefined,
 			);
 			// Funnel parity with zip_search_redirect (modal/splash paths): captured
 			// before dispatch so the event isn't lost to the navigation.
@@ -237,13 +225,7 @@ export function AddressSearchApp({
 				validationSessionId: selectionValidationSessionId,
 			});
 		},
-		[
-			onResultEvent,
-			selection,
-			externalAddressId,
-			selectionValidationSessionId,
-			experimentFlag,
-		],
+		[onResultEvent, selection, externalAddressId, selectionValidationSessionId],
 	);
 
 	const handleUserSelectAddress = useCallback(

@@ -1,15 +1,10 @@
 import { StrictMode } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
-import { resolveEnergyDestination } from "@/address-search/energyDestination";
-import { energyControlExperimentFlag } from "@/address-search/energyFunnel";
 import {
 	ctaForComedArm,
-	ctaForEnergyArm,
 	resolveZipEntryComedArm,
-	resolveZipEntryEnergyArm,
 	ZIP_ENTRY_COMED_FLAG,
-	ZIP_ENTRY_ENERGY_FLAG,
 } from "@/address-search/experiments";
 import { createFlagGate } from "@/address-search/flagGate";
 import { resolveFocusTarget } from "@/address-search/focusTarget";
@@ -32,9 +27,7 @@ function parseProps(el: HTMLElement) {
 			? "zip"
 			: modeAttr === "zip-comed"
 				? "zip-comed"
-				: modeAttr === "zip-energy"
-					? "zip-energy"
-					: "address";
+				: "address";
 	return {
 		publicApiKey,
 		placeholder,
@@ -73,15 +66,6 @@ class AddressSearchElement extends HTMLElement {
 		// Tagged: this event name also carries the concluded TX experiment's timeouts.
 		onTimeout: () =>
 			posthogCapture("zip_entry_flags_timeout", { flag: ZIP_ENTRY_COMED_FLAG }),
-	});
-	// Its own gate, so an energy embed's wait never resolves the ComEd arm (or the
-	// reverse) and each experiment memoizes one exposure independently.
-	private readonly energyGate = createFlagGate({
-		resolveArm: resolveZipEntryEnergyArm,
-		onTimeout: () =>
-			posthogCapture("zip_entry_flags_timeout", {
-				flag: ZIP_ENTRY_ENERGY_FLAG,
-			}),
 	});
 	// `mode` is intentionally not observed: it is a static embed attribute, so
 	// runtime flips are unsupported.
@@ -165,40 +149,17 @@ class AddressSearchElement extends HTMLElement {
 			}
 		}
 
-		let energyArm: ReturnType<typeof resolveZipEntryEnergyArm> | undefined;
-		if (props.mode === "zip-energy") {
-			energyArm = this.energyGate.arm(() => this.renderApp());
-			if (!energyArm) {
-				this.reactRoot.render(null);
-				return;
-			}
-		}
-
 		// One call site for every zip arm; control/unassigned fall through to address.
 		const isComedTestArm = comedArm === "test";
-		const isEnergyTestArm = energyArm === "t1" || energyArm === "t2";
-		const renderZipEntry =
-			props.mode === "zip" || isComedTestArm || isEnergyTestArm;
+		const renderZipEntry = props.mode === "zip" || isComedTestArm;
 
 		if (renderZipEntry) {
-			// Energy arms resolve their own destination (utility lookup + funnel URL);
-			// every other zip entry asks the zip router. See ./energyFunnel for why
-			// they cannot share it.
-			const energyDestination =
-				energyArm === "t1" || energyArm === "t2"
-					? (zip: string) => resolveEnergyDestination({ arm: energyArm, zip })
-					: undefined;
 			this.reactRoot.render(
 				<StrictMode>
 					<ZipSearchApp
 						portalRoot={this.overlayRoot}
-						cta={
-							props.mode === "zip-energy"
-								? ctaForEnergyArm(energyArm ?? "unassigned", props.cta)
-								: ctaForComedArm("zip", props.mode === "zip-comed", props.cta)
-						}
+						cta={ctaForComedArm("zip", props.mode === "zip-comed", props.cta)}
 						preferredUtility={props.preferredUtility}
-						resolveDestination={energyDestination}
 						onResultEvent={this.emit("result")}
 						onErrorEvent={this.emit("error")}
 					/>
@@ -219,19 +180,8 @@ class AddressSearchElement extends HTMLElement {
 			<StrictMode>
 				<AddressSearchApp
 					placeholder={props.placeholder}
-					cta={
-						props.mode === "zip-energy"
-							? ctaForEnergyArm(energyArm ?? "unassigned", props.cta)
-							: ctaForComedArm("address", props.mode === "zip-comed", props.cta)
-					}
+					cta={ctaForComedArm("address", props.mode === "zip-comed", props.cta)}
 					isEnergyOnly={props.isEnergyOnly}
-					// The energy control arm renders this address entry, so its arm rides
-					// out on this path's redirect. `energyArm` is the gate's one
-					// resolution: resolving again would fire a second exposure.
-					experimentFlag={energyControlExperimentFlag(
-						props.mode === "zip-energy",
-						energyArm,
-					)}
 					portalRoot={this.overlayRoot}
 					zIndex={zIndex}
 					onSelectEvent={this.emit("select")}

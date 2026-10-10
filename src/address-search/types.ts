@@ -100,17 +100,3 @@ export type ZipRoutingResult =
 			success: false;
 			error: string;
 	  };
-
-/**
- * Internal utility codes serving a zip (ONCOR, AEP_CENTRAL, …). An empty array
- * is a successful lookup: the zip is outside the energy-only footprint.
- */
-export type EnergyOnlyUtilitiesResult =
-	| {
-			success: true;
-			utilities: string[];
-	  }
-	| {
-			success: false;
-			error: string;
-	  };
