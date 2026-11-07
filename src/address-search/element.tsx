@@ -20,6 +20,7 @@ function parseProps(el: HTMLElement) {
 	const placeholder = el.getAttribute("placeholder") || undefined;
 	const cta = el.getAttribute("cta") || undefined;
 	const isEnergyOnly = el.getAttribute("is-energy-only") === "true";
+	const isCommercial = el.getAttribute("is-commercial") === "true";
 	const preferredUtility = el.getAttribute("preferred-utility") || undefined;
 	const modeAttr = el.getAttribute("mode");
 	const mode =
@@ -33,6 +34,7 @@ function parseProps(el: HTMLElement) {
 		placeholder,
 		cta,
 		isEnergyOnly,
+		isCommercial,
 		preferredUtility,
 		mode,
 	};
@@ -75,6 +77,7 @@ class AddressSearchElement extends HTMLElement {
 			"placeholder",
 			"cta",
 			"is-energy-only",
+			"is-commercial",
 			"preferred-utility",
 		];
 	}
@@ -182,6 +185,7 @@ class AddressSearchElement extends HTMLElement {
 					placeholder={props.placeholder}
 					cta={ctaForComedArm("address", props.mode === "zip-comed", props.cta)}
 					isEnergyOnly={props.isEnergyOnly}
+					isCommercial={props.isCommercial}
 					portalRoot={this.overlayRoot}
 					zIndex={zIndex}
 					onSelectEvent={this.emit("select")}

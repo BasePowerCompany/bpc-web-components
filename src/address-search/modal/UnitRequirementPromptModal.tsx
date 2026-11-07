@@ -10,6 +10,7 @@ import { cx } from "@/utils/cx";
 import styles from "./styles.module.css";
 
 export type UnitRequirementPromptModalProps = {
+	isCommercial: boolean;
 	selection: AddressResult;
 	validationResult: AddressValidationResult;
 	validationSessionId: string;
@@ -20,6 +21,7 @@ export type UnitRequirementPromptModalProps = {
 };
 
 export function UnitRequirementPromptModal({
+	isCommercial,
 	selection,
 	validationResult,
 	validationSessionId,
@@ -113,11 +115,14 @@ export function UnitRequirementPromptModal({
 				<div className={styles.unitPromptHeader}>
 					<p className={styles.unitPromptEyebrow}>One quick check</p>
 					<h2 id={titleId} className={styles.unitPromptTitle}>
-						Do you have an apartment or unit number?
+						{isCommercial
+							? "Does your business have a suite or unit number?"
+							: "Do you have an apartment or unit number?"}
 					</h2>
 					<p id={descriptionId} className={styles.unitPromptDescription}>
-						Some addresses include apartments, condos, suites, or other units.
-						If yours does, add it next so we can match the right home.
+						{isCommercial
+							? "Some business addresses include suites or other units. If yours does, add it next so we can match the right business."
+							: "Some addresses include apartments, condos, suites, or other units. If yours does, add it next so we can match the right home."}
 					</p>
 				</div>
 
@@ -150,7 +155,9 @@ export function UnitRequirementPromptModal({
 								Yes, I have a unit number
 							</span>
 							<span className={styles.unitPromptOptionSubtitle}>
-								Apartment, condo, suite, or other unit
+								{isCommercial
+									? "Suite or other business unit"
+									: "Apartment, condo, suite, or other unit"}
 							</span>
 						</span>
 					</button>
@@ -167,7 +174,9 @@ export function UnitRequirementPromptModal({
 						/>
 						<span className={styles.unitPromptOptionCopy}>
 							<span className={styles.unitPromptOptionTitle}>
-								No, this is a single-family home
+								{isCommercial
+									? "No, this business doesn't have a suite or unit"
+									: "No, this is a single-family home"}
 							</span>
 							<span className={styles.unitPromptOptionSubtitle}>
 								Continue without a unit number
