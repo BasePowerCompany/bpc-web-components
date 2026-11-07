@@ -33,6 +33,10 @@ try {
 	await esbuild.build({
 		entryPoints: [
 			path.join(rootDir, "src/address-search/addressValidation.test.ts"),
+			path.join(
+				rootDir,
+				"src/address-search/modal/AddressConfirmModal.copy.test.ts",
+			),
 			path.join(rootDir, "src/address-search/experiments.test.ts"),
 			path.join(rootDir, "src/address-search/flagGate.test.ts"),
 			path.join(rootDir, "src/address-search/focusTarget.test.ts"),
@@ -59,6 +63,7 @@ try {
 		[
 			"--test",
 			path.join(tempDir, "addressValidation.test.mjs"),
+			path.join(tempDir, "modal/AddressConfirmModal.copy.test.mjs"),
 			path.join(tempDir, "experiments.test.mjs"),
 			path.join(tempDir, "flagGate.test.mjs"),
 			path.join(tempDir, "focusTarget.test.mjs"),

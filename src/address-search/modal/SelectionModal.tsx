@@ -8,6 +8,7 @@ import { EnergyOnlySplashModal } from "./EnergyOnlySplashModal";
 import { UtilitySelectionModal } from "./UtilitySelectionModal";
 
 export type SelectionModalProps = {
+	isCommercial: boolean;
 	address: string;
 	externalAddressId: string;
 	multipleAddressOptions: RedirectMultipleAddress | undefined;
@@ -19,6 +20,7 @@ export type SelectionModalProps = {
 };
 
 export function SelectionModal({
+	isCommercial,
 	address,
 	externalAddressId,
 	multipleAddressOptions,
@@ -32,6 +34,7 @@ export function SelectionModal({
 	if (multipleAddressOptions) {
 		return (
 			<AddressSelectionModal
+				isCommercial={isCommercial}
 				address={address}
 				addressOptions={multipleAddressOptions}
 				onSelectAddress={onSelectAddress}

@@ -24,12 +24,14 @@ export type Copy = {
 	title: string;
 	banner?: Banner;
 	line2Placeholder: string;
+	line2ErrorText: string;
 	continueLabel: string;
 };
 
 const DEFAULT_COPY: Copy = {
 	title: "Confirm your address",
 	line2Placeholder: "Apartment, unit, or structure (optional)",
+	line2ErrorText: "Please enter your apartment or unit number to continue.",
 	continueLabel: "Continue",
 };
 
@@ -77,6 +79,27 @@ const COPY_BY_KIND: Partial<Record<AddressValidationKind, Partial<Copy>>> = {
 	},
 };
 
+/** A business has suites, not apartments: replaces every home-only phrase above. */
+const BUSINESS_COPY: Partial<Copy> = {
+	line2Placeholder: "Suite or unit (optional)",
+	line2ErrorText: "Please enter your suite or unit number to continue.",
+};
+const BUSINESS_COPY_BY_KIND: Partial<
+	Record<AddressValidationKind, Partial<Copy>>
+> = {
+	missing_subpremise: {
+		title: "Confirm your suite or unit number",
+		banner: {
+			tone: "warn",
+			text: "This looks like a multi-unit building. Add your suite or unit number to continue.",
+		},
+		line2Placeholder: "Suite or unit number",
+	},
+	confirm_subpremise: {
+		line2Placeholder: "Suite, unit, or building",
+	},
+};
+
 /** Maps Google component types to user-facing labels. */
 const COMPONENT_LABELS: Record<string, string> = {
 	route: "street name",
@@ -115,8 +138,14 @@ function describeComponents(types: string[]): string {
 export function copyFor(
 	kind: AddressValidationKind,
 	unconfirmedComponentTypes: string[] = [],
+	isCommercial = false,
 ): Copy {
-	const base: Copy = { ...DEFAULT_COPY, ...(COPY_BY_KIND[kind] ?? {}) };
+	const base: Copy = {
+		...DEFAULT_COPY,
+		...(COPY_BY_KIND[kind] ?? {}),
+		...(isCommercial ? BUSINESS_COPY : {}),
+		...(isCommercial ? (BUSINESS_COPY_BY_KIND[kind] ?? {}) : {}),
+	};
 	if (kind === "confirm_components") {
 		base.banner = {
 			tone: "warn",
