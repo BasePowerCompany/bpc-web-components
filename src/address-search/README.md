@@ -7,6 +7,7 @@ Autocomplete based address search.
 - `cta` - Adds the call-to-action button with the defined text (default: undefined -- no CTA)
 - `public-key` - The Google Maps API key to load the component with
 - `is-energy-only` - When set to `"true"`, passes `is_energy_only` to the address router and shows a 3-second splash screen before redirecting to the checkout page
+- `is-commercial` - When set to `"true"`, uses business wording (suite, not apartment or home) in the placeholder default and the unit, confirm, and address-selection modals. The flow, events, and redirect stay the same
 
 ### Events
 - `select` - Fired when an address is selected

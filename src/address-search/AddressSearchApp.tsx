@@ -22,6 +22,8 @@ export type AddressSearchAppProps = {
 	placeholder?: string;
 	cta?: string;
 	isEnergyOnly: boolean;
+	/** Business wording for the unit and address prompts; the flow is unchanged. */
+	isCommercial?: boolean;
 	portalRoot: ShadowRoot;
 	zIndex: number;
 	onSelectEvent: (detail: {
@@ -41,6 +43,7 @@ export function AddressSearchApp({
 	placeholder,
 	cta,
 	isEnergyOnly,
+	isCommercial = false,
 	portalRoot,
 	zIndex,
 	onSelectEvent,
@@ -340,7 +343,11 @@ export function AddressSearchApp({
 
 	const resolvedPlaceholder =
 		placeholder ||
-		(isEnergyOnly ? "Street address" : "Enter your home address");
+		(isCommercial
+			? "Enter your business address"
+			: isEnergyOnly
+				? "Street address"
+				: "Enter your home address");
 
 	return (
 		<>
@@ -358,6 +365,7 @@ export function AddressSearchApp({
 			{unitRequirementData &&
 				createPortal(
 					<UnitRequirementPromptModal
+						isCommercial={isCommercial}
 						selection={unitRequirementData.selection}
 						validationResult={unitRequirementData.validationResult}
 						validationSessionId={unitRequirementData.validationSessionId}
@@ -371,6 +379,7 @@ export function AddressSearchApp({
 			{addressConfirmData &&
 				createPortal(
 					<AddressConfirmModal
+						isCommercial={isCommercial}
 						selection={addressConfirmData.selection}
 						googleAddressComponents={addressConfirmData.googleAddressComponents}
 						validationResult={addressConfirmData.validationResult}
@@ -384,6 +393,7 @@ export function AddressSearchApp({
 			{shouldShowModal &&
 				createPortal(
 					<SelectionModal
+						isCommercial={isCommercial}
 						address={selection?.formattedAddress ?? ""}
 						externalAddressId={externalAddressId ?? ""}
 						multipleAddressOptions={multipleAddressResults}

@@ -23,6 +23,7 @@ import { ConfirmField } from "./ConfirmField";
 import styles from "./styles.module.css";
 
 export type AddressConfirmModalProps = {
+	isCommercial: boolean;
 	selection: AddressResult;
 	googleAddressComponents: ParsedGoogleAddressComponents;
 	validationResult: AddressValidationResult;
@@ -70,6 +71,7 @@ function diffFields(
 }
 
 export function AddressConfirmModal({
+	isCommercial,
 	selection,
 	googleAddressComponents,
 	validationResult,
@@ -80,8 +82,9 @@ export function AddressConfirmModal({
 }: AddressConfirmModalProps) {
 	const { kind } = validationResult;
 	const copy = useMemo(
-		() => copyFor(kind, validationResult.unconfirmedComponentTypes),
-		[kind, validationResult.unconfirmedComponentTypes],
+		() =>
+			copyFor(kind, validationResult.unconfirmedComponentTypes, isCommercial),
+		[kind, validationResult.unconfirmedComponentTypes, isCommercial],
 	);
 	const isFieldHighlighted = useFieldHighlight(validationResult);
 	const [line1, setLine1] = useState(
@@ -299,7 +302,7 @@ export function AddressConfirmModal({
 						placeholder={copy.line2Placeholder}
 						highlighted={isFieldHighlighted("line2")}
 						error={line2Missing}
-						errorText="Please enter your apartment or unit number to continue."
+						errorText={copy.line2ErrorText}
 						errorId={line2WarningId}
 					/>
 					<div className={styles.addressConfirmGrid}>

@@ -41,6 +41,7 @@ function RadioButton({ selected }: { selected: boolean }) {
 }
 
 export type AddressSelectionModalProps = {
+	isCommercial: boolean;
 	address: string;
 	addressOptions: RedirectMultipleAddress;
 	onSelectAddress: (address: AddressResult) => void;
@@ -48,6 +49,7 @@ export type AddressSelectionModalProps = {
 };
 
 export function AddressSelectionModal({
+	isCommercial,
 	address,
 	addressOptions,
 	onSelectAddress,
@@ -88,7 +90,8 @@ export function AddressSelectionModal({
 					We found 2 possible addresses:
 				</h1>
 				<p className={styles.utilityModalSubtitle}>
-					Help us find the right serviceable address for your home.
+					Help us find the right serviceable address for your{" "}
+					{isCommercial ? "business" : "home"}.
 				</p>
 
 				<div className={styles.addressOptions}>
